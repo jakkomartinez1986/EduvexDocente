@@ -1,0 +1,165 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Models\Security\Authorizations\Permission;
+use Flux\Flux;
+use Livewire\Attributes\On;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+use Livewire\WithPagination;
+
+new #[Title('Permisos')] class extends Component {
+    use WithPagination;
+
+    public string $search = '';
+    public string $moduleFilter = '';
+    public int $perPage = 15;
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedModuleFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function confirmDestroy(int $id): void
+    {
+        $this->dispatch('showConfirm',
+            message: 'Esta seguro de eliminar este permiso?',
+            eventName: 'execute-destroy-permission',
+            eventParams: ['id' => $id]
+        )->to('confirm-action');
+    }
+
+    #[On('execute-destroy-permission')]
+    public function executeDestroyPermission(array $params): void
+    {
+        $permission = Permission::find($params['id']);
+        if ($permission) {
+            $this->destroy($permission);
+        }
+    }
+
+    public function getModulesProperty(): array
+    {
+        return Permission::select('module')
+            ->distinct()
+            ->orderBy('module')
+            ->pluck('module')
+            ->toArray();
+    }
+
+    public function getRecordsProperty()
+    {
+        return Permission::query()
+            ->when($this->search, fn ($q) =>
+                $q->where('name', 'ilike', "%{$this->search}%")
+                    ->orWhere('label', 'ilike', "%{$this->search}%")
+            )
+            ->when($this->moduleFilter, fn ($q) =>
+                $q->where('module', $this->moduleFilter)
+            )
+            ->latest()
+            ->paginate($this->perPage);
+    }
+
+    public function destroy(Permission $permission): void
+    {
+        $permission->delete();
+
+        Flux::toast(variant: 'success', text: __('Permiso eliminado correctamente.'));
+    }
+}; ?>
+
+<div>
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <flux:heading size="xl">{{ __('Permisos') }}</flux:heading>
+            <flux:text variant="subtle" class="mt-1">{{ __('Gestion de permisos del sistema') }}</flux:text>
+        </div>
+        <div class="flex gap-2">
+            <flux:button href="{{ route('admin.permissions.create') }}" wire:navigate variant="primary">
+                <flux:icon.plus /> {{ __('Nuevo Permiso') }}
+            </flux:button>
+        </div>
+    </div>
+
+    <nav class="mb-6 flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400" aria-label="Breadcrumb">
+        <a href="{{ route('dashboard') }}" wire:navigate class="hover:text-zinc-700 dark:hover:text-zinc-300 transition">{{ __('Dashboard') }}</a>
+        <span>/</span>
+        <span class="text-zinc-900 dark:text-zinc-100 font-medium">{{ __('Permisos') }}</span>
+    </nav>
+
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
+        <div class="w-full sm:w-96">
+            <flux:input wire:model.live.debounce="search" :placeholder="__('Buscar por nombre o etiqueta...')" icon="magnifying-glass" />
+        </div>
+        <div class="w-full sm:w-56">
+            <flux:select wire:model.live="moduleFilter" placeholder="{{ __('Todos los modulos') }}">
+                <flux:select.option value="">{{ __('Todos los modulos') }}</flux:select.option>
+                @foreach ($this->modules as $module)
+                    <flux:select.option value="{{ $module }}">{{ $module }}</flux:select.option>
+                @endforeach
+            </flux:select>
+        </div>
+    </div>
+
+    <div>
+        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                        <th class="px-4 py-3 text-left font-medium text-zinc-600 dark:text-zinc-400">{{ __('Nombre') }}</th>
+                        <th class="px-4 py-3 text-left font-medium text-zinc-600 dark:text-zinc-400">{{ __('Etiqueta') }}</th>
+                        <th class="px-4 py-3 text-left font-medium text-zinc-600 dark:text-zinc-400">{{ __('Modulo') }}</th>
+                        <th class="px-4 py-3 text-right font-medium text-zinc-600 dark:text-zinc-400">{{ __('Acciones') }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                    @forelse ($this->records as $permission)
+                        <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition">
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex size-8 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-bold shrink-0">
+                                        {{ strtoupper(substr($permission->name, 0, 2)) }}
+                                    </div>
+                                    <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $permission->name }}</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-zinc-700 dark:text-zinc-300">{{ $permission->label ?? '-' }}</td>
+                            <td class="px-4 py-3">
+                                <flux:badge size="sm" color="blue" variant="outline">{{ $permission->module }}</flux:badge>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <flux:dropdown>
+                                    <flux:button size="sm" variant="ghost" icon="ellipsis-vertical" />
+                                    <flux:menu>
+                                        <flux:menu.item href="{{ route('admin.permissions.show', $permission->id) }}" wire:navigate icon="eye">{{ __('Ver') }}</flux:menu.item>
+                                        <flux:menu.item href="{{ route('admin.permissions.edit', $permission->id) }}" wire:navigate icon="pencil">{{ __('Editar') }}</flux:menu.item>
+                                        <flux:menu.item wire:click="confirmDestroy({{ $permission->id }})" icon="trash" class="text-red-600">{{ __('Eliminar') }}</flux:menu.item>
+                                    </flux:menu>
+                                </flux:dropdown>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="px-4 py-16 text-center">
+                                <flux:icon.key class="mx-auto mb-3 size-10 text-zinc-300 dark:text-zinc-600" />
+                                <flux:text variant="subtle" class="text-sm">{{ __('No se encontraron permisos.') }}</flux:text>
+                                <flux:text variant="subtle" class="text-xs mt-1">{{ __('Intente con otros terminos de busqueda.') }}</flux:text>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4">{{ $this->records->links() }}</div>
+    </div>
+
+    <livewire:confirm-action />
+</div>
