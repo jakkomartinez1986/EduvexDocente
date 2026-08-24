@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Academic;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\V1\Academic\GradebookViewRequest;
 use App\Http\Requests\Api\V1\Academic\StoreActivityGradesRequest;
 use App\Http\Requests\Api\V1\Academic\StoreActivityRequest;
 use App\Http\Requests\Api\V1\Academic\StoreAssessmentBlockRequest;
@@ -19,7 +18,6 @@ use App\Http\Resources\Api\V1\Academic\AssessmentBlockResource;
 use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
 use App\Models\Academic\GradeBook\Summaries\Subjects\ActivityRecovery;
 use App\Models\Identity\Users\Teacher;
-use App\Services\Api\V1\Academic\GradebookService;
 use App\Services\Api\V1\Academic\GradeRegistrationService;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -32,18 +30,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 final class GradesController extends Controller
 {
     public function __construct(
-        private readonly GradebookService $gradebookService,
         private readonly GradeRegistrationService $gradeRegistrationService,
     ) {}
-
-    public function index(GradebookViewRequest $request): JsonResponse
-    {
-        $teacher = $this->teacher($request);
-
-        return ApiResponse::success(
-            data: $this->gradebookService->view($teacher, $request->validated()),
-        );
-    }
 
     public function storeBlock(StoreAssessmentBlockRequest $request): JsonResponse
     {

@@ -5,10 +5,13 @@ declare(strict_types=1);
 use App\Models\Identity\Users\Representative;
 use App\Models\Identity\Users\User;
 use App\Models\Incidents\NotificationChannel;
+use App\Models\Setting\Messaging\ChannelConfiguration;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\StudentManagement\Academics\AcademicNotification;
 use App\Notifications\AcademicNotificationSent;
 use App\Services\AcademicYearService;
+use App\Services\Messaging\MessagingManager;
+use App\Jobs\SendChannelMessageJob;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Flux\Flux;
 use Illuminate\Support\Facades\Notification;
@@ -220,14 +223,30 @@ new #[Title('Administración de Notificaciones')] class extends Component
     protected function sendWhatsAppNotification(AcademicNotification $notification): void
     {
         $representative = Representative::where('student_id', $notification->student_id)->with('user')->first();
-        $phone = $representative?->phone ?? $representative?->user?->phone ?? '';
+        $digits = preg_replace('/[^0-9]/', '', (string) ($representative?->user?->cellphone ?? $representative?->user?->phone ?? ''));
 
-        if ($phone) {
-            $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
-            $message = urlencode($notification->message);
-            $url = "https://wa.me/{$cleanPhone}?text={$message}";
-            $this->dispatch('openUrl', $url);
+        if ($digits === '') {
+            return;
         }
+
+        if (str_starts_with($digits, '593')) {
+            $cleanPhone = $digits;
+        } elseif (str_starts_with($digits, '0')) {
+            $cleanPhone = '593'.substr($digits, 1);
+        } elseif (strlen($digits) === 9) {
+            $cleanPhone = '593'.$digits;
+        } else {
+            $cleanPhone = $digits;
+        }
+
+        if (app(MessagingManager::class)->isEnabled(ChannelConfiguration::CHANNEL_WHATSAPP)) {
+            SendChannelMessageJob::dispatch(ChannelConfiguration::CHANNEL_WHATSAPP, $cleanPhone, (string) $notification->message);
+
+            return;
+        }
+
+        $url = 'https://wa.me/'.$cleanPhone.'?text='.rawurlencode((string) $notification->message);
+        $this->dispatch('openUrl', $url);
     }
 
     public function openAttendanceModal(int $id): void

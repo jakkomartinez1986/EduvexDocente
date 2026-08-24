@@ -10,6 +10,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::livewire('/', 'pages::system.teachers-management.teachers.incidents.index')->name('index');
     });
 
+    // ── Libro de Incidencias del Tutor (componente dedicado) ──
+    Route::prefix('system/teacher/tutor-incidents')->name('admin.teacher.tutor-incidents.')->group(function () {
+        Route::livewire('/', 'pages::system.teachers-management.tutors.incidents.index')->name('index');
+    });
+
     // ── PDF generation ──
     Route::prefix('system/teacher/incidents/pdf')->name('admin.teacher.incidents.pdf.')->group(function () {
         Route::get('/notification/{id}', [IncidentPdfController::class, 'notification'])->name('notification');

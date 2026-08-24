@@ -73,6 +73,7 @@ class NavigationService
                     $this->link('Libro Asistencias', 'clipboard-document-list', 'Libro Asistencias', $this->safeRoute('admin.teacher.tutor-attendance-book.index'), 'admin.teacher.tutor-attendance-book.*', ['SUPER-ADMIN', 'ADMIN', 'TUTOR'], null, 'amber'),
                     $this->link('Justificaciones', 'document-text', 'Justificaciones', $this->safeRoute('admin.teacher.tutor-justifications.index'), 'admin.teacher.tutor-justifications.*', ['SUPER-ADMIN', 'ADMIN', 'TUTOR']),
                     $this->link('Reportes de Notas', 'document-chart-bar', 'Reportes de Notas', $this->safeRoute('admin.teacher.tutor-grade-reports.index'), 'admin.teacher.tutor-grade-reports.*', ['SUPER-ADMIN', 'ADMIN', 'TUTOR'], null, 'yellow'),
+                    $this->link('Incidencias de Tutoría', 'exclamation-triangle', 'Incidencias de Tutoría', $this->safeRoute('admin.teacher.tutor-incidents.index'), 'admin.teacher.tutor-incidents.*', ['SUPER-ADMIN', 'ADMIN', 'TUTOR'], null, 'red'),
                 ],
             ],
             'Portal Rep.' => [
@@ -128,6 +129,7 @@ class NavigationService
                     $this->link('Grado', 'academic-cap', 'Grado', $this->safeRoute('admin.settings.grades.index'), 'admin.settings.grades.*', ['SUPER-ADMIN', 'ADMIN']),
                     $this->link('Area', 'building-office-2', 'Area', $this->safeRoute('admin.settings.areas.index'), 'admin.settings.areas.*', ['SUPER-ADMIN', 'ADMIN']),
                     $this->link('Asignatura', 'bars-3-bottom-right', 'Asignatura', $this->safeRoute('admin.settings.subjects.index'), 'admin.settings.subjects.*', ['SUPER-ADMIN', 'ADMIN']),
+                    $this->link('Canales', 'chat-bubble-left-right', 'Canales de Mensajería', $this->safeRoute('admin.settings.messaging-channels.index'), 'admin.settings.messaging-channels.*', ['SUPER-ADMIN', 'ADMIN'], null, 'teal'),
                 ],
             ],
         ];

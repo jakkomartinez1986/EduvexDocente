@@ -2,14 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\TeacherManagement\Attendances\Attendance;
+use App\Observers\AttendanceObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Request;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Sanctum\TransientToken;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,10 +31,17 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureApiRateLimiters();
+
+        Attendance::observe(AttendanceObserver::class);
     }
 
     /**
      * Registra los rate limiters de la API.
+     *
+     * La clave se resuelve SIEMPRE explícitamente contra el guard sanctum
+     * (no contra $request->user()): el throttle puede ejecutarse antes que
+     * auth:sanctum según el orden de middleware, y clavear por IP colapsaría
+     * a todos los docentes detrás de un mismo NAT (§8.4: límite por token).
      */
     protected function configureApiRateLimiters(): void
     {
@@ -39,6 +49,35 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute((int) config('api.rate_limit.login_per_minute', 5))
                 ->by($request->user()?->id ?: $request->ip());
         });
+
+        RateLimiter::for('api:v1', function (Request $request): Limit {
+            return Limit::perMinute((int) config('api.rate_limit.v1_per_minute', 120))
+                ->by($this->tokenSignature($request));
+        });
+
+        RateLimiter::for('api:sync-push', function (Request $request): Limit {
+            return Limit::perMinute((int) config('api.rate_limit.sync_push_per_minute', 60))
+                ->by($this->tokenSignature($request));
+        });
+    }
+
+    /**
+     * Firma de rate limiting: id del token Sanctum cuando existe, IP si no.
+     */
+    protected function tokenSignature(Request $request): string
+    {
+        $user = $request->user('sanctum');
+        $token = $user?->currentAccessToken();
+
+        if ($user !== null && $token !== null && ! $token instanceof TransientToken) {
+            return 'token:'.$token->id;
+        }
+
+        if ($user !== null) {
+            return 'user:'.$user->id;
+        }
+
+        return 'ip:'.$request->ip();
     }
 
     /**
