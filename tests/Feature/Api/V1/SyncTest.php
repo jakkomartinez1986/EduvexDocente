@@ -5,8 +5,10 @@ use App\Models\Sync\SyncTombstone;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Log\Logger;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Mockery;
 
 /**
  * Fase 8 - Motor de sincronización (synchronization.md §3-§7):
@@ -288,10 +290,11 @@ it('resume los conflictos del lote en data.conflicts', function (): void {
 });
 
 it('aplica la snapshot con force true y audita la decision explicita', function (): void {
-    // Spy de la fachada; el canal 'sync' responde self para que sus eventos
-    // queden grabados en el mismo spy raíz.
+    // Spy del canal `sync`: syncLog() declara `: Logger`, así que el stub
+    // devuelve un spy de Illuminate\Log\Logger en lugar del propio LogManager.
+    $syncChannel = Mockery::spy(Logger::class);
     Log::spy();
-    Log::shouldReceive('channel')->with('sync')->andReturnSelf();
+    Log::shouldReceive('channel')->with('sync')->andReturn($syncChannel);
 
     $context = syncGradebookContext();
     [$a] = $context['students'];
@@ -325,7 +328,7 @@ it('aplica la snapshot con force true y audita la decision explicita', function 
 
     Log::shouldHaveReceived('channel')->with('sync')->atLeast()->once();
 
-    Log::shouldHaveReceived('warning')
+    $syncChannel->shouldHaveReceived('warning')
         ->withArgs(fn (string $message, array $logContext): bool => $message === 'sync.push.forced_override'
             && $logContext['device_id'] === $deviceId
             && $logContext['server_record']['student_id'] === $a->id);

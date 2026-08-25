@@ -67,10 +67,17 @@ expect()->extend('toBeOne', function () {
 /**
  * Cabeceras de autenticación Bearer para peticiones a la API en pruebas.
  *
+ * El guard RequestGuard de Sanctum cachea al usuario resuelto y la instancia
+ * del guard persiste entre peticiones dentro de un mismo test; sin
+ * forgetGuards(), una segunda petición con el token de OTRO usuario seguiría
+ * autenticada como el usuario anterior.
+ *
  * @return array<string, string>
  */
 function bearerTokenFor(User $user): array
 {
+    app('auth')->forgetGuards();
+
     return ['Authorization' => 'Bearer '.$user->createToken('testing')->plainTextToken];
 }
 
@@ -82,6 +89,8 @@ function bearerTokenFor(User $user): array
  */
 function bearerTokenWithAbilities(User $user, array $abilities): array
 {
+    app('auth')->forgetGuards();
+
     return ['Authorization' => 'Bearer '.$user->createToken('testing', $abilities)->plainTextToken];
 }
 

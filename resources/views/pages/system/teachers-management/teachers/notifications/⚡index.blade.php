@@ -4,17 +4,24 @@ declare(strict_types=1);
 
 use App\Models\Identity\Users\Representative;
 use App\Models\Identity\Users\User;
+use App\Models\Identity\Users\Teacher;
 use App\Models\Incidents\NotificationChannel;
+use App\Models\Setting\EducationalSettings\Grade;
+use App\Models\Setting\EducationalSettings\Nivel;
+use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\Setting\Messaging\ChannelConfiguration;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\StudentManagement\Academics\AcademicNotification;
+use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Notifications\AcademicNotificationSent;
 use App\Services\AcademicYearService;
-use App\Services\Messaging\MessagingManager;
+use App\Services\Messaging\ChannelStatusService;
+use App\Services\Messaging\WaMeLinkService;
 use App\Jobs\SendChannelMessageJob;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Flux\Flux;
 use Illuminate\Support\Facades\Notification;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -24,6 +31,10 @@ new #[Title('Administración de Notificaciones')] class extends Component
     public ?int $yearId = null;
     public array $trimesters = [];
     public ?int $selectedTrimesterId = null;
+    public ?int $selectedNivelId = null;
+    public ?string $selectedGradeName = null;
+    public ?int $selectedGradeId = null;
+    public ?int $selectedSubjectId = null;
     public string $search = '';
 
     public bool $showAttendanceModal = false;
@@ -39,6 +50,7 @@ new #[Title('Administración de Notificaciones')] class extends Component
     public array $channelLabels = [
         'email' => 'Email',
         'whatsapp' => 'WhatsApp',
+        'telegram' => 'Telegram',
         'sms' => 'SMS',
         'sistema' => 'Sistema',
         'impresa' => 'Impresa',
@@ -48,6 +60,7 @@ new #[Title('Administración de Notificaciones')] class extends Component
     public array $channelColors = [
         'email' => 'blue',
         'whatsapp' => 'green',
+        'telegram' => 'sky',
         'sms' => 'violet',
         'sistema' => 'amber',
         'impresa' => 'zinc',
@@ -57,7 +70,7 @@ new #[Title('Administración de Notificaciones')] class extends Component
     {
         $this->yearId = app(AcademicYearService::class)->getActiveYearId();
         $this->trimesters = $this->loadTrimesters();
-        $this->selectedTrimesterId = $this->currentTrimesterId() ?? ($this->trimesters[0]['id'] ?? null);
+        $this->selectedTrimesterId = $this->currentTrimesterId();
     }
 
     protected function loadTrimesters(): array
@@ -66,10 +79,17 @@ new #[Title('Administración de Notificaciones')] class extends Component
             return [];
         }
 
+        $today = now()->toDateString();
+
         return AcademicPeriod::where('year_id', $this->yearId)
             ->where('status', 1)
             ->orderBy('start_date')
             ->get()
+            ->sortByDesc(function (AcademicPeriod $period) use ($today): bool {
+                return $today >= $period->start_date->toDateString()
+                    && $today <= $period->end_date->toDateString();
+            })
+            ->values()
             ->map(fn ($period) => [
                 'id' => $period->id,
                 'trimester_name' => $period->trimester_name,
@@ -85,29 +105,231 @@ new #[Title('Administración de Notificaciones')] class extends Component
             return null;
         }
 
-        $now = now()->toDateString();
-        $periods = AcademicPeriod::where('year_id', $this->yearId)
+        return AcademicPeriod::where('year_id', $this->yearId)
             ->where('status', 1)
-            ->get();
+            ->whereDate('start_date', '<=', now()->toDateString())
+            ->whereDate('end_date', '>=', now()->toDateString())
+            ->orderBy('start_date')
+            ->value('id');
+    }
 
-        foreach ($periods as $period) {
-            if ($now >= $period->start_date->toDateString() && $now <= $period->end_date->toDateString()) {
-                return $period->id;
-            }
+    /**
+     * Docente asociado al usuario autenticado (null si es un administrador).
+     */
+    #[Computed]
+    public function currentTeacher(): ?Teacher
+    {
+        /** @var User|null $user */
+        $user = auth()->user();
+
+        return $user?->teacher;
+    }
+
+    /**
+     * Paralelos con programación de clases del docente autenticado en el año activo.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    #[Computed]
+    public function scheduledGradeIds(): \Illuminate\Support\Collection
+    {
+        if (! $this->yearId || $this->currentTeacher === null) {
+            return collect();
         }
 
-        return $periods->first()?->id;
+        return ClassSchedule::query()
+            ->where('year_id', $this->yearId)
+            ->where('teacher_id', $this->currentTeacher->id)
+            ->where('is_active', true)
+            ->distinct()
+            ->pluck('grade_id');
+    }
+
+    /**
+     * Niveles disponibles. Para un docente autenticado solo los que tiene
+     * en su programación de clases; para administración, todos los activos.
+     *
+     * @return \Illuminate\Support\Collection<int, Nivel>
+     */
+    #[Computed]
+    public function niveis(): \Illuminate\Support\Collection
+    {
+        return Nivel::query()
+            ->where('status', 1)
+            ->whereHas('grades', function ($query) {
+                $query->where('status', 1);
+
+                if ($this->currentTeacher !== null) {
+                    $query->whereIn('id', $this->scheduledGradeIds);
+                }
+            })
+            ->with('shift')
+            ->orderBy('nivel_name')
+            ->get();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    #[Computed]
+    public function grados(): \Illuminate\Support\Collection
+    {
+        if (! $this->selectedNivelId) {
+            return collect();
+        }
+
+        return Grade::query()
+            ->where('nivel_id', $this->selectedNivelId)
+            ->where('status', 1)
+            ->when($this->scheduledGradeIds->isNotEmpty(), fn ($query) => $query->whereIn('id', $this->scheduledGradeIds))
+            ->orderBy('grade_name')
+            ->distinct()
+            ->pluck('grade_name');
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, Grade>
+     */
+    #[Computed]
+    public function paralelos(): \Illuminate\Support\Collection
+    {
+        if (! $this->selectedNivelId || ! $this->selectedGradeName) {
+            return collect();
+        }
+
+        return Grade::query()
+            ->where('nivel_id', $this->selectedNivelId)
+            ->where('grade_name', $this->selectedGradeName)
+            ->where('status', 1)
+            ->when($this->scheduledGradeIds->isNotEmpty(), fn ($query) => $query->whereIn('id', $this->scheduledGradeIds))
+            ->orderBy('section')
+            ->get();
+    }
+
+    /**
+     * Asignaturas dictadas en el paralelo seleccionado durante el año activo,
+     * según la programación de clases real (class_schedules). Para un docente
+     * autenticado solo las que él mismo dicta en ese paralelo.
+     *
+     * @return \Illuminate\Support\Collection<int, Subject>
+     */
+    #[Computed]
+    public function asignaturas(): \Illuminate\Support\Collection
+    {
+        if (! $this->selectedGradeId || ! $this->yearId) {
+            return collect();
+        }
+
+        $subjectIds = ClassSchedule::query()
+            ->where('year_id', $this->yearId)
+            ->where('grade_id', $this->selectedGradeId)
+            ->when($this->currentTeacher !== null, fn ($query) => $query->where('teacher_id', $this->currentTeacher->id))
+            ->where('is_active', true)
+            ->distinct()
+            ->pluck('subject_id');
+
+        return Subject::query()
+            ->whereIn('id', $subjectIds)
+            ->orderBy('subject_name')
+            ->get();
+    }
+
+    protected function isValidInContext(?int $value, string $optionsComputed): bool
+    {
+        if ($value === null) {
+            return true;
+        }
+
+        return $this->{$optionsComputed}->contains('id', $value);
+    }
+
+    protected function resetAfterNivel(): void
+    {
+        $this->selectedGradeName = null;
+        $this->resetAfterGrado();
+    }
+
+    protected function resetAfterGrado(): void
+    {
+        $this->selectedGradeId = null;
+        $this->resetAfterParalelo();
+    }
+
+    protected function resetAfterParalelo(): void
+    {
+        $this->selectedSubjectId = null;
+    }
+
+    public function updatedSelectedTrimesterId($value): void
+    {
+        $this->resetAfterNivel();
+    }
+
+    public function updatedSelectedNivelId($value): void
+    {
+        $value = $value === '' ? null : (is_numeric($value) ? (int) $value : null);
+
+        if (! $this->isValidInContext($value, 'niveis')) {
+            $value = null;
+        }
+
+        $this->selectedNivelId = $value;
+        $this->resetAfterNivel();
+    }
+
+    public function updatedSelectedGradeName($value): void
+    {
+        $value = $value === '' ? null : (string) $value;
+
+        if ($value !== null && ! $this->grados->contains($value)) {
+            $value = null;
+        }
+
+        $this->selectedGradeName = $value;
+        $this->resetAfterGrado();
+    }
+
+    public function updatedSelectedGradeId($value): void
+    {
+        $value = $value === '' ? null : (is_numeric($value) ? (int) $value : null);
+
+        if (! $this->isValidInContext($value, 'paralelos')) {
+            $value = null;
+        }
+
+        $this->selectedGradeId = $value;
+        $this->resetAfterParalelo();
+    }
+
+    public function updatedSelectedSubjectId($value): void
+    {
+        $value = $value === '' ? null : (is_numeric($value) ? (int) $value : null);
+
+        if (! $this->isValidInContext($value, 'asignaturas')) {
+            $value = null;
+        }
+
+        $this->selectedSubjectId = $value;
+    }
+
+    protected function applyAcademicFilters(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query
+            ->when($this->selectedTrimesterId, fn ($q) => $q->where('trimester_id', $this->selectedTrimesterId))
+            ->when($this->selectedNivelId, fn ($q) => $q->whereHas('grade', fn ($gq) => $gq->where('nivel_id', $this->selectedNivelId)))
+            ->when($this->selectedGradeName, fn ($q) => $q->whereHas('grade', fn ($gq) => $gq->where('grade_name', $this->selectedGradeName)))
+            ->when($this->selectedGradeId, fn ($q) => $q->where('grade_id', $this->selectedGradeId))
+            ->when($this->selectedSubjectId, fn ($q) => $q->where('subject_id', $this->selectedSubjectId))
+            ->when($this->currentTeacher?->id, fn ($q, int $teacherId) => $q->where('teacher_id', $teacherId));
     }
 
     public function getStudentGroupsProperty()
     {
-        $query = AcademicNotification::query()
-            ->with(['student.user', 'subject', 'grade', 'channels', 'teacher.user'])
-            ->where('year_id', $this->yearId);
-
-        if ($this->selectedTrimesterId) {
-            $query->where('trimester_id', $this->selectedTrimesterId);
-        }
+        $query = $this->applyAcademicFilters(
+            AcademicNotification::query()
+                ->with(['student.user', 'subject', 'grade', 'channels', 'teacher.user'])
+                ->where('year_id', $this->yearId),
+        );
 
         if ($this->search !== '') {
             $search = trim($this->search);
@@ -134,11 +356,9 @@ new #[Title('Administración de Notificaciones')] class extends Component
 
     public function getStatsProperty()
     {
-        $query = AcademicNotification::query()->where('year_id', $this->yearId);
-
-        if ($this->selectedTrimesterId) {
-            $query->where('trimester_id', $this->selectedTrimesterId);
-        }
+        $query = $this->applyAcademicFilters(
+            AcademicNotification::query()->where('year_id', $this->yearId),
+        );
 
         $notifications = $query->get();
 
@@ -148,6 +368,15 @@ new #[Title('Administración de Notificaciones')] class extends Component
             'not_attended' => $notifications->where('parent_attended', false)->count(),
             'printed' => $notifications->whereNotNull('printed_at')->count(),
         ];
+    }
+
+    #[Computed]
+    public function channelStatuses(): array
+    {
+        return app(ChannelStatusService::class)->forChannels([
+            ChannelConfiguration::CHANNEL_WHATSAPP,
+            ChannelConfiguration::CHANNEL_TELEGRAM,
+        ]);
     }
 
     public function resendNotification(int $id): void
@@ -177,15 +406,20 @@ new #[Title('Administración de Notificaciones')] class extends Component
             return;
         }
 
-        $now = now();
-
-        match ($channel) {
+        $sent = match ($channel) {
             'sistema' => $this->dispatchSystemNotification($notification),
             'email' => $this->sendEmailNotification($notification),
             'impresa' => $this->sendPrintedNotification($notification),
             'whatsapp' => $this->sendWhatsAppNotification($notification),
-            default => null,
+            'telegram' => $this->sendTelegramNotification($notification),
+            default => false,
         };
+
+        if (! $sent) {
+            return;
+        }
+
+        $now = now();
 
         $channelRecord->update(['status' => 'sent', 'sent_at' => $now]);
         $notification->update(['sent_at' => $notification->sent_at ?? $now]);
@@ -193,60 +427,110 @@ new #[Title('Administración de Notificaciones')] class extends Component
         Flux::toast(variant: 'success', text: __('Notificación enviada por ') . $channel . '.');
     }
 
-    protected function dispatchSystemNotification(AcademicNotification $notification): void
+    protected function dispatchSystemNotification(AcademicNotification $notification): bool
     {
         $representative = Representative::where('student_id', $notification->student_id)->first();
 
         if ($representative && $representative->user) {
             Notification::send($representative->user, new AcademicNotificationSent($notification));
         }
+
+        return true;
     }
 
-    protected function sendEmailNotification(AcademicNotification $notification): void
+    protected function sendEmailNotification(AcademicNotification $notification): bool
     {
         $representative = Representative::where('student_id', $notification->student_id)->with('user')->first();
 
-        if ($representative && $representative->user && $representative->user->email) {
-            Notification::send($representative->user, new AcademicNotificationSent($notification));
+        if (! $representative || ! $representative->user || ! $representative->user->email) {
+            Flux::toast(variant: 'warning', text: __('El representante no tiene correo registrado.'));
+
+            return false;
         }
+
+        Notification::send($representative->user, new AcademicNotificationSent($notification));
+
+        return true;
     }
 
-    protected function sendPrintedNotification(AcademicNotification $notification): void
+    protected function sendPrintedNotification(AcademicNotification $notification): bool
     {
         $notification->update(['printed_at' => now()]);
 
         NotificationChannel::where('notification_id', $notification->id)
             ->where('channel', 'impresa')
             ->update(['printed_at' => now()]);
+
+        return true;
     }
 
-    protected function sendWhatsAppNotification(AcademicNotification $notification): void
+    /**
+     * @return array<int, string>
+     */
+    protected function representativePhones(AcademicNotification $notification): array
     {
-        $representative = Representative::where('student_id', $notification->student_id)->with('user')->first();
-        $digits = preg_replace('/[^0-9]/', '', (string) ($representative?->user?->cellphone ?? $representative?->user?->phone ?? ''));
+        $linkService = app(WaMeLinkService::class);
 
-        if ($digits === '') {
-            return;
+        return Representative::where('student_id', $notification->student_id)->with('user')
+            ->get()
+            ->map(fn ($representative) => $linkService->normalizePhone($representative->user?->cellphone ?? $representative->user?->phone))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function sendWhatsAppNotification(AcademicNotification $notification): bool
+    {
+        $phones = $this->representativePhones($notification);
+
+        if ($phones === []) {
+            Flux::toast(variant: 'warning', text: __('Ningún representante tiene celular registrado.'));
+
+            return false;
         }
 
-        if (str_starts_with($digits, '593')) {
-            $cleanPhone = $digits;
-        } elseif (str_starts_with($digits, '0')) {
-            $cleanPhone = '593'.substr($digits, 1);
-        } elseif (strlen($digits) === 9) {
-            $cleanPhone = '593'.$digits;
-        } else {
-            $cleanPhone = $digits;
+        if (app(ChannelStatusService::class)->apiAvailable(ChannelConfiguration::CHANNEL_WHATSAPP)) {
+            foreach ($phones as $phone) {
+                SendChannelMessageJob::dispatch(ChannelConfiguration::CHANNEL_WHATSAPP, $phone, (string) $notification->message);
+            }
+
+            return true;
         }
 
-        if (app(MessagingManager::class)->isEnabled(ChannelConfiguration::CHANNEL_WHATSAPP)) {
-            SendChannelMessageJob::dispatch(ChannelConfiguration::CHANNEL_WHATSAPP, $cleanPhone, (string) $notification->message);
+        $urls = app(WaMeLinkService::class)->buildLinks($phones, (string) $notification->message);
 
-            return;
+        $this->dispatch('openUrls', urls: $urls);
+
+        return true;
+    }
+
+    protected function sendTelegramNotification(AcademicNotification $notification): bool
+    {
+        if (! app(ChannelStatusService::class)->apiAvailable(ChannelConfiguration::CHANNEL_TELEGRAM)) {
+            Flux::toast(variant: 'warning', text: __('El canal Telegram no está habilitado o le faltan credenciales.'));
+
+            return false;
         }
 
-        $url = 'https://wa.me/'.$cleanPhone.'?text='.rawurlencode((string) $notification->message);
-        $this->dispatch('openUrl', $url);
+        $chatIds = Representative::where('student_id', $notification->student_id)->with('user')
+            ->get()
+            ->map(fn ($representative) => trim((string) $representative->user?->telegram_chat_id))
+            ->filter(fn ($chatId) => $chatId !== '')
+            ->unique()
+            ->values();
+
+        if ($chatIds->isEmpty()) {
+            Flux::toast(variant: 'warning', text: __('Ningún representante tiene un chat de Telegram vinculado.'));
+
+            return false;
+        }
+
+        foreach ($chatIds as $chatId) {
+            SendChannelMessageJob::dispatch(ChannelConfiguration::CHANNEL_TELEGRAM, $chatId, (string) $notification->message);
+        }
+
+        return true;
     }
 
     public function openAttendanceModal(int $id): void
@@ -305,12 +589,12 @@ new #[Title('Administración de Notificaciones')] class extends Component
         <span class="text-zinc-900 dark:text-zinc-100 font-medium">{{ __('Notificaciones') }}</span>
     </nav>
 
-    {{-- Filtros --}}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    {{-- Filtros relacionados --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <flux:field>
-            <flux:label>{{ __('Trimestre') }}</flux:label>
-            <flux:select wire:model.live="selectedTrimesterId">
-                <flux:select.option value="">{{ __('Todos los trimestres') }}</flux:select.option>
+            <flux:label>{{ __('Período') }}</flux:label>
+            <flux:select wire:model.live="selectedTrimesterId" wire:key="periodo-select">
+                <flux:select.option value="">{{ __('Todos los períodos') }}</flux:select.option>
                 @foreach($trimesters as $trimester)
                     <flux:select.option value="{{ $trimester['id'] }}">
                         {{ $trimester['trimester_name'] }} ({{ $trimester['start_date'] }} - {{ $trimester['end_date'] }})
@@ -318,10 +602,91 @@ new #[Title('Administración de Notificaciones')] class extends Component
                 @endforeach
             </flux:select>
         </flux:field>
-        <flux:field class="lg:col-span-2">
+
+        <flux:field>
+            <flux:label>{{ __('Nivel') }}</flux:label>
+            <flux:select wire:model.live="selectedNivelId" wire:key="nivel-select">
+                <flux:select.option value="">{{ __('Seleccione nivel') }}</flux:select.option>
+                @foreach($this->niveis as $nivel)
+                    <flux:select.option value="{{ $nivel->id }}">
+                        {{ $nivel->nivel_name }}{{ ($nivel->shift?->shift_name ?? '') !== '' ? ' - '.$nivel->shift->shift_name : '' }}
+                    </flux:select.option>
+                @endforeach
+            </flux:select>
+        </flux:field>
+
+        <flux:field>
+            <flux:label>{{ __('Grado') }}</flux:label>
+            <flux:select
+                wire:model.live="selectedGradeName"
+                :disabled="! $this->selectedNivelId"
+                wire:key="grado-select-{{ $this->selectedNivelId }}"
+            >
+                @if(! $this->selectedNivelId)
+                    <flux:select.option value="">{{ __('Seleccione primero el nivel') }}</flux:select.option>
+                @else
+                    <flux:select.option value="">{{ __('Todos los grados') }}</flux:select.option>
+                    @foreach($this->grados as $grado)
+                        <flux:select.option value="{{ $grado }}">{{ $grado }}</flux:select.option>
+                    @endforeach
+                @endif
+            </flux:select>
+        </flux:field>
+
+        <flux:field>
+            <flux:label>{{ __('Paralelo') }}</flux:label>
+            <flux:select
+                wire:model.live="selectedGradeId"
+                :disabled="! $this->selectedGradeName"
+                wire:key="paralelo-select-{{ $this->selectedNivelId }}-{{ $this->selectedGradeName }}"
+            >
+                @if(! $this->selectedGradeName)
+                    <flux:select.option value="">{{ __('Seleccione primero el grado') }}</flux:select.option>
+                @else
+                    <flux:select.option value="">{{ __('Todos los paralelos') }}</flux:select.option>
+                    @foreach($this->paralelos as $paralelo)
+                        <flux:select.option value="{{ $paralelo->id }}">
+                            {{ filled($paralelo->section) ? __('Paralelo').' '.$paralelo->section : $paralelo->grade_name }}
+                        </flux:select.option>
+                    @endforeach
+                @endif
+            </flux:select>
+        </flux:field>
+
+        <flux:field>
+            <flux:label>{{ __('Asignatura') }}</flux:label>
+            <flux:select
+                wire:model.live="selectedSubjectId"
+                :disabled="! $this->selectedGradeId"
+                wire:key="asignatura-select-{{ $this->selectedGradeId }}"
+            >
+                @if(! $this->selectedGradeId)
+                    <flux:select.option value="">{{ __('Seleccione primero el paralelo') }}</flux:select.option>
+                @else
+                    <flux:select.option value="">{{ __('Todas las asignaturas') }}</flux:select.option>
+                    @foreach($this->asignaturas as $asignatura)
+                        <flux:select.option value="{{ $asignatura->id }}">{{ $asignatura->subject_name }}</flux:select.option>
+                    @endforeach
+                @endif
+            </flux:select>
+        </flux:field>
+
+        <flux:field class="md:col-span-2 lg:col-span-3">
             <flux:label>{{ __('Buscar estudiante') }}</flux:label>
             <flux:input wire:model.live.debounce="300" :placeholder="__('Nombre, apellido o cédula...')" icon="magnifying-glass" />
         </flux:field>
+    </div>
+
+    {{-- Estado de canales --}}
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+        <span class="text-xs text-zinc-500">{{ __('Estado de canales:') }}</span>
+        @foreach(['whatsapp', 'telegram'] as $statusChannel)
+            @php($status = $this->channelStatuses[$statusChannel])
+            <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs {{ $status['api_available'] ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' : 'border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-400' }}">
+                <span class="size-1.5 rounded-full {{ $status['api_available'] ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-zinc-500' }}"></span>
+                {{ ucfirst($statusChannel) }} · {{ $status['api_available'] ? __('API activa') : ($status['manual_available'] ? __('Envío manual') : __('No disponible')) }}
+            </span>
+        @endforeach
     </div>
 
     {{-- Resumen --}}
@@ -406,8 +771,16 @@ new #[Title('Administración de Notificaciones')] class extends Component
                                     <div class="flex items-center justify-end gap-1">
                                         <flux:button size="xs" variant="ghost" icon="printer" href="{{ route('admin.teacher.incidents.pdf.notification', $notification->id) }}" title="{{ __('Imprimir PDF') }}" />
                                         <flux:button size="xs" variant="ghost" icon="envelope" wire:click="sendChannel({{ $notification->id }}, 'email')" title="{{ __('Enviar por Email') }}" />
-                                        <flux:button size="xs" variant="ghost" icon="paper-airplane" wire:click="sendChannel({{ $notification->id }}, 'sistema')" title="{{ __('Enviar por Sistema') }}" />
+                                        <flux:button size="xs" variant="ghost" icon="bell" wire:click="sendChannel({{ $notification->id }}, 'sistema')" title="{{ __('Enviar por Sistema') }}" />
                                         <flux:button size="xs" variant="ghost" icon="chat-bubble-left" wire:click="sendChannel({{ $notification->id }}, 'whatsapp')" title="{{ __('Enviar por WhatsApp') }}" />
+                                        <flux:button
+                                            size="xs"
+                                            variant="ghost"
+                                            icon="paper-airplane"
+                                            wire:click="sendChannel({{ $notification->id }}, 'telegram')"
+                                            :disabled="! $this->channelStatuses['telegram']['api_available']"
+                                            title="{{ $this->channelStatuses['telegram']['api_available'] ? __('Enviar por Telegram') : __('Telegram no configurado') }}"
+                                        />
                                         <flux:button size="xs" variant="ghost" icon="user-check" wire:click="openAttendanceModal({{ $notification->id }})" title="{{ __('Asistencia del representante') }}" />
                                     </div>
                                 </td>
@@ -467,8 +840,14 @@ new #[Title('Administración de Notificaciones')] class extends Component
 
     <script>
         document.addEventListener('livewire:init', () => {
-            Livewire.on('openUrl', (url) => {
-                window.open(url, '_blank');
+            Livewire.on('openUrls', (payload) => {
+                const data = Array.isArray(payload) ? payload[0] : payload;
+
+                const urls = Array.isArray(data?.urls) ? data.urls : [data?.urls].filter(Boolean);
+
+                urls.forEach((url) => {
+                    window.open(url, '_blank');
+                });
             });
         });
     </script>

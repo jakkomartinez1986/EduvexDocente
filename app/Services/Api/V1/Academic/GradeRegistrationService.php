@@ -14,6 +14,7 @@ use App\Models\Academic\GradeBook\Summaries\Supplementary\SupplementaryExam;
 use App\Models\Identity\Users\Teacher;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\Setting\YearSettings\AcademicPeriod;
+use App\Models\StudentManagement\Academics\HomeworkPending;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Services\AcademicYearService;
 use Illuminate\Support\Collection;
@@ -301,6 +302,13 @@ final class GradeRegistrationService
                 'recorded_by' => $teacher->user_id,
             ],
         );
+
+        HomeworkPending::query()
+            ->where('activity_id', $recovery->activity_id)
+            ->where('student_id', $recovery->student_id)
+            ->where('status', 'not_submitted')
+            ->whereNull('notified_at')
+            ->update(['status' => 'submitted']);
     }
 
     /**

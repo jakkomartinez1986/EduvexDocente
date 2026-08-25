@@ -1,17 +1,24 @@
 <?php
 
+use Illuminate\Log\Logger;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Mockery;
 
 /**
  * Fase 11 - Producción: observabilidad del sync (API_ROADMAP §11).
  * - Canal dedicado `sync` (config/logging.php) con resumen estructurado
  *   de lote (sync.push.batch) y trazabilidad de pull (sync.pull).
  * - 413 con envelope estándar cuando el cuerpo excede post_max_size.
+ *
+ * SyncService::syncLog() declara `: Logger`, así que el stub de
+ * Log::channel('sync') debe devolver un spy de Illuminate\Log\Logger
+ * (andReturnSelf() devolvería el LogManager y rompería el tipado estricto).
  */
 it('resume cada lote del push en sync.push.batch', function (): void {
+    $syncChannel = Mockery::spy(Logger::class);
     Log::spy();
-    Log::shouldReceive('channel')->with('sync')->andReturnSelf();
+    Log::shouldReceive('channel')->with('sync')->andReturn($syncChannel);
 
     $context = syncContext();
     [$a, $b] = $context['students'];
@@ -42,7 +49,7 @@ it('resume cada lote del push en sync.push.batch', function (): void {
         ],
     ], bearerTokenFor($context['teacher']->user))->assertOk();
 
-    Log::shouldHaveReceived('info')
+    $syncChannel->shouldHaveReceived('info')
         ->withArgs(function (string $event, array $logContext): bool {
             if ($event !== 'sync.push.batch') {
                 return false;
@@ -59,8 +66,9 @@ it('resume cada lote del push en sync.push.batch', function (): void {
 });
 
 it('registra volumen y duracion del pull en sync.pull', function (): void {
+    $syncChannel = Mockery::spy(Logger::class);
     Log::spy();
-    Log::shouldReceive('channel')->with('sync')->andReturnSelf();
+    Log::shouldReceive('channel')->with('sync')->andReturn($syncChannel);
 
     $context = syncContext();
     [$a] = $context['students'];
@@ -78,7 +86,7 @@ it('registra volumen y duracion del pull en sync.pull', function (): void {
         ->assertOk()
         ->assertJsonCount(1, 'data.changes.attendance.upserts');
 
-    Log::shouldHaveReceived('info')
+    $syncChannel->shouldHaveReceived('info')
         ->withArgs(fn (string $event, array $logContext): bool => $event === 'sync.pull'
             && $logContext['collections'] === ['attendance', 'gradebook']
             && $logContext['upserts'] === 1

@@ -70,16 +70,25 @@ class ExamRecovery extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Student, $this>
+     */
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
     }
 
+    /**
+     * @return BelongsTo<Subject, $this>
+     */
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
     }
 
+    /**
+     * @return BelongsTo<Grade, $this>
+     */
     public function grade(): BelongsTo
     {
         return $this->belongsTo(Grade::class);

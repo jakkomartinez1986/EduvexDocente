@@ -18,13 +18,16 @@ use App\Models\StudentManagement\Academics\HomeworkPending;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Services\AcademicYearService;
-use App\Services\Messaging\MessagingManager;
+use App\Services\Messaging\ChannelStatusService;
+use App\Services\Messaging\NotificationMessageBuilder;
+use App\Services\Messaging\WaMeLinkService;
 use App\Jobs\SendChannelMessageJob;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -146,7 +149,7 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
     ];
 
     #[Locked]
-    public array $channelOptions = ['email', 'whatsapp', 'sms', 'sistema', 'impresa'];
+    public array $channelOptions = ['email', 'whatsapp', 'telegram', 'sms', 'sistema', 'impresa'];
 
     public ?int $yearId = null;
 
@@ -572,27 +575,31 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
 
         $pdfUrl = url('storage/whatsapp-pdfs/'.$fileName);
 
-        $payload = $this->resolveWhatsAppPayload($notification);
+        $payloads = $this->resolveWhatsAppPayloads($notification);
 
-        if ($payload === null) {
+        $this->sendTelegramForNotification($notification, $path, $fileName);
+
+        if ($payloads === []) {
             Flux::toast(variant: 'warning', text: __('El representante no tiene celular registrado. Se descargó el PDF para enviarlo manualmente.'));
 
             return;
         }
 
-        if (app(MessagingManager::class)->isEnabled(ChannelConfiguration::CHANNEL_WHATSAPP)) {
+        if (app(ChannelStatusService::class)->apiAvailable(ChannelConfiguration::CHANNEL_WHATSAPP)) {
             $channelRow = NotificationChannel::where('notification_id', $notification->id)
                 ->where('channel', 'whatsapp')
                 ->first();
 
-            SendChannelMessageJob::dispatch(
-                ChannelConfiguration::CHANNEL_WHATSAPP,
-                $payload['phone'],
-                $payload['message'],
-                $path,
-                $fileName,
-                $channelRow?->id,
-            );
+            foreach ($payloads as $payload) {
+                SendChannelMessageJob::dispatch(
+                    ChannelConfiguration::CHANNEL_WHATSAPP,
+                    $payload['phone'],
+                    $payload['message'],
+                    $path,
+                    $fileName,
+                    $channelRow?->id,
+                );
+            }
 
             $notification->update(['sent_at' => $notification->sent_at ?? now()]);
 
@@ -606,69 +613,99 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
             ->update(['status' => 'sent', 'sent_at' => now()]);
         $notification->update(['sent_at' => $notification->sent_at ?? now()]);
 
-        $this->dispatch('whatsapp-send', wa: $payload['url'], pdf: $pdfUrl, name: $fileName);
+        $urls = array_column($payloads, 'url');
+
+        $this->dispatch('whatsapp-send', wa: $urls, pdf: $pdfUrl, name: $fileName);
+    }
+
+    public function saveNotificationThenTelegram(): void
+    {
+        $this->saveNotification();
+
+        $lastNotif = AcademicNotification::where('teacher_id', auth()->user()->teacher?->id)
+            ->latest()
+            ->first();
+
+        if ($lastNotif) {
+            $this->sendTelegramForNotification($lastNotif);
+        }
+    }
+
+    protected function sendTelegramForNotification(AcademicNotification $notification, ?string $pdfPath = null, ?string $pdfName = null): bool
+    {
+        if (! app(ChannelStatusService::class)->apiAvailable(ChannelConfiguration::CHANNEL_TELEGRAM)) {
+            Flux::toast(variant: 'warning', text: __('Telegram no está habilitado o le faltan credenciales.'));
+
+            return false;
+        }
+
+        $chatIds = Representative::where('student_id', $notification->student_id)->with('user')
+            ->get()
+            ->map(fn ($representative) => trim((string) $representative->user?->telegram_chat_id))
+            ->filter(fn ($chatId) => $chatId !== '')
+            ->unique()
+            ->values();
+
+        if ($chatIds->isEmpty()) {
+            Flux::toast(variant: 'warning', text: __('Ningún representante tiene un chat de Telegram vinculado.'));
+
+            return false;
+        }
+
+        $message = $pdfPath !== null
+            ? app(NotificationMessageBuilder::class)->whatsappMessage($notification, $notification->student?->representatives->first())
+            : (string) $notification->message;
+
+        $channelRow = NotificationChannel::where('notification_id', $notification->id)
+            ->where('channel', 'telegram')
+            ->first();
+
+        foreach ($chatIds as $chatId) {
+            SendChannelMessageJob::dispatch(
+                ChannelConfiguration::CHANNEL_TELEGRAM,
+                $chatId,
+                $message,
+                $pdfPath,
+                $pdfName,
+                $channelRow?->id,
+            );
+        }
+
+        return true;
     }
 
     /**
-     * @return array{phone: string, message: string, url: string}|null
+     * @return array<int, array{phone: string, message: string, url: string}>
      */
-    protected function resolveWhatsAppPayload(AcademicNotification $notification): ?array
+    protected function resolveWhatsAppPayloads(AcademicNotification $notification): array
     {
-        $representative = $notification->student?->representatives->first();
-        $phone = $this->normalizeWhatsAppPhone($representative?->user?->cellphone ?? $representative?->user?->phone);
+        $linkService = app(WaMeLinkService::class);
+        $messageBuilder = app(NotificationMessageBuilder::class);
 
-        if (! $phone) {
-            return null;
+        $payloads = [];
+
+        foreach ($notification->student?->representatives ?? [] as $representative) {
+            $phone = $linkService->normalizePhone($representative->user?->cellphone ?? $representative->user?->phone);
+
+            if (! $phone) {
+                continue;
+            }
+
+            $message = $messageBuilder->whatsappMessage($notification, $representative);
+
+            $payloads[] = [
+                'phone' => $phone,
+                'message' => $message,
+                'url' => $linkService->buildLink($phone, $message),
+            ];
         }
 
-        $message = $this->buildWhatsAppMessage($notification, $representative);
-
-        return [
-            'phone' => $phone,
-            'message' => $message,
-            'url' => 'https://wa.me/'.$phone.'?text='.rawurlencode($message),
-        ];
+        return $payloads;
     }
 
     protected function buildWhatsAppUrl(AcademicNotification $notification): string
     {
-        return $this->resolveWhatsAppPayload($notification)['url'] ?? '';
-    }
-
-    protected function normalizeWhatsAppPhone(?string $phone): ?string
-    {
-        $digits = preg_replace('/[^0-9]/', '', (string) $phone);
-
-        if ($digits === '') {
-            return null;
-        }
-
-        if (str_starts_with($digits, '593')) {
-            return $digits;
-        }
-
-        if (str_starts_with($digits, '0')) {
-            return '593'.substr($digits, 1);
-        }
-
-        if (strlen($digits) === 9) {
-            return '593'.$digits;
-        }
-
-        return $digits;
-    }
-
-    protected function buildWhatsAppMessage(AcademicNotification $notification, ?Representative $representative): string
-    {
-        $representativeName = $representative?->user?->full_name;
-
-        $lines[] = ($representativeName ? 'Estimado(a) '.$representativeName : 'Estimado(a) representante').':';
-        $lines[] = '';
-        $lines[] = 'Le compartimos la notificación '.$notification->code.' correspondiente al estudiante '.($notification->student?->user?->fullname ?? '-').'.';
-        $lines[] = '';
-        $lines[] = 'Adjunto encontrará el documento PDF con el detalle.';
-
-        return implode("\n", $lines);
+        return $this->resolveWhatsAppPayloads($notification)[0]['url'] ?? '';
     }
 
     // ── Intervenciones ──
@@ -743,6 +780,15 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
     }
 
     // ── Actas de compromiso ──
+
+    #[Computed]
+    public function messagingStatuses(): array
+    {
+        return app(ChannelStatusService::class)->forChannels([
+            ChannelConfiguration::CHANNEL_WHATSAPP,
+            ChannelConfiguration::CHANNEL_TELEGRAM,
+        ]);
+    }
 
     public function openCommitmentModal(?int $studentId = null): void
     {
@@ -1487,10 +1533,25 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
                         <flux:label>{{ __('Canales de envío') }}</flux:label>
                         <div class="space-y-2 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3">
                             @foreach($this->channelOptions as $channel)
-                                <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                    <flux:checkbox value="{{ $channel }}" wire:model="notifForm.channels" />
-                                    <span>{{ __(ucfirst($channel)) }}</span>
-                                </label>
+                                @if($channel === 'telegram' && ! ($this->messagingStatuses['telegram']['api_available'] ?? false))
+                                    <label class="flex items-center gap-2 text-sm opacity-50 cursor-not-allowed" title="{{ __('Requiere configurar y habilitar la API de Telegram en Ajustes.') }}">
+                                        <input type="checkbox" value="{{ $channel }}" disabled />
+                                        <span>{{ __(ucfirst($channel)) }} <span class="text-xs text-zinc-400 dark:text-zinc-500">({{ __('API no configurada') }})</span></span>
+                                    </label>
+                                @else
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <flux:checkbox value="{{ $channel }}" wire:model="notifForm.channels" />
+                                        <span class="inline-flex items-center gap-1.5">
+                                            {{ __(ucfirst($channel)) }}
+                                            @if(in_array($channel, ['whatsapp', 'telegram'], true))
+                                                <span class="size-1.5 rounded-full {{ (($this->messagingStatuses[$channel]['api_available'] ?? false)) ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600' }}"></span>
+                                                @if(! ($this->messagingStatuses[$channel]['api_available'] ?? false) && ($this->messagingStatuses[$channel]['manual_available'] ?? false))
+                                                    <span class="text-xs text-zinc-400 dark:text-zinc-500">({{ __('envío manual') }})</span>
+                                                @endif
+                                            @endif
+                                        </span>
+                                    </label>
+                                @endif
                             @endforeach
                         </div>
                         <flux:error name="notifForm.channels" />
@@ -1514,6 +1575,10 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
                 @if(in_array('whatsapp', $this->notifForm['channels']))
                     <flux:button variant="subtle" icon="document-text" wire:click="saveNotificationThenWhatsApp">
                         {{ __('Guardar + WhatsApp') }}
+                    </flux:button>
+                @elseif(in_array('telegram', $this->notifForm['channels']) && ($this->messagingStatuses['telegram']['api_available'] ?? false))
+                    <flux:button variant="subtle" icon="paper-airplane" wire:click="saveNotificationThenTelegram">
+                        {{ __('Guardar + Telegram') }}
                     </flux:button>
                 @endif
                 <flux:button variant="primary" wire:click="saveNotification">{{ __('Generar notificación') }}</flux:button>
@@ -1700,9 +1765,13 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
             Livewire.on('whatsapp-send', (payload) => {
                 const data = Array.isArray(payload) ? payload[0] : payload;
 
-                if (data.wa) {
-                    window.open(data.wa, '_blank');
-                }
+                const targets = Array.isArray(data?.wa) ? data.wa : [data?.wa].filter(Boolean);
+
+                targets.forEach((wa) => {
+                    if (wa) {
+                        window.open(wa, '_blank');
+                    }
+                });
 
                 if (data.pdf) {
                     const link = document.createElement('a');
