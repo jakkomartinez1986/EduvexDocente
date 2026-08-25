@@ -10,6 +10,7 @@ use App\Models\Identity\Users\Teacher;
 use App\Services\Api\V1\TeacherManagement\AttendanceDownloadService;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
  * Descarga de asistencias y observaciones de clase del docente para trabajo offline.
@@ -23,10 +24,7 @@ final class AttendanceController extends Controller
         $teacher = $request->user()->teacher;
 
         if (! $teacher instanceof Teacher) {
-            return ApiResponse::error(
-                message: 'El usuario autenticado no tiene un perfil de docente.',
-                status: 403,
-            );
+            throw new AccessDeniedHttpException('El usuario autenticado no tiene un perfil de docente.');
         }
 
         return ApiResponse::success(

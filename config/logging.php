@@ -58,6 +58,26 @@ return [
             'ignore_exceptions' => false,
         ],
 
+        /*
+        |----------------------------------------------------------------------
+        | Sincronización offline (API_ROADMAP Fase 11)
+        |----------------------------------------------------------------------
+        |
+        | Canal dedicado para los eventos de /sync/push y /sync/pull:
+        | sync.push, sync.push.batch, sync.push.forced_override,
+        | sync.pull y sync.push.operation_failed. Monitoreo sugerido:
+        | alertar sobre tasa alta de rejected/conflict y operation_failed.
+        |
+        */
+
+        'sync' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/sync.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],
+
         'single' => [
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),

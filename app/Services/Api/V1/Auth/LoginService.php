@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Api\V1\Auth;
 
 use App\Exceptions\Api\InvalidCredentialsException;
+use App\Exceptions\Api\PasswordChangeRequiredException;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -17,6 +18,8 @@ use Illuminate\Support\Str;
  */
 final class LoginService
 {
+    public function __construct(private readonly TokenAbilityService $tokenAbilityService) {}
+
     public function attempt(string $login, string $password): LoginResult
     {
         $user = $this->resolveUser($login);
@@ -25,11 +28,15 @@ final class LoginService
             throw new InvalidCredentialsException;
         }
 
+        if ((bool) $user->must_change_password) {
+            throw new PasswordChangeRequiredException;
+        }
+
         $ttl = now()->addMinutes((int) config('api.token.ttl_minutes', 1440));
 
         $token = $user->createToken(
             (string) config('api.token.name', 'api-access-token'),
-            ['*'],
+            $this->tokenAbilityService->for($user),
             $ttl,
         );
 

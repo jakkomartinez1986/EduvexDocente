@@ -12,8 +12,10 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\TeacherManagement\Attendances\ClassObservation;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -66,93 +68,118 @@ final class AttendanceRegistrationService
     /**
      * Guarda la observación de la clase y los estados de asistencia de la
      * fecha. Los estudiantes sin estado distinto de Presente quedan sin
-     * registro (Presente implícito). Devuelve el detalle actualizado.
+     * registro activo (Presente implícito; el registro previo se elimina con
+     * soft delete para conservar el tombstone que necesita el sync). Todo
+     * corre dentro de una transacción serializada por horario, de modo que
+     * snapshots concurrentes del mismo día no pueden duplicar filas (H-06).
      *
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
     public function register(Teacher $teacher, array $validated): array
     {
-        $schedule = $this->ownSchedule($teacher, (int) $validated['schedule_id']);
-        $date = (string) Carbon::parse($validated['date'])->toDateString();
+        return DB::transaction(function () use ($teacher, $validated): array {
+            $schedule = $this->ownSchedule($teacher, (int) $validated['schedule_id'], lock: true);
+            $date = (string) Carbon::parse($validated['date'])->toDateString();
 
-        $studentIds = $this->enrolledStudentIds((int) $schedule->year_id, (int) $schedule->grade_id);
-        $this->assertStudentsEnrolled((array) $validated['statuses'], $studentIds);
+            $studentIds = $this->enrolledStudentIds((int) $schedule->year_id, (int) $schedule->grade_id);
+            $this->assertStudentsEnrolled((array) $validated['statuses'], $studentIds);
 
-        $calendarDay = CalendarDay::query()->whereDate('date', $date)->first();
+            $calendarDay = CalendarDay::query()->whereDate('date', $date)->first();
 
-        $classObservation = $validated['observation'] ?? null;
+            $classObservation = $validated['observation'] ?? null;
 
-        $observation = ClassObservation::query()
-            ->where('class_schedule_id', $schedule->id)
-            ->whereDate('observation_date', $date)
-            ->first();
+            $observation = ClassObservation::query()
+                ->where('class_schedule_id', $schedule->id)
+                ->whereDate('observation_date', $date)
+                ->first();
 
-        $observationValues = [
-            'teacher_id' => $teacher->id,
-            'year_id' => $schedule->year_id,
-            'classtopic' => $validated['classtopic'],
-            'observation' => $classObservation !== null && trim((string) $classObservation) !== ''
-                ? (string) $classObservation
-                : 'Tema de Clase.',
-            'class_observation' => $classObservation,
-        ];
+            $observationValues = [
+                'teacher_id' => $teacher->id,
+                'year_id' => $schedule->year_id,
+                'classtopic' => $validated['classtopic'],
+                'observation' => $classObservation !== null && trim((string) $classObservation) !== ''
+                    ? (string) $classObservation
+                    : 'Tema de Clase.',
+                'class_observation' => $classObservation,
+            ];
 
-        if ($observation !== null) {
-            $observation->update($observationValues);
-        } else {
-            $observation = ClassObservation::create([
-                'class_schedule_id' => $schedule->id,
-                'observation_date' => $date,
-                ...$observationValues,
-            ]);
-        }
+            if ($observation !== null) {
+                $observation->update($observationValues);
+            } else {
+                try {
+                    $observation = ClassObservation::create([
+                        'class_schedule_id' => $schedule->id,
+                        'observation_date' => $date,
+                        ...$observationValues,
+                    ]);
+                } catch (UniqueConstraintViolationException) {
+                    $observation = ClassObservation::query()
+                        ->where('class_schedule_id', $schedule->id)
+                        ->whereDate('observation_date', $date)
+                        ->firstOrFail();
+                    $observation->update($observationValues);
+                }
+            }
 
-        $statuses = (array) $validated['statuses'];
-        $observations = (array) ($validated['observations'] ?? []);
+            $statuses = (array) $validated['statuses'];
+            $observations = (array) ($validated['observations'] ?? []);
 
-        foreach ($studentIds as $studentId) {
-            $studentId = (int) $studentId;
-            $status = trim((string) ($statuses[(string) $studentId] ?? 'P'));
+            foreach ($studentIds as $studentId) {
+                $studentId = (int) $studentId;
+                $status = trim((string) ($statuses[(string) $studentId] ?? 'P'));
 
-            if ($status === 'P' || $status === '') {
-                Attendance::query()
+                if ($status === 'P' || $status === '') {
+                    Attendance::query()
+                        ->where('class_schedule_id', $schedule->id)
+                        ->where('student_id', $studentId)
+                        ->whereDate('date', $date)
+                        ->get()
+                        ->each(fn (Attendance $attendance) => $attendance->delete());
+
+                    continue;
+                }
+
+                $attendanceValues = [
+                    'class_observation_id' => $observation->id,
+                    'calendarday_id' => $calendarDay?->id,
+                    'year_id' => $schedule->year_id,
+                    'status' => $status,
+                    'observation' => trim((string) ($observations[(string) $studentId] ?? '')) ?: null,
+                    'recorded_by' => $teacher->user_id,
+                ];
+
+                $attendance = Attendance::query()
                     ->where('class_schedule_id', $schedule->id)
                     ->where('student_id', $studentId)
                     ->whereDate('date', $date)
-                    ->forceDelete();
+                    ->first();
 
-                continue;
+                if ($attendance !== null) {
+                    $attendance->update($attendanceValues);
+                } else {
+                    try {
+                        Attendance::create([
+                            'class_schedule_id' => $schedule->id,
+                            'student_id' => $studentId,
+                            'date' => $date,
+                            ...$attendanceValues,
+                        ]);
+                    } catch (UniqueConstraintViolationException) {
+                        // Carrera contra un proceso sin lock (p. ej. canal web):
+                        // el índice único garantiza una sola fila activa.
+                        Attendance::query()
+                            ->where('class_schedule_id', $schedule->id)
+                            ->where('student_id', $studentId)
+                            ->whereDate('date', $date)
+                            ->firstOrFail()
+                            ->update($attendanceValues);
+                    }
+                }
             }
 
-            $attendanceValues = [
-                'class_observation_id' => $observation->id,
-                'calendarday_id' => $calendarDay?->id,
-                'year_id' => $schedule->year_id,
-                'status' => $status,
-                'observation' => trim((string) ($observations[(string) $studentId] ?? '')) ?: null,
-                'recorded_by' => $teacher->user_id,
-            ];
-
-            $attendance = Attendance::query()
-                ->where('class_schedule_id', $schedule->id)
-                ->where('student_id', $studentId)
-                ->whereDate('date', $date)
-                ->first();
-
-            if ($attendance !== null) {
-                $attendance->update($attendanceValues);
-            } else {
-                Attendance::create([
-                    'class_schedule_id' => $schedule->id,
-                    'student_id' => $studentId,
-                    'date' => $date,
-                    ...$attendanceValues,
-                ]);
-            }
-        }
-
-        return $this->detail($teacher, $validated);
+            return $this->detail($teacher, $validated);
+        });
     }
 
     /**
@@ -183,10 +210,11 @@ final class AttendanceRegistrationService
         }
     }
 
-    private function ownSchedule(Teacher $teacher, int $scheduleId): ClassSchedule
+    private function ownSchedule(Teacher $teacher, int $scheduleId, bool $lock = false): ClassSchedule
     {
-        $schedule = ClassSchedule::with('subject.area', 'grade.nivel.shift')
-            ->find($scheduleId);
+        $query = ClassSchedule::query()->with('subject.area', 'grade.nivel.shift');
+
+        $schedule = $lock ? $query->lockForUpdate()->find($scheduleId) : $query->find($scheduleId);
 
         if (! $schedule || $schedule->teacher_id !== $teacher->id) {
             throw new NotFoundHttpException('No se encontró el horario de clase para este docente.');

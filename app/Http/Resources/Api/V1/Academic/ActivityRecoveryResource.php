@@ -33,6 +33,30 @@ final class ActivityRecoveryResource extends JsonResource
             'is_applied' => (bool) $recovery->is_applied,
             'applied_at' => $recovery->applied_at?->toISOString(),
             'created_at' => $recovery->created_at?->toISOString(),
+            'student' => $this->when($recovery->relationLoaded('student'), function () use ($recovery): ?array {
+                $user = $recovery->student?->user;
+
+                if ($user === null && $recovery->student === null) {
+                    return null;
+                }
+
+                return [
+                    'id' => $recovery->student?->id,
+                    'student_code' => $recovery->student?->student_code,
+                    'full_name' => $user?->full_name,
+                ];
+            }),
+            'activity' => $this->when($recovery->relationLoaded('activity'), function () use ($recovery): ?array {
+                if ($recovery->activity === null) {
+                    return null;
+                }
+
+                return [
+                    'id' => $recovery->activity->id,
+                    'name' => $recovery->activity->name,
+                    'max_score' => (float) $recovery->activity->max_score,
+                ];
+            }),
         ];
     }
 }

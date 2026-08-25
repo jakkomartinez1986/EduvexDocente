@@ -27,7 +27,7 @@ class EnsureUserIsActive
                     ->with('error', 'No tienes permisos para acceder al sistema. Por favor, comunícate con el administrador.');
             }
 
-            if ($user->must_change_password && ! $request->routeIs('password.change')) {
+            if ($user->must_change_password && ! $request->routeIs('password.change') && ! $request->is('api/*')) {
                 return redirect()->route('password.change');
             }
         }

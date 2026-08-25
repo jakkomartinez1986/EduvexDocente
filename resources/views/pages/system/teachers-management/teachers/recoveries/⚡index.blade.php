@@ -236,26 +236,81 @@ new #[Title('Recuperaciones')] class extends Component {
             return;
         }
 
+        $teacherId = auth()->user()->teacher?->id;
+
+        if (! $teacherId) {
+            return;
+        }
+
         $this->appliedActivityRecoveries = ActivityRecovery::where('is_applied', true)
-            ->whereHas('activity', function ($q) {
-                $q->whereHas('assessmentBlock', function ($q2) {
+            ->whereHas('activity', function ($q) use ($teacherId) {
+                $q->whereHas('assessmentBlock', function ($q2) use ($teacherId) {
                     $q2->where('trimester_id', $this->appliedTrimesterId)
                         ->where('year_id', $this->yearId)
-                        ->where('teacher_id', auth()->user()->teacher?->id);
+                        ->where('teacher_id', $teacherId);
                 });
             })
-            ->with('student.user', 'activity')
+            ->with(['student.user', 'activity.assessmentBlock.subject', 'activity.assessmentBlock.grade'])
             ->orderBy('applied_at', 'desc')
             ->get()
-            ->toArray();
+            ->map(fn (ActivityRecovery $recovery): array => $this->appliedRow($recovery))
+            ->all();
 
+        // Solo recuperaciones de examen cuya combinación asignatura + curso
+        // corresponde a una asignación docente del docente autenticado en el
+        // año lectivo activo.
         $this->appliedExamRecoveries = ExamRecovery::where('is_applied', true)
             ->where('trimester_id', $this->appliedTrimesterId)
             ->where('year_id', $this->yearId)
-            ->with('student.user')
+            ->whereExists(
+                fn ($query) => $query->selectRaw('1')
+                    ->from('class_schedules')
+                    ->whereColumn('class_schedules.subject_id', 'exam_recoveries.subject_id')
+                    ->whereColumn('class_schedules.grade_id', 'exam_recoveries.grade_id')
+                    ->where('class_schedules.teacher_id', $teacherId)
+                    ->where('class_schedules.year_id', $this->yearId)
+                    ->whereNull('class_schedules.deleted_at')
+            )
+            ->with(['student.user', 'subject', 'grade'])
             ->orderBy('applied_at', 'desc')
             ->get()
-            ->toArray();
+            ->map(fn (ExamRecovery $recovery): array => $this->appliedRow($recovery))
+            ->all();
+    }
+
+    /**
+     * Fila serializada de una recuperación aplicada. Se construye manualmente
+     * porque User::full_name es un accesor que no se incluye en toArray().
+     */
+    private function appliedRow(ActivityRecovery|ExamRecovery $recovery): array
+    {
+        $user = $recovery->student?->user;
+        $block = $recovery instanceof ActivityRecovery ? $recovery->activity?->assessmentBlock : null;
+        $subject = $block?->subject ?? $recovery->subject;
+        $grade = $block?->grade ?? $recovery->grade;
+
+        return [
+            ...$recovery->toArray(),
+            'student' => [
+                'id' => $recovery->student?->id,
+                'student_code' => $recovery->student?->student_code,
+                'user' => [
+                    'id' => $user?->id,
+                    'name' => $user?->name,
+                    'lastname' => $user?->lastname,
+                    'full_name' => $user?->full_name,
+                ],
+            ],
+            'subject' => [
+                'id' => $subject?->id,
+                'subject_name' => $subject?->subject_name,
+            ],
+            'grade' => [
+                'id' => $grade?->id,
+                'grade_name' => $grade?->grade_name,
+                'section' => $grade?->section,
+            ],
+        ];
     }
 
     public function switchTab(string $tab): void
@@ -395,10 +450,16 @@ new #[Title('Recuperaciones')] class extends Component {
             return;
         }
 
-        $activity = Activity::find($this->selectedActivityId);
+        $activity = Activity::with('assessmentBlock')->find($this->selectedActivityId);
 
-        if (! $activity) {
+        if (! $activity || ! $activity->assessmentBlock || ! $this->ownsBlock($activity->assessmentBlock)) {
             Flux::toast(variant: 'danger', text: __('Actividad no encontrada.'));
+
+            return;
+        }
+
+        if (! $this->isEnrolled($studentId, (int) $activity->assessmentBlock->grade_id)) {
+            Flux::toast(variant: 'warning', text: __('El estudiante no está matriculado en este curso.'));
 
             return;
         }
@@ -453,6 +514,18 @@ new #[Title('Recuperaciones')] class extends Component {
             return;
         }
 
+        if (! $this->ownsExamContext((int) $this->yearId, (int) $this->selectedSubjectId, (int) $this->selectedGradeId)) {
+            Flux::toast(variant: 'danger', text: __('No se encontró la asignación de enseñanza para este curso y asignatura.'));
+
+            return;
+        }
+
+        if (! $this->isEnrolled($studentId, (int) $this->selectedGradeId)) {
+            Flux::toast(variant: 'warning', text: __('El estudiante no está matriculado en este curso.'));
+
+            return;
+        }
+
         $current = StudentExam::where('year_id', $this->yearId)
             ->where('subject_id', $this->selectedSubjectId)
             ->where('grade_id', $this->selectedGradeId)
@@ -500,7 +573,13 @@ new #[Title('Recuperaciones')] class extends Component {
 
     public function applyRecovery(int $recoveryId): void
     {
-        $recovery = ActivityRecovery::findOrFail($recoveryId);
+        $recovery = ActivityRecovery::with('activity.assessmentBlock')->find($recoveryId);
+
+        if (! $recovery || ! $recovery->activity || ! $this->ownsBlock($recovery->activity->assessmentBlock)) {
+            Flux::toast(variant: 'danger', text: __('No se encontró la recuperación.'));
+
+            return;
+        }
 
         if ($recovery->is_applied) {
             Flux::toast(variant: 'warning', text: __('Esta recuperación ya fue aplicada.'));
@@ -536,7 +615,13 @@ new #[Title('Recuperaciones')] class extends Component {
 
     public function applyExamRecovery(int $recoveryId): void
     {
-        $recovery = ExamRecovery::findOrFail($recoveryId);
+        $recovery = ExamRecovery::find($recoveryId);
+
+        if (! $recovery || ! $this->ownsExamContext((int) $recovery->year_id, (int) $recovery->subject_id, (int) $recovery->grade_id)) {
+            Flux::toast(variant: 'danger', text: __('No se encontró la recuperación.'));
+
+            return;
+        }
 
         if ($recovery->is_applied) {
             Flux::toast(variant: 'warning', text: __('Esta recuperación ya fue aplicada.'));
@@ -572,7 +657,13 @@ new #[Title('Recuperaciones')] class extends Component {
 
     public function deleteRecovery(int $recoveryId): void
     {
-        $recovery = ActivityRecovery::findOrFail($recoveryId);
+        $recovery = ActivityRecovery::with('activity.assessmentBlock')->find($recoveryId);
+
+        if (! $recovery || ! $recovery->activity || ! $this->ownsBlock($recovery->activity->assessmentBlock)) {
+            Flux::toast(variant: 'danger', text: __('No se encontró la recuperación.'));
+
+            return;
+        }
 
         if ($recovery->is_applied) {
             Flux::toast(variant: 'warning', text: __('No se puede eliminar una recuperación ya aplicada.'));
@@ -586,7 +677,13 @@ new #[Title('Recuperaciones')] class extends Component {
 
     public function deleteExamRecovery(int $recoveryId): void
     {
-        $recovery = ExamRecovery::findOrFail($recoveryId);
+        $recovery = ExamRecovery::find($recoveryId);
+
+        if (! $recovery || ! $this->ownsExamContext((int) $recovery->year_id, (int) $recovery->subject_id, (int) $recovery->grade_id)) {
+            Flux::toast(variant: 'danger', text: __('No se encontró la recuperación.'));
+
+            return;
+        }
 
         if ($recovery->is_applied) {
             Flux::toast(variant: 'warning', text: __('No se puede eliminar una recuperación ya aplicada.'));
@@ -596,6 +693,53 @@ new #[Title('Recuperaciones')] class extends Component {
 
         $recovery->delete();
         Flux::toast(variant: 'success', text: __('Recuperación de examen eliminada correctamente.'));
+    }
+
+    /**
+     * Verifica que el bloque pertenezca a un bloque del docente autenticado.
+     */
+    private function ownsBlock(?AssessmentBlock $block): bool
+    {
+        $teacherId = auth()->user()->teacher?->id;
+
+        return $block !== null
+            && $teacherId !== null
+            && (int) $block->teacher_id === (int) $teacherId;
+    }
+
+    /**
+     * Verifica que el docente autenticado tenga asignada la combinación
+     * asignatura + curso en el año lectivo indicado.
+     */
+    private function ownsExamContext(int $yearId, int $subjectId, int $gradeId): bool
+    {
+        $teacherId = auth()->user()->teacher?->id;
+
+        if (! $teacherId || ! $yearId || ! $subjectId || ! $gradeId) {
+            return false;
+        }
+
+        return ClassSchedule::where('teacher_id', $teacherId)
+            ->where('year_id', $yearId)
+            ->where('subject_id', $subjectId)
+            ->where('grade_id', $gradeId)
+            ->exists();
+    }
+
+    /**
+     * Verifica la matrícula activa del estudiante en el curso/año indicados.
+     */
+    private function isEnrolled(int $studentId, int $gradeId): bool
+    {
+        if (! $this->yearId || ! $gradeId) {
+            return false;
+        }
+
+        return StudentEnrollment::where('student_id', $studentId)
+            ->where('grade_id', $gradeId)
+            ->where('year_id', $this->yearId)
+            ->where('status', 'active')
+            ->exists();
     }
 
     public function isGradingOpen(): bool
@@ -1046,7 +1190,12 @@ new #[Title('Recuperaciones')] class extends Component {
                                         <td class="px-4 py-3">
                                             <flux:badge color="blue">{{ __('Actividad') }}</flux:badge>
                                         </td>
-                                        <td class="px-4 py-3 text-xs text-zinc-700 dark:text-zinc-300">{{ $rec['activity']['name'] ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-xs text-zinc-700 dark:text-zinc-300">
+                                            <div>{{ $rec['activity']['name'] ?? '-' }}</div>
+                                            <div class="text-[10px] text-zinc-400">
+                                                {{ $rec['subject']['subject_name'] ?? '' }} @if(($rec['grade']['grade_name'] ?? '') !== '')· {{ trim(($rec['grade']['grade_name'] ?? '').' '.($rec['grade']['section'] ?? '')) }}@endif
+                                            </div>
+                                        </td>
                                         <td class="px-4 py-3 text-center">
                                             <span class="font-mono text-xs font-bold {{ $this->getGradeColor($rec['original_grade']) }}">{{ number_format($rec['original_grade'], 2) }}</span>
                                         </td>
@@ -1074,7 +1223,12 @@ new #[Title('Recuperaciones')] class extends Component {
                                         <td class="px-4 py-3">
                                             <flux:badge color="violet">{{ __('Examen') }}</flux:badge>
                                         </td>
-                                        <td class="px-4 py-3 text-xs text-zinc-700 dark:text-zinc-300">{{ __('Examen') }} — {{ $this->getSubjectName() }}</td>
+                                        <td class="px-4 py-3 text-xs text-zinc-700 dark:text-zinc-300">
+                                            <div>{{ __('Examen') }}</div>
+                                            <div class="text-[10px] text-zinc-400">
+                                                {{ $rec['subject']['subject_name'] ?? '' }} @if(($rec['grade']['grade_name'] ?? '') !== '')· {{ trim(($rec['grade']['grade_name'] ?? '').' '.($rec['grade']['section'] ?? '')) }}@endif
+                                            </div>
+                                        </td>
                                         <td class="px-4 py-3 text-center">
                                             <span class="font-mono text-xs font-bold {{ $this->getGradeColor($rec['original_grade']) }}">{{ number_format($rec['original_grade'], 2) }}</span>
                                         </td>

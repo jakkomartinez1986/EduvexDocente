@@ -19,6 +19,7 @@ use App\Models\Setting\YearSettings\ScolarYear;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\User;
 use App\Services\AcademicYearService;
+use App\Support\Api\ApiModules;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
@@ -33,20 +34,6 @@ use Illuminate\Support\Facades\Config;
  */
 final class ConfigurationService
 {
-    /**
-     * Modelos cuyos permisos (Spatie) son relevantes para cada módulo.
-     * La columna `module` de la tabla permissions usa el nombre corto del modelo.
-     */
-    private const MODULE_MODELS = [
-        'schedule' => ['ClassSchedule'],
-        'attendance' => ['Attendance', 'AttendanceSummary', 'ClassObservation'],
-        'grades' => [
-            'AssessmentBlock', 'Activity', 'ActivityGrade', 'ActivityRecovery',
-            'StudentExam', 'StudentProject', 'SupplementaryExam',
-            'AcademicReinforcement', 'GraduationExam',
-        ],
-    ];
-
     private const ATTENDANCE_STATUSES = [
         ['code' => 'P', 'label' => 'Presente', 'category' => 'present'],
         ['code' => 'A', 'label' => 'Atraso', 'category' => 'late'],
@@ -384,7 +371,7 @@ final class ConfigurationService
 
         $result = [];
 
-        foreach (self::MODULE_MODELS as $module => $models) {
+        foreach (ApiModules::PERMISSION_MODELS as $module => $models) {
             $result[$module] = $permissions
                 ->filter(fn ($permission): bool => in_array($permission->module ?? null, $models, true))
                 ->pluck('name')

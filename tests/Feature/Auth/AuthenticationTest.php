@@ -12,8 +12,10 @@ test('login screen can be rendered', function () {
 test('users can authenticate using the login screen', function () {
     $user = User::factory()->create();
 
+    // El formulario de login acepta email o DNI bajo el campo "login"
+    // (config fortify.username + FortifyServiceProvider::authenticateUsing).
     $response = $this->post(route('login.store'), [
-        'email' => $user->email,
+        'login' => $user->email,
         'password' => 'password',
     ]);
 
@@ -28,11 +30,12 @@ test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 
     $response = $this->post(route('login.store'), [
-        'email' => $user->email,
+        'login' => $user->email,
         'password' => 'wrong-password',
     ]);
 
-    $response->assertSessionHasErrorsIn('email');
+    // Fortify falla con el campo configurado como username (login).
+    $response->assertSessionHasErrors(['login']);
 
     $this->assertGuest();
 });
@@ -48,7 +51,7 @@ test('users with two factor enabled are redirected to two factor challenge', fun
     $user = User::factory()->withTwoFactor()->create();
 
     $response = $this->post(route('login.store'), [
-        'email' => $user->email,
+        'login' => $user->email,
         'password' => 'password',
     ]);
 
