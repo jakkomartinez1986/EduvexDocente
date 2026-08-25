@@ -71,6 +71,9 @@ class ActivityRecovery extends Model
         return $this->belongsTo(Activity::class);
     }
 
+    /**
+     * @return BelongsTo<Student, $this>
+     */
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);

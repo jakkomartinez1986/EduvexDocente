@@ -1,5 +1,9 @@
 <?php
 
+use App\Exceptions\Api\PasswordChangeRequiredException;
+use App\Exceptions\Api\TokenAbilityMissingException;
+use App\Http\Middleware\EnsurePasswordRotated;
+use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\AuthenticationException;
@@ -7,6 +11,7 @@ use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -29,6 +34,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
             'user.active' => EnsureUserIsActive::class,
+            'token.ability' => EnsureTokenAbility::class,
+            'password.rotated' => EnsurePasswordRotated::class,
             // 'representante' => \App\Http\Middleware\EnsureUserIsRepresentative::class,
         ]);
 
@@ -61,9 +68,23 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->renderable(function (ThrottleRequestsException $e, Request $request) {
             if ($request->is('api/*')) {
+                // Se preservan Retry-After y X-RateLimit-* para que el
+                // motor de sync del cliente respete el backoff (§7.7).
                 return ApiResponse::error(
                     message: 'Demasiadas solicitudes. Inténtelo nuevamente más tarde.',
                     status: 429,
+                )->withHeaders($e->getHeaders());
+            }
+        });
+
+        $exceptions->renderable(function (PostTooLargeException $e, Request $request) {
+            if ($request->is('api/*')) {
+                // Lote de sync (o request) que excede post_max_size: el
+                // cliente debe trocear más pequeño el outbox (§5).
+                return ApiResponse::error(
+                    message: 'El cuerpo de la solicitud excede el tamaño permitido. Reduzca el lote.',
+                    status: 413,
+                    meta: ['code' => 'payload_too_large'],
                 );
             }
         });
@@ -73,6 +94,29 @@ return Application::configure(basePath: dirname(__DIR__))
                 return ApiResponse::error(
                     message: $e->getMessage() ?: 'No autorizado.',
                     status: 403,
+                );
+            }
+        });
+
+        $exceptions->renderable(function (PasswordChangeRequiredException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error(
+                    message: $e->getMessage(),
+                    status: 403,
+                    meta: ['code' => 'password_change_required'],
+                );
+            }
+        });
+
+        $exceptions->renderable(function (TokenAbilityMissingException $e, Request $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error(
+                    message: $e->getMessage(),
+                    status: 403,
+                    meta: [
+                        'code' => 'insufficient_abilities',
+                        'required_abilities' => $e->required,
+                    ],
                 );
             }
         });

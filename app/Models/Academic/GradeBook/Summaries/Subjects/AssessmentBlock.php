@@ -53,11 +53,17 @@ class AssessmentBlock extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Subject, $this>
+     */
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
     }
 
+    /**
+     * @return BelongsTo<Grade, $this>
+     */
     public function grade(): BelongsTo
     {
         return $this->belongsTo(Grade::class);

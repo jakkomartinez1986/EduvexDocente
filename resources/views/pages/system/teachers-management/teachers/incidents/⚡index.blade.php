@@ -14,6 +14,7 @@ use App\Models\Incidents\NotificationChannel;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\Setting\EducationalSettings\School;
 use App\Models\Setting\EducationalSettings\Subject;
+use App\Models\Setting\Messaging\ChannelConfiguration;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\StudentManagement\Academics\AcademicNotification;
 use App\Models\StudentManagement\Academics\HomeworkPending;
@@ -22,10 +23,15 @@ use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\TeacherManagement\Attendances\AttendanceSummary;
 use App\Models\TeacherManagement\Attendances\ClassObservation;
 use App\Services\AcademicYearService;
+use App\Services\Messaging\ChannelStatusService;
+use App\Services\Messaging\NotificationMessageBuilder;
+use App\Services\Messaging\WaMeLinkService;
+use App\Jobs\SendChannelMessageJob;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Flux\Flux;
 use Illuminate\Support\Facades\File;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -45,6 +51,9 @@ new #[Title('Libro de Incidencias')] class extends Component
     public ?int $filterTrimesterId = null;
 
     public ?int $filterGradeId = null;
+    public bool $searched = false;
+    public ?string $selectedStudentName = null;
+    public ?string $selectedRepresentativeName = null;
 
     public ?int $selectedStudentId = null;
 
@@ -176,7 +185,7 @@ new #[Title('Libro de Incidencias')] class extends Component
     ];
 
     #[Locked]
-    public array $channelOptions = ['email', 'whatsapp', 'sms', 'sistema', 'impresa'];
+    public array $channelOptions = ['email', 'whatsapp', 'telegram', 'sms', 'sistema', 'impresa'];
 
     public function mount(): void
     {
@@ -185,6 +194,7 @@ new #[Title('Libro de Incidencias')] class extends Component
         if ($currentYear) {
             $this->trimesters = $currentYear->academicPeriods()
                 ->where('status', 1)
+                ->orderBy('id')
                 ->get()
                 ->toArray();
         }
@@ -225,11 +235,16 @@ new #[Title('Libro de Incidencias')] class extends Component
         $this->selectedGradeId = $gradeId;
         $this->selectedCourseName = $courseName;
         $this->editingNotificationId = null;
+
+        $student = Student::with(['user', 'representatives.user'])->find($studentId);
+        $this->selectedStudentName = $student?->user?->fullname;
+        $this->selectedRepresentativeName = $student?->representatives->first()?->user?->fullname;
+
         $nextBusinessDay = $this->getNextBusinessDay();
 
         $message = $this->category === 'asistencia'
             ? $this->buildAttendanceAutoMessage($studentId)
-            : $this->buildAutoMessage($studentId, $subjectId, $gradeId);
+            : $this->buildAutoMessage($studentId, $subjectId, $gradeId, $student);
 
         $this->notifForm = [
             'type' => $this->category === 'academicas' ? 'academico' : ($this->category === 'comportamentales' ? 'comportamental' : 'asistencia'),
@@ -253,10 +268,10 @@ new #[Title('Libro de Incidencias')] class extends Component
         return $date->format('Y-m-d');
     }
 
-    protected function buildAutoMessage(int $studentId, ?int $subjectId, ?int $gradeId): string
+    protected function buildAutoMessage(int $studentId, ?int $subjectId, ?int $gradeId, ?Student $student = null): string
     {
         $lines = [];
-        $student = Student::with('user')->find($studentId);
+        $student ??= Student::with('user')->find($studentId);
         $studentName = $student?->user?->fullname ?? '';
 
         if ($studentName) {
@@ -364,6 +379,11 @@ new #[Title('Libro de Incidencias')] class extends Component
         }
 
         return implode("\n", $lines);
+    }
+
+    protected function buildWhatsAppUrl(AcademicNotification $notification): string
+    {
+        return $this->resolveWhatsAppPayloads($notification)[0]['url'] ?? '';
     }
 
     public function openInterventionModal(?int $studentId = null, ?int $subjectId = null, ?int $gradeId = null): void
@@ -522,7 +542,7 @@ new #[Title('Libro de Incidencias')] class extends Component
 
     public function generateWhatsAppPdf(int $notificationId): void
     {
-        $notification = AcademicNotification::with(['student.user', 'teacher.user', 'grade', 'subject'])->findOrFail($notificationId);
+        $notification = AcademicNotification::with(['student.user', 'student.representatives.user', 'teacher.user', 'grade', 'subject'])->findOrFail($notificationId);
 
         $school = School::where('status', 1)->first();
 
@@ -542,9 +562,143 @@ new #[Title('Libro de Incidencias')] class extends Component
         File::ensureDirectoryExists(dirname($path));
         file_put_contents($path, $pdf->output());
 
-        $this->dispatch('openUrl', url('storage/whatsapp-pdfs/'.$fileName));
+        $pdfUrl = url('storage/whatsapp-pdfs/'.$fileName);
 
-        Flux::toast(variant: 'success', text: __('PDF generado. Se abrió WhatsApp para enviar el archivo.'));
+        $payloads = $this->resolveWhatsAppPayloads($notification);
+
+        $this->sendTelegramForNotification($notification, $path, $fileName);
+
+        if ($payloads === []) {
+            Flux::toast(variant: 'warning', text: __('El representante no tiene celular registrado. Se descargó el PDF para enviarlo manualmente.'));
+
+            return;
+        }
+
+        if (app(ChannelStatusService::class)->apiAvailable(ChannelConfiguration::CHANNEL_WHATSAPP)) {
+            $channelRow = NotificationChannel::where('notification_id', $notification->id)
+                ->where('channel', 'whatsapp')
+                ->first();
+
+            foreach ($payloads as $payload) {
+                SendChannelMessageJob::dispatch(
+                    ChannelConfiguration::CHANNEL_WHATSAPP,
+                    $payload['phone'],
+                    $payload['message'],
+                    $path,
+                    $fileName,
+                    $channelRow?->id,
+                );
+            }
+
+            $notification->update(['sent_at' => $notification->sent_at ?? now()]);
+
+            Flux::toast(variant: 'success', text: __('PDF generado. Notificación en cola de envío por WhatsApp.'));
+
+            return;
+        }
+
+        NotificationChannel::where('notification_id', $notification->id)
+            ->where('channel', 'whatsapp')
+            ->update(['status' => 'sent', 'sent_at' => now()]);
+        $notification->update(['sent_at' => $notification->sent_at ?? now()]);
+
+        $urls = array_column($payloads, 'url');
+
+        $this->dispatch('whatsapp-send', wa: $urls, pdf: $pdfUrl, name: $fileName);
+    }
+
+    public function saveNotificationThenTelegram(): void
+    {
+        $this->saveNotification();
+
+        $lastNotif = AcademicNotification::where('teacher_id', auth()->user()->teacher?->id)
+            ->latest()
+            ->first();
+
+        if ($lastNotif) {
+            $this->sendTelegramForNotification($lastNotif);
+        }
+    }
+
+    protected function sendTelegramForNotification(AcademicNotification $notification, ?string $pdfPath = null, ?string $pdfName = null): bool
+    {
+        if (! app(ChannelStatusService::class)->apiAvailable(ChannelConfiguration::CHANNEL_TELEGRAM)) {
+            Flux::toast(variant: 'warning', text: __('Telegram no está habilitado o le faltan credenciales.'));
+
+            return false;
+        }
+
+        $chatIds = Representative::where('student_id', $notification->student_id)->with('user')
+            ->get()
+            ->map(fn ($representative) => trim((string) $representative->user?->telegram_chat_id))
+            ->filter(fn ($chatId) => $chatId !== '')
+            ->unique()
+            ->values();
+
+        if ($chatIds->isEmpty()) {
+            Flux::toast(variant: 'warning', text: __('Ningún representante tiene un chat de Telegram vinculado.'));
+
+            return false;
+        }
+
+        $message = $pdfPath !== null
+            ? app(NotificationMessageBuilder::class)->whatsappMessage($notification, $notification->student?->representatives->first())
+            : (string) $notification->message;
+
+        $channelRow = NotificationChannel::where('notification_id', $notification->id)
+            ->where('channel', 'telegram')
+            ->first();
+
+        foreach ($chatIds as $chatId) {
+            SendChannelMessageJob::dispatch(
+                ChannelConfiguration::CHANNEL_TELEGRAM,
+                $chatId,
+                $message,
+                $pdfPath,
+                $pdfName,
+                $channelRow?->id,
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<int, array{phone: string, message: string, url: string}>
+     */
+    protected function resolveWhatsAppPayloads(AcademicNotification $notification): array
+    {
+        $linkService = app(WaMeLinkService::class);
+        $messageBuilder = app(NotificationMessageBuilder::class);
+
+        $payloads = [];
+
+        foreach ($notification->student?->representatives ?? [] as $representative) {
+            $phone = $linkService->normalizePhone($representative->user?->cellphone ?? $representative->user?->phone);
+
+            if (! $phone) {
+                continue;
+            }
+
+            $message = $messageBuilder->whatsappMessage($notification, $representative);
+
+            $payloads[] = [
+                'phone' => $phone,
+                'message' => $message,
+                'url' => $linkService->buildLink($phone, $message),
+            ];
+        }
+
+        return $payloads;
+    }
+
+    #[Computed]
+    public function messagingStatuses(): array
+    {
+        return app(ChannelStatusService::class)->forChannels([
+            ChannelConfiguration::CHANNEL_WHATSAPP,
+            ChannelConfiguration::CHANNEL_TELEGRAM,
+        ]);
     }
 
     public function openCommitmentModal(int $studentId, ?int $subjectId = null, ?int $gradeId = null): void
@@ -703,14 +857,25 @@ new #[Title('Libro de Incidencias')] class extends Component
         return $this->getTeacherSchedules();
     }
 
+    protected ?\Illuminate\Support\Collection $teacherSchedulesCache = null;
+
+    protected function registroScope($query)
+    {
+        return $query->where('teacher_id', auth()->user()->teacher?->id);
+    }
+
     protected function getTeacherSchedules()
     {
-        $teacherId = auth()->user()->teacher?->id;
-        if (! $teacherId) {
-            return collect();
+        if ($this->teacherSchedulesCache !== null) {
+            return $this->teacherSchedulesCache;
         }
 
-        return ClassSchedule::where('teacher_id', $teacherId)
+        $teacherId = auth()->user()->teacher?->id;
+        if (! $teacherId) {
+            return $this->teacherSchedulesCache = collect();
+        }
+
+        return $this->teacherSchedulesCache = ClassSchedule::where('teacher_id', $teacherId)
             ->where('year_id', $this->yearId)
             ->with(['subject', 'grade.nivel.shift'])
             ->get();
@@ -759,23 +924,19 @@ new #[Title('Libro de Incidencias')] class extends Component
         $this->filterGradeId = null;
         $this->filterSubjectId = null;
         $this->search = '';
+        $this->searched = false;
     }
 
-    public function getTutorGradeProperty(): ?array
+    public function buscar(): void
     {
-        $schedules = $this->getTeacherSchedules();
-        $gradeIds = $schedules->pluck('grade_id')->unique()->values()->all();
+        if (! $this->filterGradeId && ! $this->filterSubjectId && trim($this->search) === '') {
+            $this->addError('buscar', __('Escriba el nombre del estudiante o seleccione un curso o asignatura.'));
 
-        if (count($gradeIds) === 1) {
-            $grade = $schedules->first()->grade;
-
-            return [
-                'id' => $grade->id,
-                'name' => ($grade->grade_name ?? '').' '.($grade->section ?? ''),
-            ];
+            return;
         }
 
-        return null;
+        $this->resetErrorBag();
+        $this->searched = true;
     }
 
     public function getAttendanceStudentsProperty()
@@ -823,7 +984,7 @@ new #[Title('Libro de Incidencias')] class extends Component
                 continue;
             }
 
-            $todayAbsences = $allAbsences->where('date', $today);
+            $todayAbsences = $allAbsences->filter(fn ($a) => $a->date->toDateString() === $today);
             $weekAbsences = $allAbsences->filter(fn ($a) => $a->date >= $weekStart && $a->date <= $weekEnd);
 
             $consecutiveDates = [];
@@ -1191,7 +1352,7 @@ new #[Title('Libro de Incidencias')] class extends Component
             default => 'academico',
         };
 
-        return IncidentIntervention::where('teacher_id', $teacherId)
+        return $this->registroScope(IncidentIntervention::query())
             ->where('type', $type)
             ->where('year_id', $this->yearId)
             ->with(['student.user', 'subject', 'grade'])
@@ -1213,7 +1374,7 @@ new #[Title('Libro de Incidencias')] class extends Component
             default => 'academico',
         };
 
-        return IncidentCommitmentLetter::where('teacher_id', $teacherId)
+        return $this->registroScope(IncidentCommitmentLetter::query())
             ->where('type', $type)
             ->where('year_id', $this->yearId)
             ->with(['student.user', 'subject', 'grade'])
@@ -1235,7 +1396,7 @@ new #[Title('Libro de Incidencias')] class extends Component
             default => 'academico',
         };
 
-        return IncidentReport::where('teacher_id', $teacherId)
+        return $this->registroScope(IncidentReport::query())
             ->where('type', $type)
             ->where('year_id', $this->yearId)
             ->with(['student.user', 'subject', 'grade'])
@@ -1257,7 +1418,7 @@ new #[Title('Libro de Incidencias')] class extends Component
             default => 'academico',
         };
 
-        $all = IncidentIntervention::where('teacher_id', $teacherId)
+        $all = $this->registroScope(IncidentIntervention::query())
             ->where('type', $type)
             ->where('year_id', $this->yearId);
 
@@ -1358,16 +1519,6 @@ new #[Title('Libro de Incidencias')] class extends Component
         {{-- ==================== ASISTENCIA: LISTA DE INASISTENCIAS ==================== --}}
         @if($this->category === 'asistencia' && $this->tab === 'asistencia_list')
             <div>
-                @if($this->tutorGrade)
-                    <div class="flex items-center gap-4 mb-4 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-                        <flux:icon.clipboard-document-list class="size-5 text-amber-600 dark:text-amber-400" />
-                        <div>
-                            <span class="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">{{ $this->tutorGrade['name'] }}</span>
-                            <span class="text-xs text-zinc-500 ml-2">{{ __('Grado del tutor') }}</span>
-                        </div>
-                    </div>
-                @endif
-
                 <div class="flex items-center gap-3 mb-4 flex-wrap">
                     <div class="w-full sm:w-72">
                         <flux:input wire:model.live.debounce="search" :placeholder="__('Buscar estudiante...')" icon="magnifying-glass" />
@@ -1475,11 +1626,11 @@ new #[Title('Libro de Incidencias')] class extends Component
             <div>
                 <div class="flex items-center gap-3 mb-4 flex-wrap">
                     <div class="w-full sm:w-72">
-                        <flux:input wire:model.live.debounce="search" :placeholder="__('Buscar estudiante...')" icon="magnifying-glass" />
+                        <flux:input wire:model="search" :placeholder="__('Buscar estudiante...')" icon="magnifying-glass" />
                     </div>
                     <div class="w-full sm:w-48">
                         <flux:label>{{ __('Trimestre') }}</flux:label>
-                        <flux:select wire:model.live="filterTrimesterId" placeholder="{{ __('Todos') }}">
+                        <flux:select wire:model="filterTrimesterId" placeholder="{{ __('Todos') }}">
                             @foreach($trimesters as $tri)
                                 <flux:select.option value="{{ $tri['id'] }}">{{ $tri['trimester_name'] }}</flux:select.option>
                             @endforeach
@@ -1487,7 +1638,7 @@ new #[Title('Libro de Incidencias')] class extends Component
                     </div>
                     <div class="w-full sm:w-56">
                         <flux:label>{{ __('Grado') }}</flux:label>
-                        <flux:select wire:model.live="filterGradeId" placeholder="{{ __('Todos') }}">
+                        <flux:select wire:model="filterGradeId" placeholder="{{ __('Todos') }}">
                             @foreach($this->filterGrades as $grade)
                                 <flux:select.option value="{{ $grade['id'] }}">{{ $grade['name'] }}</flux:select.option>
                             @endforeach
@@ -1495,20 +1646,30 @@ new #[Title('Libro de Incidencias')] class extends Component
                     </div>
                     <div class="w-full sm:w-56">
                         <flux:label>{{ __('Asignatura') }}</flux:label>
-                        <flux:select wire:model.live="filterSubjectId" placeholder="{{ __('Todas') }}">
+                        <flux:select wire:model="filterSubjectId" placeholder="{{ __('Todas') }}">
                             @foreach($this->filterSubjects as $subject)
                                 <flux:select.option value="{{ $subject['id'] }}">{{ $subject['subject_name'] }}</flux:select.option>
                             @endforeach
                         </flux:select>
                     </div>
-                    @if($filterTrimesterId || $filterGradeId || $filterSubjectId || $search)
-                        <div class="flex items-end">
+                    <div class="flex items-end gap-2">
+                        <flux:button wire:click="buscar" variant="primary" icon="magnifying-glass">{{ __('Buscar') }}</flux:button>
+                        @if($filterTrimesterId || $filterGradeId || $filterSubjectId || $search)
                             <flux:button wire:click="resetFilters" size="sm" variant="ghost" icon="x-mark">{{ __('Limpiar') }}</flux:button>
-                        </div>
-                    @endif
+                        @endif
+                    </div>
+                    @error('buscar')
+                        <span class="text-sm text-red-500 self-center">{{ $message }}</span>
+                    @enderror
                 </div>
 
-                @if($this->category === 'academicas')
+                @if(! $this->searched)
+                    <div class="text-center py-16 text-zinc-400 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700">
+                        <flux:icon.magnifying-glass class="mx-auto mb-4 size-12 text-zinc-300 dark:text-zinc-600" />
+                        <p class="text-base font-semibold">{{ __('Escriba el nombre del estudiante y presione Buscar, o filtre por curso y asignatura') }}</p>
+                        <p class="text-sm text-zinc-400 mt-1">{{ __('La búsqueda se limita a los estudiantes con los que dicta clases.') }}</p>
+                    </div>
+                @elseif($this->category === 'academicas')
                     <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
                         <table class="w-full text-sm">
                             <thead>
@@ -1900,25 +2061,37 @@ new #[Title('Libro de Incidencias')] class extends Component
                         <flux:label>{{ __('Canales de envío') }}</flux:label>
                         <div class="space-y-2 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3">
                             @foreach($this->channelOptions as $channel)
-                                <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                    <flux:checkbox value="{{ $channel }}" wire:model="notifForm.channels" />
-                                    <span>{{ __(ucfirst($channel)) }}</span>
-                                </label>
+                                @if($channel === 'telegram' && ! ($this->messagingStatuses['telegram']['api_available'] ?? false))
+                                    <label class="flex items-center gap-2 text-sm opacity-50 cursor-not-allowed" title="{{ __('Requiere configurar y habilitar la API de Telegram en Ajustes.') }}">
+                                        <input type="checkbox" value="{{ $channel }}" disabled />
+                                        <span>{{ __(ucfirst($channel)) }} <span class="text-xs text-zinc-400 dark:text-zinc-500">({{ __('API no configurada') }})</span></span>
+                                    </label>
+                                @else
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <flux:checkbox value="{{ $channel }}" wire:model="notifForm.channels" />
+                                        <span class="inline-flex items-center gap-1.5">
+                                            {{ __(ucfirst($channel)) }}
+                                            @if(in_array($channel, ['whatsapp', 'telegram'], true))
+                                                <span class="size-1.5 rounded-full {{ (($this->messagingStatuses[$channel]['api_available'] ?? false)) ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600' }}"></span>
+                                                @if(! ($this->messagingStatuses[$channel]['api_available'] ?? false) && ($this->messagingStatuses[$channel]['manual_available'] ?? false))
+                                                    <span class="text-xs text-zinc-400 dark:text-zinc-500">({{ __('envío manual') }})</span>
+                                                @endif
+                                            @endif
+                                        </span>
+                                    </label>
+                                @endif
                             @endforeach
                         </div>
                         <flux:error name="notifForm.channels" />
                     </flux:field>
 
-                    @php
-                        $rep = $this->selectedStudentId ? \App\Models\Identity\Users\Representative::where('student_id', $this->selectedStudentId)->with('user')->first() : null;
-                    @endphp
                     <div class="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg">
                         <div class="text-xs text-zinc-500 mb-2">{{ __('Destinatario') }}</div>
                         <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                            {{ $rep?->user?->fullname ?? $this->detectStudents->firstWhere('student.id', $this->selectedStudentId)?->student?->user?->fullname ?? '-' }}
+                            {{ $this->selectedRepresentativeName ?? $this->selectedStudentName ?? '-' }}
                         </p>
                         <p class="text-xs text-zinc-500">
-                            {{ $rep ? __('Representante de: ') . $this->detectStudents->firstWhere('student.id', $this->selectedStudentId)?->student?->user?->fullname : '' }}
+                            {{ $this->selectedRepresentativeName ? __('Representante de: ') . $this->selectedStudentName : '' }}
                         </p>
                         <p class="text-xs text-zinc-500">{{ $this->selectedCourseName ?? '' }}</p>
                     </div>
@@ -1930,6 +2103,10 @@ new #[Title('Libro de Incidencias')] class extends Component
                 @if(in_array('whatsapp', $this->notifForm['channels']))
                     <flux:button variant="subtle" icon="document-text" wire:click="saveNotificationThenWhatsApp">
                         {{ __('Guardar + WhatsApp') }}
+                    </flux:button>
+                @elseif(in_array('telegram', $this->notifForm['channels']) && ($this->messagingStatuses['telegram']['api_available'] ?? false))
+                    <flux:button variant="subtle" icon="paper-airplane" wire:click="saveNotificationThenTelegram">
+                        {{ __('Guardar + Telegram') }}
                     </flux:button>
                 @endif
                 <flux:button variant="primary" wire:click="saveNotification">{{ __('Generar notificación') }}</flux:button>
@@ -2137,8 +2314,25 @@ new #[Title('Libro de Incidencias')] class extends Component
 
     <script>
         document.addEventListener('livewire:init', () => {
-            Livewire.on('openUrl', (url) => {
-                window.open(url, '_blank');
+            Livewire.on('whatsapp-send', (payload) => {
+                const data = Array.isArray(payload) ? payload[0] : payload;
+
+                const targets = Array.isArray(data?.wa) ? data.wa : [data?.wa].filter(Boolean);
+
+                targets.forEach((wa) => {
+                    if (wa) {
+                        window.open(wa, '_blank');
+                    }
+                });
+
+                if (data.pdf) {
+                    const link = document.createElement('a');
+                    link.href = data.pdf;
+                    link.download = data.name || 'notificacion.pdf';
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                }
             });
         });
     </script>

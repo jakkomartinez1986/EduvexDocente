@@ -1,18 +1,5 @@
 <?php
 
-use App\Models\Identity\Users\Teacher;
-use App\Models\Identity\Users\Student;
-use App\Models\Management\Enrollments\StudentEnrollment;
-use App\Models\Setting\EducationalSettings\Area;
-use App\Models\Setting\EducationalSettings\Grade;
-use App\Models\Setting\EducationalSettings\Nivel;
-use App\Models\Setting\EducationalSettings\Shift;
-use App\Models\Setting\EducationalSettings\Subject;
-use App\Models\Setting\YearSettings\AcademicPeriod;
-use App\Models\Setting\YearSettings\ScolarYear;
-use App\Models\StudentManagement\Academics\AcademicNotification;
-use App\Models\StudentManagement\Academics\HomeworkPending;
-use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -179,6 +166,22 @@ function seedAcademicNotification(int $studentId, int $teacherId, array $ctx): v
     ]);
 }
 
+function seedIncidentIntervention(int $studentId, int $teacherId, array $ctx): int
+{
+    return DB::table('incident_interventions')->insertGetId([
+        'type' => 'academico',
+        'action_type' => 'Refuerzo académico',
+        'student_id' => $studentId,
+        'teacher_id' => $teacherId,
+        'grade_id' => $ctx['gradeId'],
+        'year_id' => $ctx['yearId'],
+        'date' => now()->toDateString(),
+        'status' => 'pending',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+
 test('el libro de incidencias carga para un docente con asignaciones', function () {
     $ctx = seedIncidentsSchoolContext();
     $teacherUser = seedIncidentsTeacher();
@@ -230,7 +233,7 @@ test('las tres categorias renderizan sin errores incluida asistencia', function 
     expect($component->get('tab'))->toBe('asistencia_list');
 });
 
-test('detectStudents mantiene las consultas acotadas aunque crezcan los estudiantes', function () {
+test('los datos no se cargan hasta presionar Buscar y las consultas se mantienen acotadas', function () {
     $ctx = seedIncidentsSchoolContext();
     $teacherUser = seedIncidentsTeacher();
     $teacherId = DB::table('teachers')->where('user_id', $teacherUser->id)->value('id');
@@ -246,12 +249,36 @@ test('detectStudents mantiene las consultas acotadas aunque crezcan los estudian
 
     DB::enableQueryLog();
 
-    Livewire::test(INCIDENTS_COMPONENT)
-        ->set('search', '')
-        ->assertSuccessful();
+    $component = Livewire::test(INCIDENTS_COMPONENT)
+        ->assertSuccessful()
+        ->assertSee(__('Escriba el nombre del estudiante y presione Buscar, o filtre por curso y asignatura'))
+        ->assertDontSee('EST-N-1');
+
+    expect(count(DB::getQueryLog()))->toBeLessThan(55);
+
+    DB::flushQueryLog();
+
+    $component
+        ->set('filterGradeId', $ctx['gradeId'])
+        ->set('filterSubjectId', $ctx['subjectId'])
+        ->call('buscar')
+        ->assertSuccessful()
+        ->assertSee('EST-N-1');
 
     $queryCount = count(DB::getQueryLog());
     DB::disableQueryLog();
 
     expect($queryCount)->toBeLessThan(45);
+
+    Livewire::test(INCIDENTS_COMPONENT)
+        ->call('buscar')
+        ->assertHasErrors('buscar');
+
+    $component
+        ->set('filterGradeId', null)
+        ->set('filterSubjectId', null)
+        ->set('search', 'EST-N-3')
+        ->call('buscar')
+        ->assertSuccessful()
+        ->assertSee('EST-N-3');
 });

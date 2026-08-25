@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Api\V1\Setting;
 
-use App\Http\Resources\Api\V1\Auth\UserResource;
 use App\Http\Resources\Api\V1\Setting\AreaResource;
 use App\Http\Resources\Api\V1\Setting\ClassroomResource;
 use App\Http\Resources\Api\V1\Setting\ClassScheduleResource;
@@ -15,9 +14,7 @@ use App\Http\Resources\Api\V1\Setting\ScolarYearResource;
 use App\Http\Resources\Api\V1\Setting\ShiftResource;
 use App\Http\Resources\Api\V1\Setting\SubjectResource;
 use App\Http\Resources\Api\V1\Setting\TeacherResource;
-use App\Models\Identity\Users\Student;
 use App\Models\Identity\Users\Teacher;
-use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\Setting\EducationalSettings\Area;
 use App\Models\Setting\EducationalSettings\Classroom;
 use App\Models\Setting\EducationalSettings\Grade;
@@ -55,7 +52,6 @@ final class OfflinePackageService
             'catalogs' => $this->catalogs(),
             'teacher' => $this->teacher($teacher),
             'schedules' => $this->schedules($teacher, $year),
-            'students' => $this->students($teacher, $year),
         ];
     }
 
@@ -120,62 +116,5 @@ final class OfflinePackageService
                 ->orderBy('start_time')
                 ->get(),
         );
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function students(?Teacher $teacher, ?ScolarYear $year): array
-    {
-        if ($teacher === null || $year === null) {
-            return [];
-        }
-
-        $gradeIds = ClassSchedule::query()
-            ->where('teacher_id', $teacher->id)
-            ->where('year_id', $year->id)
-            ->where('is_active', true)
-            ->pluck('grade_id')
-            ->unique()
-            ->values();
-
-        if ($gradeIds->isEmpty()) {
-            return [];
-        }
-
-        $studentIds = StudentEnrollment::query()
-            ->where('year_id', $year->id)
-            ->whereIn('grade_id', $gradeIds)
-            ->pluck('student_id')
-            ->unique()
-            ->values();
-
-        if ($studentIds->isEmpty()) {
-            return [];
-        }
-
-        $students = Student::with('user')
-            ->whereIn('id', $studentIds)
-            ->orderBy('student_code')
-            ->get();
-
-        $enrollments = StudentEnrollment::query()
-            ->where('year_id', $year->id)
-            ->whereIn('grade_id', $gradeIds)
-            ->whereIn('student_id', $studentIds)
-            ->get()
-            ->keyBy('student_id');
-
-        return $students->map(function (Student $student) use ($enrollments): array {
-            $enrollment = $enrollments->get($student->id);
-
-            return [
-                'id' => $student->id,
-                'student_code' => $student->student_code,
-                'user' => $student->user ? new UserResource($student->user) : null,
-                'grade_id' => $enrollment?->grade_id,
-                'enrollment_status' => $enrollment?->status,
-            ];
-        })->values()->all();
     }
 }
