@@ -102,7 +102,7 @@ new #[Title('Grados')] class extends Component {
                     @forelse ($this->records as $grade)
                         <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition">
                             <td class="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">{{ $grade->grade_name }}</td>
-                            <td class="px-4 py-3 text-zinc-700 dark:text-zinc-300">{{ $grade->nivel->nivel_name ?? '-' }}</td>
+                            <td class="px-4 py-3 text-zinc-700 dark:text-zinc-300">{{ $grade->nivel->nivel_name ?? '-' }} / {{ $grade->nivel->shift->shift_name ?? '-' }}</td>
                             <td class="px-4 py-3 text-center text-zinc-700 dark:text-zinc-300">{{ $grade->section ?? '-' }}</td>
                             <td class="px-4 py-3 text-center">
                                 <button wire:click="confirmToggle({{ $grade->id }})"
