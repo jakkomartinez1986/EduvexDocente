@@ -25,3 +25,5 @@ yarn-error.log
 /.ai/rules
 # Documentación local
 /docs/
+# Clientes local
+/clients/
