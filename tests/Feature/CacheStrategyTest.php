@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 use App\Models\Security\Authorizations\Permission as AppPermission;
 use App\Models\Security\Authorizations\Role as AppRole;
+use App\Models\Setting\EducationalSettings\Grade;
+use App\Models\Setting\EducationalSettings\School;
+use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\Setting\YearSettings\ScolarYear;
 use App\Services\AcademicYearService;
+use App\Services\SchoolConfigService;
+use App\Services\StaticCatalogService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission as SpatiePermission;
@@ -119,4 +124,81 @@ it('lets the base Spatie models also flush the permission cache', function (): v
     ]);
 
     expect(Cache::has($registrar->cacheKey))->toBeFalse();
+});
+
+it('caches the active school id as a primitive', function (): void {
+    Cache::flush();
+
+    School::factory()->inactive()->create(['name_school' => 'Escuela Inactiva B']);
+    $school = School::factory()->create(['name_school' => 'Escuela Activa']);
+
+    $service = app(SchoolConfigService::class);
+
+    expect($service->getActiveSchool()?->id)->toBe($school->id)
+        ->and(Cache::get(cacheKey('school:active-id')))->toBe($school->id);
+});
+
+it('does not cache the School Eloquent model (avoids __PHP_Incomplete_Class)', function (): void {
+    Cache::flush();
+
+    $school = School::factory()->create(['name_school' => 'Escuela Activa']);
+    $service = app(SchoolConfigService::class);
+
+    $service->getActiveSchoolId();
+
+    expect(Cache::get(cacheKey('school:active-id')))->toBeInt()
+        ->and($service->getActiveSchool())->toBeInstanceOf(School::class);
+});
+
+it('invalidates the active school cache on save and delete', function (): void {
+    Cache::flush();
+
+    $school = School::factory()->create(['name_school' => 'Escuela Activa']);
+    $service = app(SchoolConfigService::class);
+
+    expect($service->getActiveSchool()?->id)->toBe($school->id)
+        ->and(Cache::has(cacheKey('school:active-id')))->toBeTrue();
+
+    $newSchool = School::factory()->create(['name_school' => 'Nueva Escuela']);
+    expect($service->getActiveSchool()?->id)->toBe($newSchool->id);
+
+    $newSchool->delete();
+    expect($service->getActiveSchool()?->id)->toBe($school->id)
+        ->and(Cache::get(cacheKey('school:active-id')))->toBe($school->id);
+});
+
+it('caches static catalogs as serializable arrays (not Eloquent models)', function (): void {
+    Cache::flush();
+
+    $grade = Grade::factory()->create(['grade_name' => 'Octavo']);
+    $subject = Subject::factory()->create(['subject_name' => 'Matemática']);
+
+    $service = app(StaticCatalogService::class);
+    $catalogs = $service->catalogs();
+
+    expect($catalogs['grades'])->toBeArray()
+        ->and($catalogs['subjects'])->toBeArray()
+        ->and(Cache::has(cacheKey('catalog:static')))->toBeTrue();
+
+    $cached = Cache::get(cacheKey('catalog:static'));
+    expect($cached['grades'])->toBeArray()
+        ->and($cached['subjects'])->toBeArray();
+});
+
+it('invalidates the static catalog cache when a model changes', function (): void {
+    Cache::flush();
+
+    $grade = Grade::factory()->create(['grade_name' => 'Octavo']);
+    $service = app(StaticCatalogService::class);
+
+    expect($service->catalogs()['grades'])->toBeArray()
+        ->and(Cache::has(cacheKey('catalog:static')))->toBeTrue();
+
+    $newGrade = Grade::factory()->create(['grade_name' => 'Primero']);
+    expect(Cache::has(cacheKey('catalog:static')))->toBeFalse()
+        ->and($service->catalogs()['grades'])->toBeArray()
+        ->and(Cache::has(cacheKey('catalog:static')))->toBeTrue();
+
+    $newGrade->delete();
+    expect(Cache::has(cacheKey('catalog:static')))->toBeFalse();
 });

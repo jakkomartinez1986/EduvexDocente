@@ -16,7 +16,6 @@ use App\Models\Academic\GradeBook\Summaries\Supplementary\SupplementaryExam;
 use App\Models\Identity\Users\Student;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\Setting\EducationalSettings\Grade;
-use App\Models\Setting\EducationalSettings\School;
 use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\Setting\YearSettings\GradingScheme;
@@ -25,6 +24,7 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\User;
 use App\Services\AcademicYearService;
+use App\Services\SchoolConfigService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -222,7 +222,7 @@ class GradebookPdfController extends Controller
             ];
         }
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
         $gradingScheme = GradingScheme::where('year_id', $yearId)->where('status', 1)->first();
         $inspector = User::whereHas('roles', fn ($q) => $q->where('name', 'INSPECTOR'))->first();
@@ -349,7 +349,7 @@ class GradebookPdfController extends Controller
             ];
         }
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
         $gradingScheme = GradingScheme::where('year_id', $yearId)->where('status', 1)->first();
         $inspector = User::whereHas('roles', fn ($q) => $q->where('name', 'INSPECTOR'))->first();
@@ -491,7 +491,7 @@ class GradebookPdfController extends Controller
             $subjectsData[] = $entry;
         }
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
         $gradingScheme = GradingScheme::where('year_id', $yearId)->where('status', 1)->first();
         $inspector = User::whereHas('roles', fn ($q) => $q->where('name', 'INSPECTOR'))->first();
@@ -720,7 +720,7 @@ class GradebookPdfController extends Controller
             ];
         }
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
         $gradeData = $schedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
@@ -860,7 +860,7 @@ class GradebookPdfController extends Controller
             ];
         }
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
         $gradeData = $schedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
@@ -927,7 +927,7 @@ class GradebookPdfController extends Controller
 
         $students = $studentQuery->get();
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
 
         $gradingScheme = GradingScheme::where('year_id', $yearId)
@@ -1167,7 +1167,7 @@ class GradebookPdfController extends Controller
             ];
         }
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
 
         $gradeData = $tutorSchedule->grade;
@@ -1344,7 +1344,7 @@ class GradebookPdfController extends Controller
             ];
         }
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
@@ -1566,7 +1566,7 @@ class GradebookPdfController extends Controller
             }
         }
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');

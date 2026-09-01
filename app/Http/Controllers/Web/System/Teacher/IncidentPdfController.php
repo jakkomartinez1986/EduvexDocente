@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Incidents\IncidentCommitmentLetter;
 use App\Models\Incidents\IncidentReport;
 use App\Models\Incidents\NotificationChannel;
-use App\Models\Setting\EducationalSettings\School;
 use App\Models\StudentManagement\Academics\AcademicNotification;
+use App\Services\SchoolConfigService;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class IncidentPdfController extends Controller
@@ -21,7 +21,7 @@ class IncidentPdfController extends Controller
             ->where('channel', 'impresa')
             ->update(['printed_at' => now()]);
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $channels = $notification->channels ?? collect();
 
         $pdf = Pdf::loadView('pdf.incidents.notification', [
@@ -43,7 +43,7 @@ class IncidentPdfController extends Controller
             'student.user', 'teacher.user', 'grade', 'subject', 'representative.user',
         ])->findOrFail($id);
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
 
         $pdf = Pdf::loadView('pdf.incidents.commitment-letter', [
             'letter' => $letter,
@@ -63,7 +63,7 @@ class IncidentPdfController extends Controller
             'student.user', 'teacher.user', 'grade', 'subject', 'tutor.user',
         ])->findOrFail($id);
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
 
         $notifications = AcademicNotification::where('student_id', $report->student_id)
             ->where('type', $report->type)

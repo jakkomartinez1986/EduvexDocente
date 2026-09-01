@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Web\System\Teacher;
 use App\Http\Controllers\Controller;
 use App\Models\Identity\Users\Student;
 use App\Models\Management\Enrollments\StudentEnrollment;
-use App\Models\Setting\EducationalSettings\School;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Services\AcademicYearService;
+use App\Services\SchoolConfigService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
@@ -20,7 +20,7 @@ class CarnetController extends Controller
             ->with(['user', 'enrollments.grade.nivel.shift'])
             ->findOrFail($id);
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = app(AcademicYearService::class)->getActiveYear();
         $yearId = app(AcademicYearService::class)->getActiveYearId();
 
@@ -80,7 +80,7 @@ class CarnetController extends Controller
             ->orderByRaw("COALESCE(NULLIF((SELECT u.lastname FROM users u WHERE u.id = students.user_id), ''), 'zzz')")
             ->get();
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = app(AcademicYearService::class)->getActiveYear();
         $schoolName = $school?->name_school ?? 'Institución Educativa';
         $yearName = $year?->year_name ?? '2026-2027';
@@ -149,7 +149,7 @@ class CarnetController extends Controller
             ->with(['user', 'enrollments.grade.nivel.shift'])
             ->findOrFail($id);
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = app(AcademicYearService::class)->getActiveYear();
         $yearId = app(AcademicYearService::class)->getActiveYearId();
 

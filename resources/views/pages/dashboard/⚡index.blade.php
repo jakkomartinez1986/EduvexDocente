@@ -13,6 +13,7 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\TeacherManagement\Attendances\ClassObservation;
 use App\Services\AcademicYearService;
+use App\Services\SchoolConfigService;
 use Carbon\Carbon;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -381,7 +382,7 @@ new #[Title('Dashboard')] class extends Component {
 
     public function getCurrentSchoolProperty(): ?School
     {
-        return School::where('status', 1)->first();
+        return app(SchoolConfigService::class)->getActiveSchool();
     }
 
     public function getStatColorClasses(string $color): string

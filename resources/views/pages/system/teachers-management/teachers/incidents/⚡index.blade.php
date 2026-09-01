@@ -26,6 +26,7 @@ use App\Services\AcademicYearService;
 use App\Services\Messaging\ChannelStatusService;
 use App\Services\Messaging\NotificationMessageBuilder;
 use App\Services\Messaging\WaMeLinkService;
+use App\Services\SchoolConfigService;
 use App\Jobs\SendChannelMessageJob;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -544,7 +545,7 @@ new #[Title('Libro de Incidencias')] class extends Component
     {
         $notification = AcademicNotification::with(['student.user', 'student.representatives.user', 'teacher.user', 'grade', 'subject'])->findOrFail($notificationId);
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
 
         $pdf = Pdf::loadView('pdf.incidents.notification', [
             'notification' => $notification,
@@ -1474,7 +1475,7 @@ new #[Title('Libro de Incidencias')] class extends Component
 
     public function getCurrentSchoolProperty()
     {
-        return School::where('status', 1)->first();
+        return app(SchoolConfigService::class)->getActiveSchool();
     }
 }; ?>
 

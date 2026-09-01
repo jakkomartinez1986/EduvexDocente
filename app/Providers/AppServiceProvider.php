@@ -4,12 +4,21 @@ namespace App\Providers;
 
 use App\Models\Security\Authorizations\Permission as AppPermission;
 use App\Models\Security\Authorizations\Role as AppRole;
+use App\Models\Setting\EducationalSettings\Area;
+use App\Models\Setting\EducationalSettings\Classroom;
+use App\Models\Setting\EducationalSettings\Grade;
+use App\Models\Setting\EducationalSettings\Nivel;
+use App\Models\Setting\EducationalSettings\School;
+use App\Models\Setting\EducationalSettings\Shift;
+use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\Setting\YearSettings\ScolarYear;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Observers\AcademicYearCacheObserver;
 use App\Observers\AttendanceObserver;
 use App\Observers\PermissionCacheObserver;
+use App\Observers\SchoolCacheObserver;
+use App\Observers\StaticCatalogCacheObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -49,6 +58,14 @@ class AppServiceProvider extends ServiceProvider
 
         ScolarYear::observe(AcademicYearCacheObserver::class);
         AcademicPeriod::observe(AcademicYearCacheObserver::class);
+        School::observe(SchoolCacheObserver::class);
+
+        Shift::observe(StaticCatalogCacheObserver::class);
+        Nivel::observe(StaticCatalogCacheObserver::class);
+        Grade::observe(StaticCatalogCacheObserver::class);
+        Area::observe(StaticCatalogCacheObserver::class);
+        Subject::observe(StaticCatalogCacheObserver::class);
+        Classroom::observe(StaticCatalogCacheObserver::class);
     }
 
     /**

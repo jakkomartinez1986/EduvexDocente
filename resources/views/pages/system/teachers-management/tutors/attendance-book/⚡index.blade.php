@@ -11,6 +11,7 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\User;
 use App\Services\AcademicYearService;
+use App\Services\SchoolConfigService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Title;
@@ -93,7 +94,7 @@ new #[Title('Libro de Asistencias del Grado')] class extends Component {
 
     public function getSchoolProperty(): ?School
     {
-        return School::where('status', 1)->first();
+        return app(SchoolConfigService::class)->getActiveSchool();
     }
 
     public function getAttendanceMatrixProperty(): array
