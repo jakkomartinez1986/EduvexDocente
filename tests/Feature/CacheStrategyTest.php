@@ -27,7 +27,21 @@ it('caches and nulls the active academic year', function (): void {
 
     expect($service->getActiveYear()->id)->toBe($active->id)
         ->and($service->getActiveYearId())->toBe($active->id)
-        ->and(Cache::has(cacheKey('academic:active-year')))->toBeTrue();
+        ->and(Cache::get(cacheKey('academic:active-year')))->toBe($active->id);
+});
+
+it('does not cache Eloquent models (avoids __PHP_Incomplete_Class on file cache)', function (): void {
+    Cache::flush();
+
+    $active = ScolarYear::factory()->active()->create(['year_name' => '2026']);
+    $service = app(AcademicYearService::class);
+
+    $service->getActiveYearId();
+    $cached = Cache::get(cacheKey('academic:active-year'));
+
+    expect($cached)->toBeInt()
+        ->and($cached)->toBe($active->id)
+        ->and($service->getActiveYear())->toBeInstanceOf(ScolarYear::class);
 });
 
 it('invalidates the active academic year cache on save and delete', function (): void {
@@ -37,15 +51,15 @@ it('invalidates the active academic year cache on save and delete', function ():
     $service = app(AcademicYearService::class);
 
     expect($service->getActiveYear()->id)->toBe($active->id)
-        ->and(Cache::has(cacheKey('academic:active-year')))->toBeTrue();
+        ->and(Cache::get(cacheKey('academic:active-year')))->toBe($active->id);
 
     $newYear = ScolarYear::factory()->active()->create(['year_name' => '2027']);
     expect($service->getActiveYear()->id)->toBe($newYear->id)
-        ->and(Cache::has(cacheKey('academic:active-year')))->toBeTrue();
+        ->and(Cache::get(cacheKey('academic:active-year')))->toBe($newYear->id);
 
     $newYear->delete();
     expect($service->getActiveYear()->id)->toBe($active->id)
-        ->and(Cache::has(cacheKey('academic:active-year')))->toBeTrue();
+        ->and(Cache::get(cacheKey('academic:active-year')))->toBe($active->id);
 });
 
 it('invalidates the active academic year cache when a period is saved', function (): void {
@@ -55,7 +69,7 @@ it('invalidates the active academic year cache when a period is saved', function
     $service = app(AcademicYearService::class);
 
     expect($service->getActiveYearId())->toBe($year->id)
-        ->and(Cache::has(cacheKey('academic:active-year')))->toBeTrue();
+        ->and(Cache::get(cacheKey('academic:active-year')))->toBe($year->id);
 
     AcademicPeriod::factory()->create(['year_id' => $year->id]);
 
