@@ -25,6 +25,9 @@ new #[Title('Horario del Docente')] class extends Component {
     public array $jornadas = [];
     public string $selectedJornada = 'TODAS';
 
+    public bool $isTeacher = false;
+    public bool $hasSchedules = false;
+
     public bool $showEvaluationModal = false;
     public ?int $evaluationId = null;
     public string $evaluationDate = '';
@@ -65,6 +68,11 @@ new #[Title('Horario del Docente')] class extends Component {
         $this->weekStart = now()->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString();
         $this->weekEnd = now()->startOfWeek(\Carbon\Carbon::MONDAY)->addDays(4)->toDateString();
         $this->selectedDay = ucfirst(now()->isoFormat('dddd'));
+        $this->isTeacher = auth()->user()->teacher !== null;
+        $this->hasSchedules = $this->isTeacher && $this->yearId !== null
+            && \App\Models\TeacherManagement\Academics\ClassSchedule::where('teacher_id', auth()->user()->teacher->id)
+                ->where('year_id', $this->yearId)
+                ->exists();
         $this->evaluationDateMin = now()->format('Y-m-d');
 
         $this->jornadas = app(ClassScheduleService::class)->loadJornadas();
@@ -496,10 +504,10 @@ new #[Title('Horario del Docente')] class extends Component {
 }; ?>
 
 @php
-    $horariosPorDia = $this->getSchedulesByDay();
-    $stats = $this->getStats();
-    $distributivo = $this->getDistributivo();
-    $agenda = $this->getTodayAgenda();
+    $horariosPorDia = $this->isTeacher ? $this->getSchedulesByDay() : [];
+    $stats = $this->isTeacher ? $this->getStats() : [];
+    $distributivo = $this->isTeacher ? $this->getDistributivo() : [];
+    $agenda = $this->isTeacher ? $this->getTodayAgenda() : collect();
 @endphp
 
 <div>
@@ -520,23 +528,39 @@ new #[Title('Horario del Docente')] class extends Component {
         <span class="text-zinc-900 dark:text-zinc-100 font-medium">{{ __('Horario del Docente') }}</span>
     </nav>
 
-    @include('pages.system.teachers-management.teachers.schedules.partials.controls-bar')
+    @if ($this->hasSchedules)
+        @include('pages.system.teachers-management.teachers.schedules.partials.controls-bar')
 
-    @include('pages.system.teachers-management.teachers.schedules.partials.status-panel')
+        @include('pages.system.teachers-management.teachers.schedules.partials.status-panel')
 
-    @include('pages.system.teachers-management.teachers.schedules.partials.day-card')
+        @include('pages.system.teachers-management.teachers.schedules.partials.day-card')
 
-    @include('pages.system.teachers-management.teachers.schedules.partials.today-summary')
+        @include('pages.system.teachers-management.teachers.schedules.partials.today-summary')
 
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-        @include('pages.system.teachers-management.teachers.schedules.partials.stats-panel')
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+            @include('pages.system.teachers-management.teachers.schedules.partials.stats-panel')
 
-        @include('pages.system.teachers-management.teachers.schedules.partials.distributive-table')
-    </div>
+            @include('pages.system.teachers-management.teachers.schedules.partials.distributive-table')
+        </div>
 
-    @include('pages.system.teachers-management.teachers.schedules.partials.evaluation-modal')
+        @include('pages.system.teachers-management.teachers.schedules.partials.evaluation-modal')
 
-    @include('pages.system.teachers-management.teachers.schedules.partials.attendance-modal')
+        @include('pages.system.teachers-management.teachers.schedules.partials.attendance-modal')
 
-    @include('pages.system.teachers-management.teachers.schedules.partials.quick-grades-modal')
+        @include('pages.system.teachers-management.teachers.schedules.partials.quick-grades-modal')
+    @else
+        {{-- Sin asignaturas asignadas o sin perfil de docente --}}
+        <div class="text-center py-16 text-zinc-400 rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <flux:icon.academic-cap class="mx-auto mb-4 size-12 text-zinc-300 dark:text-zinc-600" />
+            <p class="text-base font-semibold">
+                {{ $this->isTeacher ? __('No tienes asignaturas asignadas') : __('No eres un docente registrado') }}
+            </p>
+            <p class="text-sm text-zinc-400 mt-1">
+                {{ $this->isTeacher
+                    ? __('No se encontraron horarios asignados para su usuario en el año lectivo activo.')
+                    : __('Su cuenta no tiene un perfil de docente asociado.') }}
+            </p>
+            <p class="text-xs text-zinc-400 mt-1">{{ __('Contacte al administrador si considera que debería tener un horario.') }}</p>
+        </div>
+    @endif
 </div>

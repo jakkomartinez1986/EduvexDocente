@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\TeacherManagement\Academics\ClassSchedule;
 use Illuminate\Support\Facades\Route;
 
 class NavigationService
@@ -17,6 +18,8 @@ class NavigationService
             ? auth()->user()->roles->pluck('name')->map(fn ($r) => strtoupper($r))->toArray()
             : [];
 
+        $canAccessTeacherModules = $this->canAccessTeacherModules();
+
         $filtered = [];
 
         foreach ($all as $groupName => $groupData) {
@@ -28,6 +31,10 @@ class NavigationService
                 }
 
                 if (! isset($link['roles']) || count(array_intersect($userRoles, $link['roles'])) > 0) {
+                    if ($this->isTeacherDependentLink($link) && ! $canAccessTeacherModules) {
+                        continue;
+                    }
+
                     $filteredLinks[] = $link;
                 }
             }
@@ -41,6 +48,53 @@ class NavigationService
         }
 
         return $filtered;
+    }
+
+    /**
+     * Los módulos del group "Docente" que dependen de un perfil docente y de
+     * asignaturas asignadas en el año activo. Si el usuario no es docente o no
+     * tiene asignaturas, estos enlaces no deberían mostrarse en el menú.
+     */
+    private const TEACHER_DEPENDENT_NAMES = [
+        'Horario',
+        'Libro Calificaciones',
+        'Libro Asistencias',
+        'Registro Asistencia',
+        'Recuperaciones',
+        'Libro de Incidencias',
+    ];
+
+    /**
+     * @param  array{name: string, icon: string, label: string, route: ?string, current: bool, roles: array<int, string>, badge: ?string, color: ?string}  $link
+     */
+    private function isTeacherDependentLink(array $link): bool
+    {
+        return in_array($link['name'], self::TEACHER_DEPENDENT_NAMES, true);
+    }
+
+    /**
+     * Indica si el usuario autenticado está habilitado para acceder a los
+     * módulos docentes, es decir, tiene un perfil de docente y al menos una
+     * asignatura asignada (horario) en el año lectivo activo.
+     */
+    private function canAccessTeacherModules(): bool
+    {
+        if (! auth()->check()) {
+            return false;
+        }
+
+        $teacher = auth()->user()->teacher;
+
+        if ($teacher === null) {
+            return false;
+        }
+
+        $activeYearId = app(AcademicYearService::class)->getActiveYearId();
+
+        return $activeYearId !== null
+            && ClassSchedule::where('teacher_id', $teacher->id)
+                ->where('year_id', $activeYearId)
+                ->exists();
     }
 
     /**
