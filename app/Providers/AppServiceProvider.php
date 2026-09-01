@@ -11,11 +11,15 @@ use App\Models\Setting\EducationalSettings\Nivel;
 use App\Models\Setting\EducationalSettings\School;
 use App\Models\Setting\EducationalSettings\Shift;
 use App\Models\Setting\EducationalSettings\Subject;
+use App\Models\Setting\Messaging\ChannelConfiguration;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\Setting\YearSettings\ScolarYear;
+use App\Models\StudentManagement\Academics\AcademicNotification;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Observers\AcademicYearCacheObserver;
 use App\Observers\AttendanceObserver;
+use App\Observers\ChannelConfigurationCacheObserver;
+use App\Observers\NotificationCacheObserver;
 use App\Observers\PermissionCacheObserver;
 use App\Observers\SchoolCacheObserver;
 use App\Observers\StaticCatalogCacheObserver;
@@ -59,6 +63,9 @@ class AppServiceProvider extends ServiceProvider
         ScolarYear::observe(AcademicYearCacheObserver::class);
         AcademicPeriod::observe(AcademicYearCacheObserver::class);
         School::observe(SchoolCacheObserver::class);
+
+        AcademicNotification::observe(NotificationCacheObserver::class);
+        ChannelConfiguration::observe(ChannelConfigurationCacheObserver::class);
 
         Shift::observe(StaticCatalogCacheObserver::class);
         Nivel::observe(StaticCatalogCacheObserver::class);

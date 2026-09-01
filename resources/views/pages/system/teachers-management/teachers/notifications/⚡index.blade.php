@@ -17,6 +17,7 @@ use App\Notifications\AcademicNotificationSent;
 use App\Services\AcademicYearService;
 use App\Services\Messaging\ChannelStatusService;
 use App\Services\Messaging\WaMeLinkService;
+use App\Services\TeacherManagement\NotificationStatsCache;
 use App\Jobs\SendChannelMessageJob;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Flux\Flux;
@@ -354,7 +355,23 @@ new #[Title('Administración de Notificaciones')] class extends Component
             ->values();
     }
 
-    public function getStatsProperty()
+    public function getStatsProperty(): array
+    {
+        return app(NotificationStatsCache::class)->stats(
+            (int) $this->yearId,
+            $this->currentTeacher?->id,
+            [
+                'trimester_id' => $this->selectedTrimesterId,
+                'nivel_id' => $this->selectedNivelId,
+                'grade_name' => $this->selectedGradeName,
+                'grade_id' => $this->selectedGradeId,
+                'subject_id' => $this->selectedSubjectId,
+            ],
+            fn (): array => $this->computeNotificationStats(),
+        );
+    }
+
+    protected function computeNotificationStats(): array
     {
         $base = $this->applyAcademicFilters(
             AcademicNotification::query()->where('year_id', $this->yearId),
@@ -385,6 +402,10 @@ new #[Title('Administración de Notificaciones')] class extends Component
         $notification->update(['sent_at' => $now]);
 
         foreach ($notification->channels as $channel) {
+            if (in_array($channel->channel, [ChannelConfiguration::CHANNEL_WHATSAPP, ChannelConfiguration::CHANNEL_TELEGRAM], true)) {
+                ChannelStatusService::forget($channel->channel);
+            }
+
             $channel->update(['status' => 'sent', 'sent_at' => $now]);
         }
 
@@ -421,6 +442,10 @@ new #[Title('Administración de Notificaciones')] class extends Component
 
         $channelRecord->update(['status' => 'sent', 'sent_at' => $now]);
         $notification->update(['sent_at' => $notification->sent_at ?? $now]);
+
+        if (in_array($channel, [ChannelConfiguration::CHANNEL_WHATSAPP, ChannelConfiguration::CHANNEL_TELEGRAM], true)) {
+            ChannelStatusService::forget($channel);
+        }
 
         Flux::toast(variant: 'success', text: __('Notificación enviada por ') . $channel . '.');
     }

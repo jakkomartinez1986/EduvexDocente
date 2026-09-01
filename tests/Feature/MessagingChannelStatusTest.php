@@ -8,10 +8,15 @@ use App\Models\Setting\Messaging\ChannelConfiguration;
 use App\Models\StudentManagement\Academics\AcademicNotification;
 use App\Models\User;
 use App\Services\Messaging\ChannelStatusService;
+use App\Services\Messaging\MessagingManager;
 use App\Services\Messaging\NotificationMessageBuilder;
 use App\Services\Messaging\WaMeLinkService;
+use App\Services\Messaging\WhatsAppCloudSender;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
+
+beforeEach(fn () => Cache::flush());
 
 function channelStatusAdminUser(): User
 {
@@ -81,6 +86,49 @@ test('la matriz de estados nunca expone credenciales', function () {
 
     expect($encoded)->not->toContain('TOKEN-SECRETO')
         ->and($encoded)->not->toContain('PNID-XYZ');
+});
+
+test('el status del canal se cachea y se invalida al guardar la configuracion', function () {
+    $service = app(ChannelStatusService::class);
+
+    expect($service->apiAvailable('telegram'))->toBeFalse();
+
+    $key = ChannelStatusService::statusKey('telegram');
+    expect(Cache::has($key))->toBeTrue();
+
+    ChannelConfiguration::factory()->telegram()->enabled()->create();
+
+    expect(Cache::has($key))->toBeFalse()
+        ->and($service->apiAvailable('telegram'))->toBeTrue();
+});
+
+test('el snapshot de credenciales se cachea y se invalida al guardar el canal', function () {
+    $config = ChannelConfiguration::factory()->whatsapp()->enabled()->create();
+
+    app(MessagingManager::class)->for('whatsapp');
+
+    expect(Cache::has(MessagingManager::credsKey('whatsapp')))->toBeTrue();
+
+    $config->update(['enabled' => false]);
+
+    expect(Cache::has(MessagingManager::credsKey('whatsapp')))->toBeFalse()
+        ->and(Cache::has(ChannelStatusService::statusKey('whatsapp')))->toBeFalse();
+});
+
+test('el snapshot de credenciales respeta el override y nunca cachea el modelo', function () {
+    ChannelConfiguration::factory()->whatsapp()->enabled()->create(['credentials' => ['token' => 'DB-TOKEN', 'phone_number_id' => 'Q']]);
+
+    expect(Cache::has(MessagingManager::credsKey('whatsapp')))->toBeFalse();
+
+    $sender = app(MessagingManager::class)->for('whatsapp', ['token' => 'OVERRIDE', 'phone_number_id' => 'R']);
+
+    expect($sender)->toBeInstanceOf(WhatsAppCloudSender::class);
+
+    $stored = Cache::get(MessagingManager::credsKey('whatsapp'));
+
+    expect($stored)->toBeArray()
+        ->and($stored['enabled'])->toBeTrue()
+        ->and($stored['credentials']['token'])->toBe('DB-TOKEN');
 });
 
 dataset('phones', [
