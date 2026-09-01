@@ -2,6 +2,7 @@
 
 namespace App\Models\Setting\YearSettings;
 
+use Database\Factories\Setting\YearSettings\AcademicPeriodFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,8 +16,8 @@ use Illuminate\Support\Carbon;
  * @property string $trimester_name
  * @property string $start_date
  * @property string $end_date
- * @property string|null $grading_open_date
- * @property string|null $grading_close_date
+ * @property Carbon|null $grading_open_date
+ * @property Carbon|null $grading_close_date
  * @property bool $is_supletorio
  * @property int $status
  * @property Carbon|null $created_at
@@ -29,6 +30,7 @@ use Illuminate\Support\Carbon;
 ])]
 class AcademicPeriod extends Model
 {
+    /** @use HasFactory<AcademicPeriodFactory> */
     use HasFactory, SoftDeletes;
 
     protected function casts(): array
@@ -44,6 +46,9 @@ class AcademicPeriod extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<ScolarYear, $this>
+     */
     public function year(): BelongsTo
     {
         return $this->belongsTo(ScolarYear::class, 'year_id');

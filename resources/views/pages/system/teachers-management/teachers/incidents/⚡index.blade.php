@@ -955,16 +955,42 @@ new #[Title('Libro de Incidencias')] class extends Component
             return collect();
         }
 
-        $studentIds = StudentEnrollment::whereIn('grade_id', $gradeIds)
+        $enrollments = StudentEnrollment::whereIn('grade_id', $gradeIds)
             ->where('year_id', $this->yearId)
             ->where('status', 'active')
-            ->pluck('student_id')
-            ->toArray();
+            ->get(['student_id', 'grade_id']);
+
+        $studentIds = $enrollments->pluck('student_id')->unique()->values()->all();
+        $gradeIdsByStudent = $enrollments->groupBy('student_id')->map->first()->map->grade_id;
 
         $students = Student::whereIn('id', $studentIds)
             ->with(['user', 'representatives.user'])
             ->get()
             ->keyBy('id');
+
+        if ($studentIds !== []) {
+            $absencesByStudent = Attendance::whereIn('student_id', $studentIds)
+                ->where('year_id', $this->yearId)
+                ->whereBetween('date', [$currentPeriod->start_date, $currentPeriod->end_date])
+                ->where('status', 'I')
+                ->orderBy('date')
+                ->get()
+                ->groupBy('student_id');
+
+            $lastNotifIds = AcademicNotification::whereIn('student_id', $studentIds)
+                ->where('type', 'asistencia')
+                ->where('year_id', $this->yearId)
+                ->selectRaw('max(id) as last_id')
+                ->groupBy('student_id')
+                ->pluck('last_id');
+
+            $lastNotifs = AcademicNotification::whereIn('id', $lastNotifIds)
+                ->get()
+                ->keyBy('student_id');
+        } else {
+            $absencesByStudent = collect();
+            $lastNotifs = collect();
+        }
 
         $today = now()->toDateString();
         $weekStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
@@ -972,13 +998,8 @@ new #[Title('Libro de Incidencias')] class extends Component
 
         $results = collect();
 
-        foreach ($students as $student) {
-            $baseQuery = Attendance::where('student_id', $student->id)
-                ->where('year_id', $this->yearId)
-                ->whereBetween('date', [$currentPeriod->start_date, $currentPeriod->end_date])
-                ->where('status', 'I');
-
-            $allAbsences = $baseQuery->orderBy('date')->get();
+        foreach ($students as $studentId => $student) {
+            $allAbsences = $absencesByStudent->get($studentId) ?? collect();
 
             if ($allAbsences->isEmpty()) {
                 continue;
@@ -1008,11 +1029,7 @@ new #[Title('Libro de Incidencias')] class extends Component
                 $consecutiveDates = $currentConsecutive;
             }
 
-            $lastNotif = AcademicNotification::where('student_id', $student->id)
-                ->where('type', 'asistencia')
-                ->where('year_id', $this->yearId)
-                ->latest()
-                ->first();
+            $lastNotif = $lastNotifs->get($studentId);
 
             $results->push((object) [
                 'student' => $student,
@@ -1023,7 +1040,7 @@ new #[Title('Libro de Incidencias')] class extends Component
                 'consecutiveCount' => count($consecutiveDates),
                 'allAbsenceDates' => $sortedDates->implode(', '),
                 'lastNotif' => $lastNotif?->generated_date?->format('d/m/Y') ?? '-',
-                'gradeName' => $schedules->firstWhere('grade_id', $student->enrollments->first()?->grade_id)?->grade?->grade_name ?? '',
+                'gradeName' => $schedules->firstWhere('grade_id', $gradeIdsByStudent->get($studentId))?->grade?->grade_name ?? '',
             ]);
         }
 

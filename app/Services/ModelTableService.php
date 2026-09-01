@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\File;
 
 class ModelTableService
 {
+    /**
+     * @return array<string, string>
+     */
     public function getModelsForTables(): array
     {
         $models = [];
@@ -27,6 +30,9 @@ class ModelTableService
         return $models;
     }
 
+    /**
+     * @param  array<string, string>  $models
+     */
     protected function discoverModels(string $path, string $namespace, array &$models): void
     {
         if (! File::isDirectory($path)) {

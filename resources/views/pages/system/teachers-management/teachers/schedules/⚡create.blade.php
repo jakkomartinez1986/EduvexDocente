@@ -147,7 +147,7 @@ new #[Title('Horario Docente')] class extends Component {
             'selectedJornada' => 'jornada',
             'selectedNivel' => 'nivel',
             'selectedGrade' => 'grado',
-            'day' => 'dia',
+            'day' => 'día',
             'start_time' => 'hora de inicio',
             'end_time' => 'hora de fin',
         ];
@@ -161,7 +161,7 @@ new #[Title('Horario Docente')] class extends Component {
         }
 
         if ($this->requiresTrimester() && ! $this->trimester_id) {
-            Flux::toast(variant: 'warning', text: __('Para horas de evaluacion y recuperacion debes seleccionar un trimestre.'));
+            Flux::toast(variant: 'warning', text: __('Para horas de evaluación y recuperación debes seleccionar un trimestre.'));
             return;
         }
 
@@ -312,7 +312,7 @@ new #[Title('Horario Docente')] class extends Component {
     public function deleteSchedule(int $scheduleId): void
     {
         app(SaveClassScheduleAction::class)->deleteSchedule($scheduleId);
-        Flux::toast(variant: 'success', text: __('Horario eliminado.'));
+        Flux::toast(variant: 'success', text: __('Horario eliminado correctamente.'));
     }
 }; ?>
 
@@ -358,8 +358,8 @@ new #[Title('Horario Docente')] class extends Component {
                     <div class="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-600 mb-3 group-hover:scale-110 transition">
                         <flux:icon.document-text />
                     </div>
-                    <div class="font-bold text-zinc-900 dark:text-zinc-100 mb-1">{{ __('Horario de Evaluacion') }}</div>
-                    <div class="text-xs text-zinc-500">{{ __('Sesiones de evaluacion trimestral') }}</div>
+                    <div class="font-bold text-zinc-900 dark:text-zinc-100 mb-1">{{ __('Horario de Evaluación') }}</div>
+                    <div class="text-xs text-zinc-500">{{ __('Sesiones de evaluación trimestral') }}</div>
                 </button>
 
                 <button wire:click="selectScheduleType('TEST')"
@@ -368,7 +368,7 @@ new #[Title('Horario Docente')] class extends Component {
                         <flux:icon.beaker />
                     </div>
                     <div class="font-bold text-zinc-900 dark:text-zinc-100 mb-1">{{ __('Horario de Prueba') }}</div>
-                    <div class="text-xs text-zinc-500">{{ __('Simulacros y practicas') }}</div>
+                    <div class="text-xs text-zinc-500">{{ __('Simulacros y prácticas') }}</div>
                 </button>
 
                 <button wire:click="selectScheduleType('MAKEUP')"
@@ -498,7 +498,7 @@ new #[Title('Horario Docente')] class extends Component {
                             <flux:select wire:model="day">
                                 <flux:select.option value="LUNES">{{ __('Lunes') }}</flux:select.option>
                                 <flux:select.option value="MARTES">{{ __('Martes') }}</flux:select.option>
-                                <flux:select.option value="MIERCOLES">{{ __('Miercoles') }}</flux:select.option>
+                                <flux:select.option value="MIERCOLES">{{ __('Miércoles') }}</flux:select.option>
                                 <flux:select.option value="JUEVES">{{ __('Jueves') }}</flux:select.option>
                                 <flux:select.option value="VIERNES">{{ __('Viernes') }}</flux:select.option>
                             </flux:select>
@@ -570,7 +570,7 @@ new #[Title('Horario Docente')] class extends Component {
                                         {{ match($schedule->day) {
                                             'LUNES' => __('Lun'),
                                             'MARTES' => __('Mar'),
-                                            'MIERCOLES' => __('Mie'),
+                                            'MIERCOLES' => __('Mié'),
                                             'JUEVES' => __('Jue'),
                                             'VIERNES' => __('Vie'),
                                             'SABADO' => __('Sab'),

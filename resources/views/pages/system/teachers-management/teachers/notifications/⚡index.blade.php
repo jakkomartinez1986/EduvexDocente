@@ -356,17 +356,15 @@ new #[Title('Administración de Notificaciones')] class extends Component
 
     public function getStatsProperty()
     {
-        $query = $this->applyAcademicFilters(
+        $base = $this->applyAcademicFilters(
             AcademicNotification::query()->where('year_id', $this->yearId),
         );
 
-        $notifications = $query->get();
-
         return [
-            'total' => $notifications->count(),
-            'attended' => $notifications->where('parent_attended', true)->count(),
-            'not_attended' => $notifications->where('parent_attended', false)->count(),
-            'printed' => $notifications->whereNotNull('printed_at')->count(),
+            'total' => (clone $base)->count(),
+            'attended' => (clone $base)->where('parent_attended', true)->count(),
+            'not_attended' => (clone $base)->where('parent_attended', false)->count(),
+            'printed' => (clone $base)->whereNotNull('printed_at')->count(),
         ];
     }
 

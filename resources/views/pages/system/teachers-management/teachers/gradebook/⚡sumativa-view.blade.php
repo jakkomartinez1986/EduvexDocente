@@ -11,11 +11,11 @@
         @if($this->isSumativaAvailable($selectedTrimesterId))
             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                {{ __('Periodo abierto') }}
+                {{ __('Período abierto') }}
             </span>
         @else
             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                {{ __('Periodo cerrado') }}
+                {{ __('Período cerrado') }}
             </span>
         @endif
     </div>

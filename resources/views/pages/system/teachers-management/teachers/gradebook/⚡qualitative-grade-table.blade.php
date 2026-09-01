@@ -9,7 +9,7 @@
         <div class="flex items-center justify-between mb-4">
             <div>
                 <h3 class="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1">
-                    {{ __('Calificacion Cualitativa') }} — {{ $this->getSubjectName() }}
+                    {{ __('Calificación Cualitativa') }} — {{ $this->getSubjectName() }}
                 </h3>
                 <p class="text-xs text-zinc-500">{{ __('Seleccione el valor para cada indicador por estudiante.') }}</p>
             </div>
@@ -17,11 +17,11 @@
                 @if($this->isGradingOpen())
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                         <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                        {{ __('Periodo abierto') }}
+                        {{ __('Período abierto') }}
                     </span>
                 @else
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        {{ __('Periodo cerrado') }}
+                        {{ __('Período cerrado') }}
                     </span>
                 @endif
                 <flux:button size="sm" variant="filled" color="blue" icon="printer"

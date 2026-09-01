@@ -40,6 +40,9 @@ final class GradingPeriodService
         return $period->isGradingOpen();
     }
 
+    /**
+     * @param  Collection<int, array{id: int, is_supletorio: bool}>  $trimesters
+     */
     public function isSupletorioAvailable(Collection $trimesters): bool
     {
         $regularTrimesters = $trimesters->filter(fn ($t) => ! ($t['is_supletorio'] ?? false));

@@ -7,13 +7,20 @@ namespace App\Actions\TeacherManagement;
 use App\Models\Identity\Users\Teacher;
 use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
+use Spatie\Permission\Models\Role;
 
 final class SaveClassScheduleAction
 {
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public function handle(array $data, ?int $scheduleId = null): ClassSchedule
     {
         if ($scheduleId) {
-            return ClassSchedule::findOrFail($scheduleId)->update($data);
+            $schedule = ClassSchedule::findOrFail($scheduleId);
+            $schedule->update($data);
+
+            return $schedule;
         }
 
         return ClassSchedule::create($data);
@@ -48,7 +55,8 @@ final class SaveClassScheduleAction
     public function assignTutorRoleIfNeeded(int $teacherId): void
     {
         $teacher = Teacher::findOrFail($teacherId);
-        if ($teacher->user && ! $teacher->user->hasRole('TUTOR')) {
+
+        if ($teacher->user && ! $teacher->user->hasRole('TUTOR') && Role::query()->where('name', 'TUTOR')->exists()) {
             $teacher->user->assignRole('TUTOR');
         }
     }

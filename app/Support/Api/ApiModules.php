@@ -54,7 +54,7 @@ final class ApiModules
      * @var array<string, array<int, string>>
      */
     public const ABILITIES_PER_MODULE = [
-        'schedule' => ['schedule.read'],
+        'schedule' => ['schedule.read', 'schedule.write'],
         'attendance' => ['attendance.read', 'attendance.write'],
         'grades' => ['grades.read', 'grades.write'],
     ];

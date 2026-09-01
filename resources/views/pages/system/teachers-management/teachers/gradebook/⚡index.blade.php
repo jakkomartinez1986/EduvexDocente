@@ -61,6 +61,12 @@ new #[Title('Libro de Calificaciones')] class extends Component {
     public array $qualitativeGrades = [];
     public string $qualitativeType = '';
 
+    public array $trimesterAggregates = [];
+    protected bool $trimesterAggregatesLoaded = false;
+
+    /** @var array<int, \App\Models\Setting\YearSettings\AcademicPeriod|null> Caché de períodos para evitar N+1 en isGradingOpen/isSumativaAvailable */
+    protected array $periodMap = [];
+
     private const QUAL_VALUE_MAP = ['S' => 4, 'F' => 3, 'O' => 2, 'N' => 1];
     private const QUAL_LETTER_TABLE = [
         ['min' => 35, 'max' => 36, 'letter' => 'A+'], ['min' => 33, 'max' => 34, 'letter' => 'A-'],
@@ -163,6 +169,8 @@ new #[Title('Libro de Calificaciones')] class extends Component {
 
     public function loadData(): void
     {
+        $this->trimesterAggregatesLoaded = false;
+
         if ($this->isQualitativeSubject()) {
             $this->assessmentBlocks = collect();
             $this->exams = [];
@@ -198,6 +206,8 @@ new #[Title('Libro de Calificaciones')] class extends Component {
 
     protected function loadAssessmentBlocks(): void
     {
+        $this->trimesterAggregatesLoaded = false;
+
         if (!$this->selectedSubjectId || !$this->selectedGradeId || !$this->selectedTrimesterId) {
             $this->assessmentBlocks = collect();
             return;
@@ -223,6 +233,8 @@ new #[Title('Libro de Calificaciones')] class extends Component {
 
     protected function loadExamAndProject(): void
     {
+        $this->trimesterAggregatesLoaded = false;
+
         if (!$this->selectedSubjectId || !$this->selectedGradeId || !$this->selectedTrimesterId) {
             $this->exams = [];
             $this->projects = [];
@@ -246,6 +258,8 @@ new #[Title('Libro de Calificaciones')] class extends Component {
 
     protected function loadSupletorios(): void
     {
+        $this->trimesterAggregatesLoaded = false;
+
         if (!$this->selectedSubjectId || !$this->selectedGradeId) {
             $this->supletorios = [];
             return;
@@ -331,37 +345,131 @@ new #[Title('Libro de Calificaciones')] class extends Component {
         return floor(($formativeWeighted + $examWeighted + $projectWeighted) * 100) / 100;
     }
 
+    /**
+     * Precalcula, para TODA la clase y todos los trimestres, los agregados de
+     * promedios usados por el libro de calificaciones. Reemplaza el N+1 que
+     * ejecutaba de 120-480 queries por render (auditoría de capacidad B-01).
+     *
+     * Los cálculos replican exactamente el comportamiento previo de
+     * getTrimesterFormativeAverage/getTrimesterTotal/getAnnualAverage.
+     */
+    protected function ensureTrimesterAggregates(): void
+    {
+        if ($this->trimesterAggregatesLoaded) {
+            return;
+        }
+        $this->trimesterAggregatesLoaded = true;
+
+        if (!$this->selectedSubjectId || !$this->selectedGradeId) {
+            return;
+        }
+
+        $subjectId = $this->selectedSubjectId;
+        $gradeId = $this->selectedGradeId;
+        $teacherId = auth()->user()->teacher?->id;
+        $studentIds = $this->getStudentIds();
+
+        if (count($studentIds) === 0) {
+            return;
+        }
+
+        $gradebookCache = app(\App\Services\TeacherManagement\GradebookCache::class);
+        $calculation = app(\App\Services\Academic\GradeCalculationService::class);
+
+        foreach ($this->trimesters as $trimester) {
+            $tId = (int) $trimester['id'];
+
+            $this->trimesterAggregates[$tId] = $gradebookCache->averages(
+                (int) $this->yearId,
+                $subjectId,
+                $gradeId,
+                (int) $teacherId,
+                $tId,
+                function () use ($calculation, $tId, $subjectId, $gradeId, $teacherId, $studentIds): array {
+                    $blocks = AssessmentBlock::query()
+                        ->where('year_id', $this->yearId)
+                        ->where('subject_id', $subjectId)
+                        ->where('grade_id', $gradeId)
+                        ->where('trimester_id', $tId)
+                        ->where('teacher_id', $teacherId)
+                        ->with(['activities.grades' => fn ($q) => $q->whereIn('student_id', $studentIds)])
+                        ->orderBy('order')
+                        ->get();
+
+                    $exams = StudentExam::query()
+                        ->where('year_id', $this->yearId)
+                        ->where('subject_id', $subjectId)
+                        ->where('grade_id', $gradeId)
+                        ->where('trimester_id', $tId)
+                        ->whereIn('student_id', $studentIds)
+                        ->get()
+                        ->keyBy('student_id');
+
+                    $projects = StudentProject::query()
+                        ->where('year_id', $this->yearId)
+                        ->where('subject_id', $subjectId)
+                        ->where('grade_id', $gradeId)
+                        ->where('trimester_id', $tId)
+                        ->whereIn('student_id', $studentIds)
+                        ->get()
+                        ->keyBy('student_id');
+
+                    return $calculation->classTrimesterAggregates(
+                        $blocks,
+                        $exams,
+                        $projects,
+                        $studentIds,
+                        $this->gradingScheme,
+                    );
+                },
+            );
+        }
+    }
+
     public function getTrimesterFormativeAverage($studentId, $trimesterId): ?float
     {
-        if (!$this->selectedSubjectId || !$this->selectedGradeId) {
+        $this->ensureTrimesterAggregates();
+
+        return $this->trimesterAggregates[(int) $trimesterId]['formative'][$studentId] ?? null;
+    }
+
+    public function getTrimesterTotal($studentId, $trimesterId)
+    {
+        $this->ensureTrimesterAggregates();
+
+        return $this->trimesterAggregates[(int) $trimesterId]['total'][$studentId] ?? null;
+    }
+
+    public function getAnnualAverage($studentId)
+    {
+        if (!$this->selectedSubjectId || !$this->selectedGradeId || !$this->gradingScheme) {
             return null;
         }
-        $blocks = AssessmentBlock::where('year_id', $this->yearId)
-            ->where('subject_id', $this->selectedSubjectId)
-            ->where('grade_id', $this->selectedGradeId)
-            ->where('trimester_id', $trimesterId)
-            ->where('teacher_id', auth()->user()->teacher?->id)
-            ->with(['activities.grades' => fn ($q) => $q->where('student_id', $studentId)])
-            ->orderBy('order')->get();
+        $this->ensureTrimesterAggregates();
 
-        $blockAverages = [];
-        foreach ($blocks as $block) {
-            if ($block->activities->count() === 0) {
+        $totalSum = 0;
+        $activeTrimesterCount = 0;
+        $hasAnyData = false;
+
+        foreach ($this->trimesters as $trimester) {
+            $tId = (int) $trimester['id'];
+            $aggregate = $this->trimesterAggregates[$tId] ?? null;
+
+            if (!$aggregate || !$aggregate['hasData']) {
                 continue;
             }
-            $total = 0;
-            foreach ($block->activities as $activity) {
-                $grade = $activity->grades->firstWhere('student_id', $studentId);
-                if ($grade && $grade->grade !== null) {
-                    $total += $grade->grade;
-                }
+            $activeTrimesterCount++;
+            $total = $aggregate['total'][$studentId] ?? null;
+            if ($total !== null) {
+                $totalSum += $total;
+                $hasAnyData = true;
             }
-            $blockAverages[] = $total / $block->activities->count();
         }
-        if (count($blockAverages) === 0) {
+        if (!$hasAnyData || $activeTrimesterCount === 0) {
             return null;
         }
-        return floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100;
+
+        return round($totalSum / $activeTrimesterCount, 2);
     }
 
     public function getPerformanceColor($average): string
@@ -392,103 +500,6 @@ new #[Title('Libro de Calificaciones')] class extends Component {
         return 'bg-red-50 border-red-200';
     }
 
-    public function getTrimesterTotal($studentId, $trimesterId)
-    {
-        if (!$this->selectedSubjectId || !$this->selectedGradeId || !$this->gradingScheme) {
-            return null;
-        }
-        $blocks = AssessmentBlock::where('year_id', $this->yearId)
-            ->where('subject_id', $this->selectedSubjectId)
-            ->where('grade_id', $this->selectedGradeId)
-            ->where('trimester_id', $trimesterId)
-            ->where('teacher_id', auth()->user()->teacher?->id)
-            ->with(['activities.grades' => fn ($q) => $q->where('student_id', $studentId)])
-            ->orderBy('order')->get();
-
-        $blockAverages = [];
-        foreach ($blocks as $block) {
-            if ($block->activities->count() === 0) {
-                continue;
-            }
-            $total = 0;
-            foreach ($block->activities as $activity) {
-                $grade = $activity->grades->firstWhere('student_id', $studentId);
-                if ($grade && $grade->grade !== null) {
-                    $total += $grade->grade;
-                }
-            }
-            $blockAverages[] = $total / $block->activities->count();
-        }
-
-        $formativeAvg = count($blockAverages) > 0 ? array_sum($blockAverages) / count($blockAverages) : null;
-
-        $exam = StudentExam::where('year_id', $this->yearId)
-            ->where('subject_id', $this->selectedSubjectId)
-            ->where('grade_id', $this->selectedGradeId)
-            ->where('trimester_id', $trimesterId)
-            ->where('student_id', $studentId)->first();
-
-        $project = StudentProject::where('year_id', $this->yearId)
-            ->where('subject_id', $this->selectedSubjectId)
-            ->where('grade_id', $this->selectedGradeId)
-            ->where('trimester_id', $trimesterId)
-            ->where('student_id', $studentId)->first();
-
-        $formativeWeighted = $formativeAvg !== null ? $formativeAvg * ($this->gradingScheme->formative_percentage / 100) : 0;
-        $examWeighted = $exam && $exam->grade !== null ? $exam->grade * ($this->gradingScheme->exam_percentage / 100) : 0;
-        $projectWeighted = $project && $project->grade !== null ? $project->grade * ($this->gradingScheme->project_percentage / 100) : 0;
-
-        $total = $formativeWeighted + $examWeighted + $projectWeighted;
-
-        if ($total == 0 && !$formativeAvg && !$exam && !$project) {
-            return null;
-        }
-        return round($total, 2);
-    }
-
-    public function getAnnualAverage($studentId)
-    {
-        if (!$this->selectedSubjectId || !$this->selectedGradeId || !$this->gradingScheme) {
-            return null;
-        }
-        $trimesters = collect($this->trimesters);
-        $totalSum = 0;
-        $activeTrimesterCount = 0;
-        $hasAnyData = false;
-
-        foreach ($trimesters as $trimester) {
-            $hasBlocks = AssessmentBlock::where('year_id', $this->yearId)
-                ->where('subject_id', $this->selectedSubjectId)
-                ->where('grade_id', $this->selectedGradeId)
-                ->where('trimester_id', $trimester['id'])
-                ->where('teacher_id', auth()->user()->teacher?->id)->exists();
-
-            $hasExams = StudentExam::where('year_id', $this->yearId)
-                ->where('subject_id', $this->selectedSubjectId)
-                ->where('grade_id', $this->selectedGradeId)
-                ->where('trimester_id', $trimester['id'])->exists();
-
-            $hasProjects = StudentProject::where('year_id', $this->yearId)
-                ->where('subject_id', $this->selectedSubjectId)
-                ->where('grade_id', $this->selectedGradeId)
-                ->where('trimester_id', $trimester['id'])->exists();
-
-            if (!$hasBlocks && !$hasExams && !$hasProjects) {
-                continue;
-            }
-            $activeTrimesterCount++;
-            $total = $this->getTrimesterTotal($studentId, $trimester['id']);
-            if ($total !== null) {
-                $totalSum += $total;
-                $hasAnyData = true;
-            }
-        }
-        if (!$hasAnyData || $activeTrimesterCount === 0) {
-            return null;
-        }
-        return round($totalSum / $activeTrimesterCount, 2);
-    }
-
     public function openCreateBlock(): void
     {
         $this->resetBlockForm();
@@ -510,7 +521,7 @@ new #[Title('Libro de Calificaciones')] class extends Component {
     public function saveBlock(): void
     {
         if (!$this->isGradingOpen()) {
-            Flux::toast(variant: 'danger', text: __('No se pueden crear o editar bloques. El periodo de calificacion esta cerrado.'));
+            Flux::toast(variant: 'danger', text: __('No se pueden crear o editar bloques. El período de calificación está cerrado.'));
             return;
         }
         $this->validate([
@@ -547,7 +558,7 @@ new #[Title('Libro de Calificaciones')] class extends Component {
     public function deleteBlock($blockId): void
     {
         if (!$this->isGradingOpen()) {
-            Flux::toast(variant: 'danger', text: __('No se pueden eliminar bloques. El periodo de calificacion esta cerrado.'));
+            Flux::toast(variant: 'danger', text: __('No se pueden eliminar bloques. El período de calificación está cerrado.'));
             return;
         }
         AssessmentBlock::findOrFail($blockId)->delete();
@@ -585,7 +596,7 @@ new #[Title('Libro de Calificaciones')] class extends Component {
     public function saveActivity(): void
     {
         if (!$this->isGradingOpen()) {
-            Flux::toast(variant: 'danger', text: __('No se pueden crear o editar actividades. El periodo de calificacion esta cerrado.'));
+            Flux::toast(variant: 'danger', text: __('No se pueden crear o editar actividades. El período de calificación está cerrado.'));
             return;
         }
         $this->validate([
@@ -631,7 +642,7 @@ new #[Title('Libro de Calificaciones')] class extends Component {
     public function deleteActivity($activityId): void
     {
         if (!$this->isGradingOpen()) {
-            Flux::toast(variant: 'danger', text: __('No se pueden eliminar actividades. El periodo de calificacion esta cerrado.'));
+            Flux::toast(variant: 'danger', text: __('No se pueden eliminar actividades. El período de calificación está cerrado.'));
             return;
         }
         Activity::findOrFail($activityId)->delete();
@@ -654,7 +665,7 @@ new #[Title('Libro de Calificaciones')] class extends Component {
     public function saveGrade($activityId, $studentId, $value): void
     {
         if (!$this->isGradingOpen()) {
-            Flux::toast(variant: 'danger', text: __('No se pueden guardar calificaciones. El periodo de calificacion esta cerrado.'));
+            Flux::toast(variant: 'danger', text: __('No se pueden guardar calificaciones. El período de calificación está cerrado.'));
             return;
         }
         $grade = $value !== '' ? $value : null;
@@ -698,7 +709,7 @@ new #[Title('Libro de Calificaciones')] class extends Component {
     public function saveExamGrade($studentId, $value): void
     {
         if (!$this->isGradingOpen()) {
-            Flux::toast(variant: 'danger', text: __('No se pueden guardar calificaciones. El periodo de calificacion esta cerrado.'));
+            Flux::toast(variant: 'danger', text: __('No se pueden guardar calificaciones. El período de calificación está cerrado.'));
             return;
         }
         $grade = $value !== '' ? $value : null;
@@ -716,7 +727,7 @@ new #[Title('Libro de Calificaciones')] class extends Component {
     public function saveProjectGrade($studentId, $value): void
     {
         if (!$this->isGradingOpen()) {
-            Flux::toast(variant: 'danger', text: __('No se pueden guardar calificaciones. El periodo de calificacion esta cerrado.'));
+            Flux::toast(variant: 'danger', text: __('No se pueden guardar calificaciones. El período de calificación está cerrado.'));
             return;
         }
         $grade = $value !== '' ? $value : null;
@@ -863,7 +874,7 @@ new #[Title('Libro de Calificaciones')] class extends Component {
     public function saveQualitativeGrade($studentId, $indicatorId, $value): void
     {
         if (!$this->isGradingOpen()) {
-            Flux::toast(variant: 'danger', text: __('No se pueden guardar calificaciones. El periodo de calificacion esta cerrado.'));
+            Flux::toast(variant: 'danger', text: __('No se pueden guardar calificaciones. El período de calificación está cerrado.'));
             return;
         }
         if (!$this->isQualitativeSubject() || !$this->selectedTrimesterId || $this->selectedTrimesterId == self::SUPLETORIO_MODE) {
@@ -907,13 +918,31 @@ new #[Title('Libro de Calificaciones')] class extends Component {
         $this->qualitativeGrades[$key] = $value;
     }
 
+    /**
+     * Recupera y cachea el período académico por id para evitar repetidas
+     * consultas SELECT en render (isGradingOpen/isSumativaAvailable se
+     * invocan por cada fila de estudiante).
+     */
+    protected function period(?int $id): ?\App\Models\Setting\YearSettings\AcademicPeriod
+    {
+        if ($id === null || $id === self::SUPLETORIO_MODE) {
+            return null;
+        }
+        if (!array_key_exists($id, $this->periodMap)) {
+            $this->periodMap[$id] = \App\Models\Setting\YearSettings\AcademicPeriod::find($id);
+        }
+
+        return $this->periodMap[$id];
+    }
+
     public function isGradingOpen(): bool
     {
         if ($this->isQualitativeSubject()) {
             if (!$this->selectedTrimesterId || $this->selectedTrimesterId == self::SUPLETORIO_MODE) {
                 return false;
             }
-            $period = \App\Models\Setting\YearSettings\AcademicPeriod::find($this->selectedTrimesterId);
+            $period = $this->period($this->selectedTrimesterId);
+
             return $period ? $period->isGradingOpen() : false;
         }
         if ($this->activeBlockId === '_supletorios') {
@@ -922,10 +951,11 @@ new #[Title('Libro de Calificaciones')] class extends Component {
         if (!$this->selectedTrimesterId || $this->selectedTrimesterId == self::SUPLETORIO_MODE) {
             return false;
         }
-        $period = \App\Models\Setting\YearSettings\AcademicPeriod::find($this->selectedTrimesterId);
+        $period = $this->period($this->selectedTrimesterId);
         if (!$period) {
             return false;
         }
+
         return $period->isGradingOpen();
     }
 
@@ -936,20 +966,22 @@ new #[Title('Libro de Calificaciones')] class extends Component {
             return false;
         }
         foreach ($regularTrimesters as $t) {
-            $period = \App\Models\Setting\YearSettings\AcademicPeriod::find($t['id']);
+            $period = $this->period($t['id']);
             if ($period && !$period->isGradingPast()) {
                 return false;
             }
         }
+
         return true;
     }
 
     public function isSumativaAvailable(int $trimesterId): bool
     {
-        $period = \App\Models\Setting\YearSettings\AcademicPeriod::find($trimesterId);
+        $period = $this->period($trimesterId);
         if (!$period) {
             return false;
         }
+
         return $period->isGradingPast() || $period->isGradingOpen();
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Models\Setting\YearSettings;
 
+use Database\Factories\Setting\YearSettings\CalendarDayFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -31,6 +32,7 @@ use Illuminate\Support\Carbon;
 ])]
 class CalendarDay extends Model
 {
+    /** @use HasFactory<CalendarDayFactory> */
     use HasFactory, SoftDeletes;
 
     protected function casts(): array
@@ -45,11 +47,17 @@ class CalendarDay extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<ScolarYear, $this>
+     */
     public function year(): BelongsTo
     {
         return $this->belongsTo(ScolarYear::class, 'year_id');
     }
 
+    /**
+     * @return BelongsTo<AcademicPeriod, $this>
+     */
     public function trimester(): BelongsTo
     {
         return $this->belongsTo(AcademicPeriod::class, 'trimester_id');

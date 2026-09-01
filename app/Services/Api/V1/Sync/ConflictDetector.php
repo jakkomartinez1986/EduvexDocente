@@ -7,10 +7,11 @@ namespace App\Services\Api\V1\Sync;
 use App\Models\Academic\GradeBook\Summaries\Subjects\ActivityGrade;
 use App\Models\Academic\GradeBook\Summaries\Subjects\StudentExam;
 use App\Models\Academic\GradeBook\Summaries\Subjects\StudentProject;
-use App\Models\Academic\GradeBook\Summaries\Subjects\SupplementaryExam;
+use App\Models\Academic\GradeBook\Summaries\Supplementary\SupplementaryExam;
 use App\Models\Identity\Users\Teacher;
 use App\Models\TeacherManagement\Attendances\ClassObservation;
 use App\Services\AcademicYearService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -134,7 +135,7 @@ final class ConflictDetector
      * naturales del payload (sin aplicar nada).
      *
      * @param  array<string, mixed>  $payload
-     * @return iterable<Model>
+     * @return iterable<ActivityGrade|StudentProject|StudentExam|SupplementaryExam>
      */
     private function targetGradeRows(string $entity, array $payload): iterable
     {
@@ -157,6 +158,7 @@ final class ConflictDetector
     /**
      * @param  array<string, mixed>  $payload
      * @param  Collection<int, int>  $studentIds
+     * @return Builder<StudentProject>|Builder<StudentExam>
      */
     private function summativeQuery(array $payload, Collection $studentIds): mixed
     {
@@ -171,6 +173,7 @@ final class ConflictDetector
     /**
      * @param  array<string, mixed>  $payload
      * @param  Collection<int, int>  $studentIds
+     * @return Builder<SupplementaryExam>
      */
     private function supplementaryQuery(array $payload, Collection $studentIds): mixed
     {

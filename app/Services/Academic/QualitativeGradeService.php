@@ -84,6 +84,9 @@ final class QualitativeGradeService
         return '';
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function loadIndicators(string $type, ?int $gradeId): array
     {
         return match ($type) {
@@ -122,6 +125,11 @@ final class QualitativeGradeService
         return null;
     }
 
+    /**
+     * @param  array<int, int>  $studentIds
+     * @param  array<int, array{id: int}>  $indicators
+     * @return array<string, mixed>
+     */
     public function loadGrades(
         string $type,
         int $yearId,
@@ -137,11 +145,17 @@ final class QualitativeGradeService
             'career_guidance' => $grades = $this->loadCareerGuidanceGrades($yearId, $subjectId, $gradeId, $trimesterId, $studentIds, $indicators),
             'classroom_support' => $grades = $this->loadClassroomSupportGrades($yearId, $subjectId, $gradeId, $trimesterId, $studentIds, $indicators),
             'reading_promotion' => $grades = $this->loadReadingPromotionGrades($yearId, $subjectId, $gradeId, $trimesterId, $studentIds, $indicators),
+            default => null,
         };
 
         return $grades;
     }
 
+    /**
+     * @param  array<int, int>  $studentIds
+     * @param  array<int, array{id: int}>  $indicators
+     * @return array<string, mixed>
+     */
     private function loadCareerGuidanceGrades(int $yearId, int $subjectId, int $gradeId, int $trimesterId, array $studentIds, array $indicators): array
     {
         $existing = CareerGuidance::where('subject_id', $subjectId)
@@ -163,6 +177,11 @@ final class QualitativeGradeService
         return $grades;
     }
 
+    /**
+     * @param  array<int, int>  $studentIds
+     * @param  array<int, array{id: int}>  $indicators
+     * @return array<string, mixed>
+     */
     private function loadClassroomSupportGrades(int $yearId, int $subjectId, int $gradeId, int $trimesterId, array $studentIds, array $indicators): array
     {
         $existing = IntegralClassroomSupport::where('subject_id', $subjectId)
@@ -184,6 +203,11 @@ final class QualitativeGradeService
         return $grades;
     }
 
+    /**
+     * @param  array<int, int>  $studentIds
+     * @param  array<int, array{id: int}>  $indicators
+     * @return array<string, mixed>
+     */
     private function loadReadingPromotionGrades(int $yearId, int $subjectId, int $gradeId, int $trimesterId, array $studentIds, array $indicators): array
     {
         $existing = ReadingPromotion::where('subject_id', $subjectId)
@@ -234,9 +258,14 @@ final class QualitativeGradeService
                 ['student_id' => $studentId, 'indicator_id' => $indicatorId, 'subject_id' => $subjectId, 'grade_id' => $gradeId, 'trimester_id' => $trimesterId, 'year_id' => $yearId],
                 ['value' => $value, 'recorded_by' => auth()->id()]
             ),
+            default => null,
         };
     }
 
+    /**
+     * @param  array<int, array{id: int}>  $indicators
+     * @param  array<string, mixed>  $grades
+     */
     public function calculateAverage(int $studentId, string $type, array $indicators, array $grades): ?string
     {
         if (empty($indicators)) {
@@ -250,6 +279,10 @@ final class QualitativeGradeService
         return $this->calculateSfoNAverage($studentId, $indicators, $grades);
     }
 
+    /**
+     * @param  array<int, array{id: int}>  $indicators
+     * @param  array<string, mixed>  $grades
+     */
     private function calculateReadingAverage(int $studentId, array $indicators, array $grades): ?string
     {
         $sum = 0;
@@ -279,6 +312,10 @@ final class QualitativeGradeService
         return null;
     }
 
+    /**
+     * @param  array<int, array{id: int}>  $indicators
+     * @param  array<string, mixed>  $grades
+     */
     private function calculateSfoNAverage(int $studentId, array $indicators, array $grades): ?string
     {
         $sum = 0;

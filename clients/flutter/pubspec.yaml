@@ -1,0 +1,28 @@
+name: eduvex_docente
+description: "Cliente desktop de Eduvex — planificación docente offline (gradebook, asistencia, recuperaciones, horario)."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  dio: ^5.7.0
+  flutter_riverpod: ^2.6.1
+  shared_preferences: ^2.3.3
+  path_provider: ^2.1.5
+  intl: ^0.20.1
+  uuid: ^4.5.1
+  window_manager: ^0.4.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

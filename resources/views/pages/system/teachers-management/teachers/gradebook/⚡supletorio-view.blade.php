@@ -6,7 +6,7 @@
     <div class="flex items-center justify-between">
         <div>
             <h3 class="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1">{{ __('Calificaciones Supletorio') }}</h3>
-            <p class="text-xs text-zinc-500">{{ __('Ingrese la calificacion final de supletorio para cada estudiante.') }}</p>
+            <p class="text-xs text-zinc-500">{{ __('Ingrese la calificación final de supletorio para cada estudiante.') }}</p>
         </div>
         <div class="flex items-center gap-2">
             <flux:button size="sm" variant="filled" color="red" icon="printer"
@@ -18,7 +18,7 @@
                 {{ __('Imprimir Reporte') }}
             </flux:button>
             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                {{ __('Solo despues de los 3 trimestres') }}
+                {{ __('Solo después de los 3 trimestres') }}
             </span>
         </div>
     </div>

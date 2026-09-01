@@ -7,3 +7,10 @@ Route::prefix('v1')->middleware('throttle:api:v1')->group(function () {
         require $routeFile;
     }
 });
+Route::get('/test', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'API funcionando correctamente',
+        'timestamp' => now()->toDateTimeString(),
+    ]);
+});

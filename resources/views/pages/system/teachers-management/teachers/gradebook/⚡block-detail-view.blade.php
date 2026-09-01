@@ -172,6 +172,6 @@
 @else
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 p-6 text-center">
         <flux:icon.document-text class="mx-auto mb-2 size-8 text-zinc-300 dark:text-zinc-600" />
-        <p class="text-sm text-zinc-500">{{ __('Seleccione un bloque de evaluacion para ver los detalles.') }}</p>
+        <p class="text-sm text-zinc-500">{{ __('Seleccione un bloque de evaluación para ver los detalles.') }}</p>
     </div>
 @endif

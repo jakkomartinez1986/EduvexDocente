@@ -132,7 +132,7 @@ new #[Title('Editar Horario')] class extends Component
             'selectedJornada' => 'jornada',
             'selectedNivel' => 'nivel',
             'selectedGrade' => 'grado',
-            'day' => 'dia',
+            'day' => 'día',
             'start_time' => 'hora de inicio',
             'end_time' => 'hora de fin',
         ];
@@ -313,16 +313,16 @@ new #[Title('Editar Horario')] class extends Component
         </div>
 
         <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 p-6">
-            <flux:heading size="md" class="mb-4">{{ __('Informacion del Horario') }}</flux:heading>
+            <flux:heading size="md" class="mb-4">{{ __('Información del Horario') }}</flux:heading>
 
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <flux:field>
-                        <flux:label>{{ __('Dia') }} *</flux:label>
+                        <flux:label>{{ __('Día') }} *</flux:label>
                         <flux:select wire:model="day">
                             <flux:select.option value="LUNES">{{ __('Lunes') }}</flux:select.option>
                             <flux:select.option value="MARTES">{{ __('Martes') }}</flux:select.option>
-                            <flux:select.option value="MIERCOLES">{{ __('Miercoles') }}</flux:select.option>
+                            <flux:select.option value="MIERCOLES">{{ __('Miércoles') }}</flux:select.option>
                             <flux:select.option value="JUEVES">{{ __('Jueves') }}</flux:select.option>
                             <flux:select.option value="VIERNES">{{ __('Viernes') }}</flux:select.option>
                         </flux:select>

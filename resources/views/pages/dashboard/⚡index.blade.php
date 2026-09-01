@@ -139,28 +139,41 @@ new #[Title('Dashboard')] class extends Component {
             return;
         }
 
-        $scheduleIds = ClassSchedule::where('teacher_id', $this->teacher->id)
-            ->where('year_id', $this->yearId)
-            ->where('is_active', true)
-            ->pluck('id');
+        $stats = app(\App\Services\TeacherManagement\DashboardStatsCache::class)->counts(
+            (int) $this->teacher->id,
+            (int) $this->yearId,
+            function (): array {
+                $scheduleIds = ClassSchedule::where('teacher_id', $this->teacher->id)
+                    ->where('year_id', $this->yearId)
+                    ->where('is_active', true)
+                    ->pluck('id');
 
-        $attendanceStudentIds = Attendance::whereIn('class_schedule_id', $scheduleIds)->pluck('student_id');
+                $attendanceStudentIds = Attendance::whereIn('class_schedule_id', $scheduleIds)->pluck('student_id');
 
-        $activityStudentIds = ActivityGrade::whereHas('activity.assessmentBlock', function ($q) {
-            $q->where('teacher_id', $this->teacher->id)
-                ->where(fn ($year) => $year->whereNull('year_id')->orWhere('year_id', $this->yearId));
-        })->pluck('student_id');
+                $activityStudentIds = ActivityGrade::whereHas('activity.assessmentBlock', function ($q) {
+                    $q->where('teacher_id', $this->teacher->id)
+                        ->where(fn ($year) => $year->whereNull('year_id')->orWhere('year_id', $this->yearId));
+                })->pluck('student_id');
 
-        $this->stat1 = $scheduleIds->count();
-        $this->stat2 = $attendanceStudentIds->merge($activityStudentIds)->unique()->count();
-        $this->stat3 = HomeworkPending::where('teacher_id', $this->teacher->id)
-            ->where('year_id', $this->yearId)
-            ->where('status', 'pending')
-            ->count();
-        $this->stat4 = AcademicNotification::where('teacher_id', $this->teacher->id)
-            ->where('year_id', $this->yearId)
-            ->whereNotNull('sent_at')
-            ->count();
+                return [
+                    1 => $scheduleIds->count(),
+                    2 => $attendanceStudentIds->merge($activityStudentIds)->unique()->count(),
+                    3 => HomeworkPending::where('teacher_id', $this->teacher->id)
+                        ->where('year_id', $this->yearId)
+                        ->where('status', 'pending')
+                        ->count(),
+                    4 => AcademicNotification::where('teacher_id', $this->teacher->id)
+                        ->where('year_id', $this->yearId)
+                        ->whereNotNull('sent_at')
+                        ->count(),
+                ];
+            },
+        );
+
+        $this->stat1 = $stats[1];
+        $this->stat2 = $stats[2];
+        $this->stat3 = $stats[3];
+        $this->stat4 = $stats[4];
 
         $this->stat1Label = __('Clases activas');
         $this->stat1Icon = 'academic-cap';

@@ -6,11 +6,15 @@ namespace App\Actions\Academic;
 
 use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
 use App\Models\Academic\GradeBook\Summaries\Subjects\ActivityGrade;
+use App\Models\Identity\Users\Teacher;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\StudentManagement\Academics\HomeworkPending;
+use App\Services\TeacherManagement\GradebookCache;
 
 final class SaveGradeAction
 {
+    public function __construct(private readonly GradebookCache $gradebookCache) {}
+
     public function __invoke(
         int $activityId,
         int $studentId,
@@ -34,6 +38,8 @@ final class SaveGradeAction
         );
 
         $this->syncHomeworkPending($activityId, $studentId, $grade);
+
+        $this->gradebookCache->forgetForActivity($activityId);
     }
 
     private function syncHomeworkPending(int $activityId, ?int $studentId, mixed $grade): void
@@ -44,6 +50,8 @@ final class SaveGradeAction
         }
 
         $block = $activity->assessmentBlock;
+
+        $teacherId = Teacher::where('user_id', auth()->id())->first()?->id;
 
         $enrolledIds = StudentEnrollment::where('grade_id', $block->grade_id)
             ->where('year_id', $block->year_id)
@@ -67,7 +75,7 @@ final class SaveGradeAction
                     [
                         'subject_id' => $block->subject_id,
                         'grade_id' => $block->grade_id,
-                        'teacher_id' => auth()->user()->teacher?->id,
+                        'teacher_id' => $teacherId,
                         'year_id' => $block->year_id,
                         'trimester_id' => $block->trimester_id,
                         'description' => 'Tarea no presentada: '.$activity->name,

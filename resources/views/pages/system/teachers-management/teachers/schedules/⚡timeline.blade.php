@@ -265,13 +265,13 @@ new #[Title('Horario del Docente')] class extends Component {
 
         if ($calendarDay) {
             $trimestre = $schedule->trimester->trimester_name ?? '';
-            $prefijo = $schedule->schedule_type === 'EVALUATION' ? 'Evaluacion' : 'Recuperacion';
+            $prefijo = $schedule->schedule_type === 'EVALUATION' ? 'Evaluación' : 'Recuperación';
             $actividad = "{$prefijo}:".($trimestre ? " ({$trimestre})" : '');
             $calendarDay->update(['activity' => $actividad]);
         }
 
         $this->closeEvaluationModal();
-        Flux::toast(variant: 'success', text: __('Fecha de evaluacion guardada correctamente.'));
+        Flux::toast(variant: 'success', text: __('Fecha de evaluación guardada correctamente.'));
     }
 
     // ── Attendance Modal ──

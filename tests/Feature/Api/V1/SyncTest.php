@@ -131,6 +131,59 @@ it('entrega upserts de asistencia en el pull y avanza el cursor', function (): v
     expect($third->diff($seenIds))->toBeEmpty();
 });
 
+it('pagina el pull con limit y no avanza el cursor mientras quede has_more', function (): void {
+    $context = syncContext();
+    [$a, $b] = $context['students'];
+    $headers = bearerTokenFor($context['teacher']->user);
+
+    $this->postJson('/api/v1/sync/push', [
+        'device_id' => (string) Str::uuid(),
+        'operations' => [[
+            'operation_id' => (string) Str::uuid(),
+            'entity' => 'attendance_day',
+            'action' => 'replace_day',
+            'payload' => [
+                'schedule_id' => $context['schedule']->id,
+                'date' => now()->toDateString(),
+                'classtopic' => 'Tema',
+                'statuses' => [(string) $a->id => 'A', (string) $b->id => 'AI'],
+            ],
+        ]],
+    ], $headers)->assertOk();
+
+    $url = fn (?string $cursor = null): string => '/api/v1/sync/pull?'.http_build_query(array_filter([
+        'collections' => 'attendance',
+        'limit' => 1,
+        'cursor' => $cursor,
+    ]));
+
+    $first = $this->getJson($url(), $headers)
+        ->assertOk()
+        ->assertJsonCount(1, 'data.changes.attendance.upserts')
+        ->assertJsonPath('data.has_more.attendance', true);
+
+    $cursor = $first->json('data.cursor');
+    $firstIds = collect($first->json('data.changes.attendance.upserts'))->pluck('id');
+
+    $second = $this->getJson($url($cursor), $headers)
+        ->assertOk()
+        ->assertJsonCount(1, 'data.changes.attendance.upserts')
+        ->assertJsonPath('data.has_more.attendance', true);
+
+    $secondIds = collect($second->json('data.changes.attendance.upserts'))->pluck('id');
+
+    expect($firstIds->intersect($secondIds))->not->toBeEmpty()
+        ->and(Attendance::query()->count())->toBe(2);
+
+    $final = $this->getJson('/api/v1/sync/pull?'.http_build_query([
+        'collections' => 'attendance',
+        'cursor' => $second->json('data.cursor'),
+    ]), $headers)
+        ->assertOk()
+        ->assertJsonCount(2, 'data.changes.attendance.upserts')
+        ->assertJsonPath('data.has_more.attendance', false);
+});
+
 it('publica tombstones cuando la correccion a P elimina filas activas', function (): void {
     $context = syncContext();
     [$a] = $context['students'];

@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Route;
 
 class NavigationService
 {
+    /**
+     * @return array<string, array{icon: string, links: array<int, array{name: string, icon: string, label: string, route: ?string, current: bool, roles: array<int, string>, badge: ?string, color: ?string}>}>
+     */
     public function filteredGroups(): array
     {
         $all = $this->allGroups();
@@ -40,6 +43,9 @@ class NavigationService
         return $filtered;
     }
 
+    /**
+     * @return array<string, array{icon: string, links: array<int, array{name: string, icon: string, label: string, route: ?string, current: bool, roles: array<int, string>, badge: ?string, color: ?string}>}>
+     */
     public function allGroups(): array
     {
         return [
@@ -135,6 +141,10 @@ class NavigationService
         ];
     }
 
+    /**
+     * @param  array<int, string>  $roles
+     * @return array{name: string, icon: string, label: string, route: ?string, current: bool, roles: array<int, string>, badge: ?string, color: ?string}
+     */
     private function link(string $name, string $icon, string $label, ?string $route, string $current, array $roles = [], ?string $badge = null, ?string $color = null): array
     {
         return [
@@ -149,6 +159,9 @@ class NavigationService
         ];
     }
 
+    /**
+     * @param  array<int|string, mixed>  $params
+     */
     private function safeRoute(string $name, array $params = []): ?string
     {
         if (Route::has($name)) {

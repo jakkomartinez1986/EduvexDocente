@@ -125,17 +125,32 @@ final class AttendanceRegistrationService
             $statuses = (array) $validated['statuses'];
             $observations = (array) ($validated['observations'] ?? []);
 
+            // Una sola lectura de las filas activas del día (en vez de un
+            // SELECT por estudiante) y escrituras agrupadas: soft delete por
+            // instancia (dispara el observer que publica el tombstone de
+            // sync) y un único INSERT para los nuevos estados.
+            $existingByStudent = $studentIds->isEmpty()
+                ? collect()
+                : Attendance::query()
+                    ->where('class_schedule_id', $schedule->id)
+                    ->whereDate('date', $date)
+                    ->whereIn('student_id', $studentIds)
+                    ->get()
+                    ->keyBy('student_id');
+
+            $toDelete = [];
+            $recordedRows = [];
+            $now = now();
+
             foreach ($studentIds as $studentId) {
                 $studentId = (int) $studentId;
                 $status = trim((string) ($statuses[(string) $studentId] ?? 'P'));
+                $attendance = $existingByStudent->get($studentId);
 
                 if ($status === 'P' || $status === '') {
-                    Attendance::query()
-                        ->where('class_schedule_id', $schedule->id)
-                        ->where('student_id', $studentId)
-                        ->whereDate('date', $date)
-                        ->get()
-                        ->each(fn (Attendance $attendance) => $attendance->delete());
+                    if ($attendance !== null) {
+                        $toDelete[] = $attendance;
+                    }
 
                     continue;
                 }
@@ -149,31 +164,50 @@ final class AttendanceRegistrationService
                     'recorded_by' => $teacher->user_id,
                 ];
 
-                $attendance = Attendance::query()
-                    ->where('class_schedule_id', $schedule->id)
-                    ->where('student_id', $studentId)
-                    ->whereDate('date', $date)
-                    ->first();
-
                 if ($attendance !== null) {
                     $attendance->update($attendanceValues);
-                } else {
-                    try {
-                        Attendance::create([
-                            'class_schedule_id' => $schedule->id,
-                            'student_id' => $studentId,
-                            'date' => $date,
-                            ...$attendanceValues,
-                        ]);
-                    } catch (UniqueConstraintViolationException) {
-                        // Carrera contra un proceso sin lock (p. ej. canal web):
-                        // el índice único garantiza una sola fila activa.
-                        Attendance::query()
-                            ->where('class_schedule_id', $schedule->id)
-                            ->where('student_id', $studentId)
-                            ->whereDate('date', $date)
-                            ->firstOrFail()
-                            ->update($attendanceValues);
+
+                    continue;
+                }
+
+                $recordedRows[] = [
+                    'class_schedule_id' => $schedule->id,
+                    'student_id' => $studentId,
+                    'date' => $date,
+                    ...$attendanceValues,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+
+            foreach ($toDelete as $attendance) {
+                $attendance->delete();
+            }
+
+            if ($recordedRows !== []) {
+                try {
+                    Attendance::insert($recordedRows);
+                } catch (UniqueConstraintViolationException) {
+                    // Carrera contra un proceso sin lock (p. ej. canal web):
+                    // reintento fila a fila, respetando la fila activa previa.
+                    foreach ($recordedRows as $row) {
+                        try {
+                            Attendance::create($row);
+                        } catch (UniqueConstraintViolationException) {
+                            Attendance::query()
+                                ->where('class_schedule_id', $row['class_schedule_id'])
+                                ->where('student_id', $row['student_id'])
+                                ->whereDate('date', $row['date'])
+                                ->firstOrFail()
+                                ->update([
+                                    'class_observation_id' => $row['class_observation_id'],
+                                    'calendarday_id' => $row['calendarday_id'],
+                                    'year_id' => $row['year_id'],
+                                    'status' => $row['status'],
+                                    'observation' => $row['observation'],
+                                    'recorded_by' => $row['recorded_by'],
+                                ]);
+                        }
                     }
                 }
             }

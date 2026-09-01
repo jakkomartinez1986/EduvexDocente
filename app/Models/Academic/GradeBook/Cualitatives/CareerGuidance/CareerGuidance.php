@@ -35,6 +35,7 @@ use Illuminate\Support\Carbon;
 ])]
 class CareerGuidance extends Model
 {
+    /** @use HasFactory<CareerGuidanceFactory> */
     use HasFactory, SoftDeletes;
 
     protected function casts(): array

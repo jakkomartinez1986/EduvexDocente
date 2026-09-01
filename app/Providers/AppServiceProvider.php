@@ -2,8 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Security\Authorizations\Permission as AppPermission;
+use App\Models\Security\Authorizations\Role as AppRole;
+use App\Models\Setting\YearSettings\AcademicPeriod;
+use App\Models\Setting\YearSettings\ScolarYear;
 use App\Models\TeacherManagement\Attendances\Attendance;
+use App\Observers\AcademicYearCacheObserver;
 use App\Observers\AttendanceObserver;
+use App\Observers\PermissionCacheObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -13,6 +19,8 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\TransientToken;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,6 +41,14 @@ class AppServiceProvider extends ServiceProvider
         $this->configureApiRateLimiters();
 
         Attendance::observe(AttendanceObserver::class);
+
+        Role::observe(PermissionCacheObserver::class);
+        Permission::observe(PermissionCacheObserver::class);
+        AppRole::observe(PermissionCacheObserver::class);
+        AppPermission::observe(PermissionCacheObserver::class);
+
+        ScolarYear::observe(AcademicYearCacheObserver::class);
+        AcademicPeriod::observe(AcademicYearCacheObserver::class);
     }
 
     /**
