@@ -110,15 +110,25 @@ final class ClassScheduleService
             return $item->subject->subject_name.'|'.$item->grade->grade_name.'|'.optional($item->grade->nivel->shift)->shift_name;
         });
 
+        $allGradeIds = $grouped->flatMap(fn ($items) => $items->pluck('grade_id'))->unique()->values()->all();
+
+        $studentCountsByGrade = $allGradeIds !== []
+            ? StudentEnrollment::whereIn('grade_id', $allGradeIds)
+                ->where('year_id', $yearId)
+                ->selectRaw('grade_id, COUNT(*) as total')
+                ->groupBy('grade_id')
+                ->pluck('total', 'grade_id')
+            : collect();
+
         $result = [];
         foreach ($grouped as $key => $items) {
             [$subjectName, $gradeName, $shiftName] = explode('|', $key);
             $gradeIds = $items->pluck('grade_id')->unique()->toArray();
             $studentCount = 0;
             if (! empty($gradeIds)) {
-                $studentCount = StudentEnrollment::whereIn('grade_id', $gradeIds)
-                    ->where('year_id', $yearId)
-                    ->count();
+                $studentCount = collect($gradeIds)
+                    ->map(fn ($gid) => $studentCountsByGrade->get($gid, 0))
+                    ->sum();
             }
 
             $result[] = [

@@ -355,9 +355,17 @@ class GradebookPdfController extends Controller
             ->where('year_id', $yearId)
             ->pluck('subject_id');
 
-        $subjectsData = [];
+        $subjectsById = Subject::whereIn('id', $subjectIds->all())->get()->keyBy('id');
+
+        $careerIndicators = CareerGuidanceIndicator::where(fn ($q) => $q->where('grade_id', $gradeId)->orWhereNull('grade_id'))->orderBy('order')->get();
+        $classroomIndicators = IntegralClassroomSupportIndicator::orderBy('order')->get();
+        $readingIndicators = ReadingPromotionIndicator::orderBy('order')->get();
+
+        $numericSubjectIds = [];
+        $qualSubjectEntries = [];
+
         foreach ($subjectIds as $subjectId) {
-            $subject = Subject::find($subjectId);
+            $subject = $subjectsById->get($subjectId);
             if (! $subject) {
                 continue;
             }
@@ -373,57 +381,74 @@ class GradebookPdfController extends Controller
                 $qualType = 'reading_promotion';
             }
 
-            $entry = [
-                'name' => $subject->subject_name,
+            if ($qualType) {
+                $qualSubjectEntries[] = ['type' => $qualType, 'subjectId' => $subjectId, 'subjectName' => $subject->subject_name];
+            } else {
+                $numericSubjectIds[] = $subjectId;
+            }
+        }
+
+        $studentId = $validated['student_id'];
+        $loaded = $numericSubjectIds !== []
+            ? $this->reportComputer->loadClassData($yearId, $gradeId, $numericSubjectIds, [$period->id], [$studentId])
+            : null;
+
+        $subjectsData = [];
+
+        foreach ($qualSubjectEntries as $entry) {
+            $subjectId = $entry['subjectId'];
+            $qualType = $entry['type'];
+
+            $data = [
+                'name' => $entry['subjectName'],
                 'blocks' => collect(),
                 'qualType' => $qualType,
             ];
 
-            if ($qualType) {
-                $studentId = $validated['student_id'];
-
-                if ($qualType === 'career_guidance') {
-                    $entry['indicators'] = CareerGuidanceIndicator::where('grade_id', $gradeId)->orderBy('order')->get();
-                    $entry['grades'] = CareerGuidance::where('subject_id', $subjectId)
-                        ->where('grade_id', $gradeId)
-                        ->where('trimester_id', $period->id)
-                        ->where('year_id', $yearId)
-                        ->where('student_id', $studentId)
-                        ->get()
-                        ->keyBy('indicator_id');
-                } elseif ($qualType === 'classroom_support') {
-                    $entry['indicators'] = IntegralClassroomSupportIndicator::orderBy('order')->get();
-                    $entry['grades'] = IntegralClassroomSupport::where('subject_id', $subjectId)
-                        ->where('grade_id', $gradeId)
-                        ->where('trimester_id', $period->id)
-                        ->where('year_id', $yearId)
-                        ->where('student_id', $studentId)
-                        ->get()
-                        ->keyBy('skill_id');
-                } elseif ($qualType === 'reading_promotion') {
-                    $entry['indicators'] = ReadingPromotionIndicator::orderBy('order')->get();
-                    $entry['grades'] = ReadingPromotion::where('subject_id', $subjectId)
-                        ->where('grade_id', $gradeId)
-                        ->where('trimester_id', $period->id)
-                        ->where('year_id', $yearId)
-                        ->where('student_id', $studentId)
-                        ->get()
-                        ->keyBy('indicator_id');
-                }
-            } else {
-                $entry['blocks'] = AssessmentBlock::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
+            if ($qualType === 'career_guidance') {
+                $data['indicators'] = $careerIndicators;
+                $data['grades'] = CareerGuidance::where('subject_id', $subjectId)
                     ->where('grade_id', $gradeId)
                     ->where('trimester_id', $period->id)
-                    ->with(['activities.grades' => function ($q) use ($validated) {
-                        $q->where('student_id', $validated['student_id']);
-                    }])
-                    ->orderBy('order')
-                    ->orderBy('created_at')
-                    ->get();
+                    ->where('year_id', $yearId)
+                    ->where('student_id', $studentId)
+                    ->get()
+                    ->keyBy('indicator_id');
+            } elseif ($qualType === 'classroom_support') {
+                $data['indicators'] = $classroomIndicators;
+                $data['grades'] = IntegralClassroomSupport::where('subject_id', $subjectId)
+                    ->where('grade_id', $gradeId)
+                    ->where('trimester_id', $period->id)
+                    ->where('year_id', $yearId)
+                    ->where('student_id', $studentId)
+                    ->get()
+                    ->keyBy('skill_id');
+            } elseif ($qualType === 'reading_promotion') {
+                $data['indicators'] = $readingIndicators;
+                $data['grades'] = ReadingPromotion::where('subject_id', $subjectId)
+                    ->where('grade_id', $gradeId)
+                    ->where('trimester_id', $period->id)
+                    ->where('year_id', $yearId)
+                    ->where('student_id', $studentId)
+                    ->get()
+                    ->keyBy('indicator_id');
             }
 
-            $subjectsData[] = $entry;
+            $subjectsData[] = $data;
+        }
+
+        foreach ($numericSubjectIds as $subjectId) {
+            $subject = $subjectsById->get($subjectId);
+            if (! $subject) {
+                continue;
+            }
+
+            $cell = $subjectId.'|'.$period->id;
+            $subjectsData[] = [
+                'name' => $subject->subject_name,
+                'blocks' => $loaded?->blocks->get($cell) ?? collect(),
+                'qualType' => null,
+            ];
         }
 
         $school = app(SchoolConfigService::class)->getActiveSchool();
@@ -867,21 +892,26 @@ class GradebookPdfController extends Controller
             ->where('year_id', $yearId)
             ->pluck('subject_id');
 
+        $subjectsById = Subject::whereIn('id', $subjectIds->all())->get()->keyBy('id');
+
         $subjects = [];
         $qualSubjectIds = [];
+        $numericSubjectIds = [];
         foreach ($subjectIds as $subjectId) {
-            $subject = Subject::find($subjectId);
-            if ($subject) {
-                $nameLower = strtolower($subject->subject_name);
-                $isQual = str_contains($nameLower, 'orientacion vocacional') || str_contains($nameLower, 'ovp')
-                    || str_contains($nameLower, 'acompañamiento integral') || str_contains($nameLower, 'aiac') || str_contains($nameLower, 'civica')
-                    || str_contains($nameLower, 'animacion a la lectura') || str_contains($nameLower, 'animación a la lectura');
-                if ($isQual) {
-                    $qualSubjectIds[] = $subjectId;
-                    $subjects[] = ['id' => $subjectId, 'name' => $subject->subject_name, 'isQual' => true, 'qualType' => $nameLower];
-                } else {
-                    $subjects[] = ['id' => $subjectId, 'name' => $subject->subject_name, 'isQual' => false];
-                }
+            $subject = $subjectsById->get($subjectId);
+            if (! $subject) {
+                continue;
+            }
+            $nameLower = strtolower($subject->subject_name);
+            $isQual = str_contains($nameLower, 'orientacion vocacional') || str_contains($nameLower, 'ovp')
+                || str_contains($nameLower, 'acompañamiento integral') || str_contains($nameLower, 'aiac') || str_contains($nameLower, 'civica')
+                || str_contains($nameLower, 'animacion a la lectura') || str_contains($nameLower, 'animación a la lectura');
+            if ($isQual) {
+                $qualSubjectIds[] = $subjectId;
+                $subjects[] = ['id' => $subjectId, 'name' => $subject->subject_name, 'isQual' => true, 'qualType' => $nameLower];
+            } else {
+                $numericSubjectIds[] = $subjectId;
+                $subjects[] = ['id' => $subjectId, 'name' => $subject->subject_name, 'isQual' => false];
             }
         }
 
@@ -896,6 +926,47 @@ class GradebookPdfController extends Controller
 
         $gradingScheme = GradingScheme::where('year_id', $yearId)->where('status', 1)->first();
 
+        $periodIds = $periodsToShow->pluck('id')->all();
+        $studentIdArr = $studentIds->all();
+
+        $allReadingGrades = ReadingPromotion::where('grade_id', $gradeId)
+            ->where('year_id', $yearId)
+            ->whereIn('subject_id', $qualSubjectIds)
+            ->whereIn('student_id', $studentIdArr)
+            ->whereIn('trimester_id', $periodIds)
+            ->get()
+            ->groupBy(fn ($g) => $g->student_id.'|'.$g->subject_id.'|'.$g->trimester_id);
+
+        $allCareerGuidance = CareerGuidance::where('grade_id', $gradeId)
+            ->where('year_id', $yearId)
+            ->whereIn('subject_id', $qualSubjectIds)
+            ->whereIn('student_id', $studentIdArr)
+            ->whereIn('trimester_id', $periodIds)
+            ->get()
+            ->groupBy(fn ($g) => $g->student_id.'|'.$g->subject_id.'|'.$g->trimester_id);
+
+        $allClassroomSupport = IntegralClassroomSupport::where('grade_id', $gradeId)
+            ->where('year_id', $yearId)
+            ->whereIn('subject_id', $qualSubjectIds)
+            ->whereIn('student_id', $studentIdArr)
+            ->whereIn('trimester_id', $periodIds)
+            ->get()
+            ->groupBy(fn ($g) => $g->student_id.'|'.$g->subject_id.'|'.$g->trimester_id);
+
+        $loaded = $numericSubjectIds !== []
+            ? $this->reportComputer->loadClassData($yearId, $gradeId, $numericSubjectIds, $periodIds, $studentIdArr)
+            : null;
+
+        $formativeByStudent = [];
+        if ($loaded) {
+            foreach ($studentIdArr as $sId) {
+                $formativeByStudent[$sId] = $this->reportComputer->formativeByStudent(
+                    collect(),
+                    [$sId],
+                );
+            }
+        }
+
         $studentsData = [];
         foreach ($students as $student) {
             $sId = $student->id;
@@ -904,33 +975,22 @@ class GradebookPdfController extends Controller
             foreach ($subjects as $subj) {
                 $trimesterTotals = [];
 
-                foreach ($periodsToShow as $pIdx => $period) {
+                foreach ($periodsToShow as $period) {
                     if ($subj['isQual']) {
                         $letter = null;
                         $obs = '';
+                        $cellKey = $sId.'|'.$subj['id'].'|'.$period->id;
 
                         if (str_contains($subj['qualType'], 'animacion') || str_contains($subj['qualType'], 'animación')) {
-                            $grades = ReadingPromotion::where('subject_id', $subj['id'])
-                                ->where('grade_id', $gradeId)
-                                ->where('trimester_id', $period->id)
-                                ->where('year_id', $yearId)
-                                ->where('student_id', $sId)
-                                ->get();
+                            $grades = $allReadingGrades->get($cellKey) ?? collect();
                             if ($grades->count() > 0) {
                                 $totalVal = $grades->sum(fn ($g) => (int) $g->value);
                                 $numVal = min(10, (int) ceil($totalVal / $grades->count()));
                                 $letter = $readingScores[$numVal] ?? '—';
                             }
                         } else {
-                            $model = str_contains($subj['qualType'], 'orientacion') || str_contains($subj['qualType'], 'ovp')
-                                ? CareerGuidance::class
-                                : IntegralClassroomSupport::class;
-                            $grades = $model::where('subject_id', $subj['id'])
-                                ->where('grade_id', $gradeId)
-                                ->where('trimester_id', $period->id)
-                                ->where('year_id', $yearId)
-                                ->where('student_id', $sId)
-                                ->get();
+                            $isCareer = str_contains($subj['qualType'], 'orientacion') || str_contains($subj['qualType'], 'ovp');
+                            $grades = ($isCareer ? $allCareerGuidance : $allClassroomSupport)->get($cellKey) ?? collect();
                             if ($grades->count() > 0) {
                                 $counts = ['S' => 0, 'F' => 0, 'O' => 0, 'N' => 0];
                                 $sumScore = 0;
@@ -960,14 +1020,8 @@ class GradebookPdfController extends Controller
 
                         $trimesterTotals[] = ['grade' => $letter, 'obs' => $obs];
                     } else {
-                        $blocks = AssessmentBlock::where('year_id', $yearId)
-                            ->where('subject_id', $subj['id'])
-                            ->where('grade_id', $gradeId)
-                            ->where('trimester_id', $period->id)
-                            ->with(['activities.grades' => function ($q) use ($sId) {
-                                $q->where('student_id', $sId);
-                            }])
-                            ->get();
+                        $cell = $subj['id'].'|'.$period->id;
+                        $blocks = $loaded?->blocks->get($cell) ?? collect();
 
                         $blockAverages = [];
                         foreach ($blocks as $block) {
@@ -977,7 +1031,7 @@ class GradebookPdfController extends Controller
                             }
                             $total = 0;
                             foreach ($block->activities as $activity) {
-                                $grade = $activity->grades->first();
+                                $grade = $activity->grades->firstWhere('student_id', $sId);
                                 if ($grade && $grade->grade !== null) {
                                     $total += $grade->grade;
                                 }
@@ -988,19 +1042,8 @@ class GradebookPdfController extends Controller
                             ? floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100
                             : null;
 
-                        $exam = StudentExam::where('year_id', $yearId)
-                            ->where('subject_id', $subj['id'])
-                            ->where('grade_id', $gradeId)
-                            ->where('trimester_id', $period->id)
-                            ->where('student_id', $sId)
-                            ->first();
-
-                        $project = StudentProject::where('year_id', $yearId)
-                            ->where('subject_id', $subj['id'])
-                            ->where('grade_id', $gradeId)
-                            ->where('trimester_id', $period->id)
-                            ->where('student_id', $sId)
-                            ->first();
+                        $exam = $loaded?->exams->get($cell)?->get($sId);
+                        $project = $loaded?->projects->get($cell)?->get($sId);
 
                         $total = null;
                         if ($gradingScheme && $formativeAvg !== null) {
@@ -1264,11 +1307,14 @@ class GradebookPdfController extends Controller
 
         $gradingScheme = GradingScheme::where('year_id', $yearId)->where('status', 1)->first();
 
-        $subjectsData = [];
-        $qualSubjectsData = [];
+        $subjectsById = Subject::whereIn('id', $subjectIds->all())->get()->keyBy('id');
+
+        $periodIds = $periods->pluck('id')->all();
+        $numericSubjectIds = [];
+        $qualSubjectEntries = [];
 
         foreach ($subjectIds as $subjectId) {
-            $subject = Subject::find($subjectId);
+            $subject = $subjectsById->get($subjectId);
             if (! $subject) {
                 continue;
             }
@@ -1276,36 +1322,60 @@ class GradebookPdfController extends Controller
             $subjectNameLower = strtolower(Str::ascii($subject->subject_name));
 
             if (str_contains($subjectNameLower, 'orientacion vocacional') || str_contains($subjectNameLower, 'ovp')) {
-                $qualData = $this->buildQualitativeData('career_guidance', $subject, $gradeId, $studentId, $yearId, $periods);
-                $qualSubjectsData[] = $qualData;
-
-                continue;
+                $qualSubjectEntries[] = ['type' => 'career_guidance', 'subject' => $subject];
+            } elseif (str_contains($subjectNameLower, 'acompañamiento integral') || str_contains($subjectNameLower, 'aiac') || str_contains($subjectNameLower, 'civica')) {
+                $qualSubjectEntries[] = ['type' => 'classroom_support', 'subject' => $subject];
+            } elseif (str_contains($subjectNameLower, 'animacion a la lectura')) {
+                $qualSubjectEntries[] = ['type' => 'reading_promotion', 'subject' => $subject];
+            } else {
+                $numericSubjectIds[] = $subjectId;
             }
+        }
 
-            if (str_contains($subjectNameLower, 'acompanamiento integral') || str_contains($subjectNameLower, 'aiac') || str_contains($subjectNameLower, 'civica')) {
-                $qualData = $this->buildQualitativeData('classroom_support', $subject, $gradeId, $studentId, $yearId, $periods);
-                $qualSubjectsData[] = $qualData;
+        $loaded = $numericSubjectIds !== []
+            ? $this->reportComputer->loadClassData($yearId, $gradeId, $numericSubjectIds, $periodIds, [$studentId])
+            : null;
 
-                continue;
-            }
+        $allSupExams = $supletorioPeriod
+            ? SupplementaryExam::where('year_id', $yearId)
+                ->where('grade_id', $gradeId)
+                ->where('student_id', $studentId)
+                ->whereIn('subject_id', $numericSubjectIds)
+                ->get()
+                ->keyBy('subject_id')
+            : collect();
 
-            if (str_contains($subjectNameLower, 'animacion a la lectura')) {
-                $qualData = $this->buildQualitativeData('reading_promotion', $subject, $gradeId, $studentId, $yearId, $periods);
-                $qualSubjectsData[] = $qualData;
+        $allClassScheduleIds = ClassSchedule::where('grade_id', $gradeId)
+            ->where('year_id', $yearId)
+            ->whereIn('trimester_id', $periodIds)
+            ->pluck('id');
 
+        $allAttendances = Attendance::where('student_id', $studentId)
+            ->where('year_id', $yearId)
+            ->whereIn('class_schedule_id', $allClassScheduleIds)
+            ->get();
+
+        $scheduleIdToPeriod = ClassSchedule::whereIn('id', $allClassScheduleIds)
+            ->get()
+            ->mapWithKeys(fn ($cs) => [(int) $cs->id => (int) $cs->trimester_id]);
+
+        $subjectsData = [];
+        $qualSubjectsData = [];
+
+        foreach ($qualSubjectEntries as $entry) {
+            $qualSubjectsData[] = $this->buildQualitativeData($entry['type'], $entry['subject'], $gradeId, $studentId, $yearId, $periods);
+        }
+
+        foreach ($numericSubjectIds as $subjectId) {
+            $subject = $subjectsById->get($subjectId);
+            if (! $subject) {
                 continue;
             }
 
             $periodGrades = [];
             foreach ($periods as $period) {
-                $blocks = AssessmentBlock::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->with(['activities.grades' => function ($q) use ($studentId) {
-                        $q->where('student_id', $studentId);
-                    }])
-                    ->get();
+                $cell = $subjectId.'|'.$period->id;
+                $blocks = $loaded?->blocks->get($cell) ?? collect();
 
                 $blockAverages = [];
                 foreach ($blocks as $block) {
@@ -1326,19 +1396,8 @@ class GradebookPdfController extends Controller
                     ? floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100
                     : null;
 
-                $exam = StudentExam::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->where('student_id', $studentId)
-                    ->first();
-
-                $project = StudentProject::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->where('student_id', $studentId)
-                    ->first();
+                $exam = $loaded?->exams->get($cell)?->get($studentId);
+                $project = $loaded?->projects->get($cell)?->get($studentId);
 
                 $fw = $formativeAvg !== null ? $formativeAvg * (($gradingScheme->formative_percentage ?? 70) / 100) : 0;
                 $ew = $exam?->grade !== null ? $exam->grade * (($gradingScheme->exam_percentage ?? 20) / 100) : 0;
@@ -1353,15 +1412,7 @@ class GradebookPdfController extends Controller
                 ];
             }
 
-            $supTotal = null;
-            if ($supletorioPeriod) {
-                $supExam = SupplementaryExam::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('student_id', $studentId)
-                    ->first();
-                $supTotal = $supExam?->grade;
-            }
+            $supTotal = $allSupExams->get($subjectId)?->grade;
 
             $annualTotal = null;
             $validTotals = array_column(array_filter($periodGrades, fn ($pg) => $pg['total'] !== null), 'total');
@@ -1383,24 +1434,18 @@ class GradebookPdfController extends Controller
             'total' => 0,
         ];
 
-        foreach ($periods as $period) {
-            $periodAttendances = Attendance::where('student_id', $studentId)
-                ->where('year_id', $yearId)
-                ->whereHas('classSchedule', function ($q) use ($gradeId, $period) {
-                    $q->where('grade_id', $gradeId)
-                        ->where('trimester_id', $period->id);
-                })
-                ->get();
-
-            foreach ($periodAttendances as $att) {
-                $status = $att->status;
-                if ($status === 'J') {
-                    $attendanceSummary['justified']++;
-                } elseif ($status === 'I' || $status === 'AI' || $status === 'AA') {
-                    $attendanceSummary['unjustified']++;
-                }
-                $attendanceSummary['total']++;
+        foreach ($allAttendances as $att) {
+            $periodId = $scheduleIdToPeriod->get((int) $att->class_schedule_id);
+            if ($periodId === null) {
+                continue;
             }
+            $status = $att->status;
+            if ($status === 'J') {
+                $attendanceSummary['justified']++;
+            } elseif ($status === 'I' || $status === 'AI' || $status === 'AA') {
+                $attendanceSummary['unjustified']++;
+            }
+            $attendanceSummary['total']++;
         }
 
         $school = app(SchoolConfigService::class)->getActiveSchool();
@@ -1442,12 +1487,31 @@ class GradebookPdfController extends Controller
 
     private function buildQualitativeData(string $type, Subject $subject, int $gradeId, int $studentId, int $yearId, $periods): array
     {
+        $indicators = match ($type) {
+            'career_guidance' => CareerGuidanceIndicator::where(fn ($q) => $q->where('grade_id', $gradeId)->orWhereNull('grade_id'))->orderBy('order')->get(),
+            'classroom_support' => IntegralClassroomSupportIndicator::orderBy('order')->get(),
+            default => ReadingPromotionIndicator::orderBy('order')->get(),
+        };
+
+        $sfoMap = ['S' => 4, 'F' => 3, 'O' => 2, 'N' => 1];
+        $qualLetterMap = [
+            ['min' => 35, 'max' => 36, 'letter' => 'A+'],
+            ['min' => 33, 'max' => 34, 'letter' => 'A-'],
+            ['min' => 30, 'max' => 32, 'letter' => 'B+'],
+            ['min' => 27, 'max' => 29, 'letter' => 'B-'],
+            ['min' => 20, 'max' => 26, 'letter' => 'C+'],
+            ['min' => 18, 'max' => 19, 'letter' => 'C-'],
+            ['min' => 15, 'max' => 17, 'letter' => 'D+'],
+            ['min' => 13, 'max' => 14, 'letter' => 'D-'],
+            ['min' => 11, 'max' => 12, 'letter' => 'E+'],
+            ['min' => 0, 'max' => 10, 'letter' => 'E-'],
+        ];
+        $readingScores = [1 => 'E-', 2 => 'E+', 3 => 'D-', 4 => 'D+', 5 => 'C-', 6 => 'C+', 7 => 'B-', 8 => 'B+', 9 => 'A-', 10 => 'A+'];
+
         $periodGrades = [];
 
         foreach ($periods as $period) {
             if ($type === 'career_guidance') {
-                $indicators = CareerGuidanceIndicator::where(fn ($q) => $q->where('grade_id', $gradeId)->orWhereNull('grade_id'))
-                    ->orderBy('order')->get();
                 $grades = CareerGuidance::where('subject_id', $subject->id)
                     ->where('grade_id', $gradeId)
                     ->where('trimester_id', $period->id)
@@ -1456,7 +1520,6 @@ class GradebookPdfController extends Controller
                     ->get()
                     ->keyBy('indicator_id');
             } elseif ($type === 'classroom_support') {
-                $indicators = IntegralClassroomSupportIndicator::orderBy('order')->get();
                 $grades = IntegralClassroomSupport::where('subject_id', $subject->id)
                     ->where('grade_id', $gradeId)
                     ->where('trimester_id', $period->id)
@@ -1465,7 +1528,6 @@ class GradebookPdfController extends Controller
                     ->get()
                     ->keyBy('skill_id');
             } else {
-                $indicators = ReadingPromotionIndicator::orderBy('order')->get();
                 $grades = ReadingPromotion::where('subject_id', $subject->id)
                     ->where('grade_id', $gradeId)
                     ->where('trimester_id', $period->id)
@@ -1474,21 +1536,6 @@ class GradebookPdfController extends Controller
                     ->get()
                     ->keyBy('indicator_id');
             }
-
-            $sfoMap = ['S' => 4, 'F' => 3, 'O' => 2, 'N' => 1];
-            $qualLetterMap = [
-                ['min' => 35, 'max' => 36, 'letter' => 'A+'],
-                ['min' => 33, 'max' => 34, 'letter' => 'A-'],
-                ['min' => 30, 'max' => 32, 'letter' => 'B+'],
-                ['min' => 27, 'max' => 29, 'letter' => 'B-'],
-                ['min' => 20, 'max' => 26, 'letter' => 'C+'],
-                ['min' => 18, 'max' => 19, 'letter' => 'C-'],
-                ['min' => 15, 'max' => 17, 'letter' => 'D+'],
-                ['min' => 13, 'max' => 14, 'letter' => 'D-'],
-                ['min' => 11, 'max' => 12, 'letter' => 'E+'],
-                ['min' => 0, 'max' => 10, 'letter' => 'E-'],
-            ];
-            $readingScores = [1 => 'E-', 2 => 'E+', 3 => 'D-', 4 => 'D+', 5 => 'C-', 6 => 'C+', 7 => 'B-', 8 => 'B+', 9 => 'A-', 10 => 'A+'];
 
             $totalScore = 0;
             $count = 0;
