@@ -53,7 +53,7 @@ it('needs lock-safe regeneration when the cache is empty', function (): void {
         ->and(Cache::has($cache->key(9, 8, 7, 6, 5)))->toBeTrue();
 });
 
-it('invalidates the class cache when quick grades are saved', function (): void {
+it('re-warms the class cache when quick grades are saved (dispatch RecalculateCourseAverages)', function (): void {
     $context = syncGradebookContext();
     $cache = app(GradebookCache::class);
 
@@ -62,9 +62,11 @@ it('invalidates the class cache when quick grades are saved', function (): void 
     $gradeId = (int) $context['grade']->id;
     $teacherId = (int) $context['teacher']->id;
     $trimesterId = (int) $context['trimester']->id;
+    $key = $cache->key($yearId, $subjectId, $gradeId, $teacherId, $trimesterId);
 
-    $cache->averages($yearId, $subjectId, $gradeId, $teacherId, $trimesterId, fn (): array => []);
-    expect(Cache::has($cache->key($yearId, $subjectId, $gradeId, $teacherId, $trimesterId)))->toBeTrue();
+    Cache::flush();
+    $cache->averages($yearId, $subjectId, $gradeId, $teacherId, $trimesterId, fn (): array => ['formative' => [999 => 1.0], 'total' => [999 => 1.0], 'hasData' => true]);
+    expect(Cache::has($key))->toBeTrue();
 
     [$a, $b] = $context['students'];
 
@@ -74,10 +76,13 @@ it('invalidates the class cache when quick grades are saved', function (): void 
         userId: $context['teacher']->user_id,
     );
 
-    expect(Cache::has($cache->key($yearId, $subjectId, $gradeId, $teacherId, $trimesterId)))->toBeFalse();
+    // La escritura invalida y el job RecalculateCourseAverages recalcula y
+    // re-calienta la clave con los agregados reales (source of truth única).
+    expect(Cache::has($key))->toBeTrue()
+        ->and(Cache::get($key)['formative'])->not->toHaveKey(999);
 });
 
-it('invalidates the class cache when a single grade is saved', function (): void {
+it('re-warms the class cache when a single grade is saved (dispatch RecalculateCourseAverages)', function (): void {
     $context = syncGradebookContext();
     $cache = app(GradebookCache::class);
 
@@ -86,9 +91,11 @@ it('invalidates the class cache when a single grade is saved', function (): void
     $gradeId = (int) $context['grade']->id;
     $teacherId = (int) $context['teacher']->id;
     $trimesterId = (int) $context['trimester']->id;
+    $key = $cache->key($yearId, $subjectId, $gradeId, $teacherId, $trimesterId);
 
-    $cache->averages($yearId, $subjectId, $gradeId, $teacherId, $trimesterId, fn (): array => []);
-    expect(Cache::has($cache->key($yearId, $subjectId, $gradeId, $teacherId, $trimesterId)))->toBeTrue();
+    Cache::flush();
+    $cache->averages($yearId, $subjectId, $gradeId, $teacherId, $trimesterId, fn (): array => ['formative' => [999 => 1.0], 'total' => [999 => 1.0], 'hasData' => true]);
+    expect(Cache::has($key))->toBeTrue();
 
     [$a] = $context['students'];
 
@@ -100,5 +107,6 @@ it('invalidates the class cache when a single grade is saved', function (): void
         value: '9.0',
     );
 
-    expect(Cache::has($cache->key($yearId, $subjectId, $gradeId, $teacherId, $trimesterId)))->toBeFalse();
+    expect(Cache::has($key))->toBeTrue()
+        ->and(Cache::get($key)['formative'])->not->toHaveKey(999);
 });

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions\Academic;
 
+use App\Jobs\RecalculateCourseAverages;
 use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
 use App\Models\Academic\GradeBook\Summaries\Subjects\ActivityGrade;
+use App\Models\Academic\GradeBook\Summaries\Subjects\AssessmentBlock;
 use App\Models\Identity\Users\Teacher;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\StudentManagement\Academics\HomeworkPending;
@@ -37,16 +39,26 @@ final class SaveGradeAction
             ]
         );
 
-        $this->syncHomeworkPending($activityId, $studentId, $grade);
+        $block = $this->syncHomeworkPending($activityId, $studentId, $grade);
 
         $this->gradebookCache->forgetForActivity($activityId);
+
+        if ($block !== null) {
+            RecalculateCourseAverages::dispatch(
+                (int) $block->year_id,
+                (int) $block->subject_id,
+                (int) $block->grade_id,
+                (int) $block->teacher_id,
+                (int) $block->trimester_id,
+            );
+        }
     }
 
-    private function syncHomeworkPending(int $activityId, ?int $studentId, mixed $grade): void
+    private function syncHomeworkPending(int $activityId, ?int $studentId, mixed $grade): ?AssessmentBlock
     {
         $activity = Activity::with('assessmentBlock')->find($activityId);
         if (! $activity || ! $activity->assessmentBlock) {
-            return;
+            return null;
         }
 
         $block = $activity->assessmentBlock;
@@ -91,5 +103,7 @@ final class SaveGradeAction
                     ->update(['status' => 'submitted']);
             }
         }
+
+        return $block;
     }
 }

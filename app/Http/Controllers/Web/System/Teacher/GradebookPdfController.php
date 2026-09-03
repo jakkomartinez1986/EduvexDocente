@@ -23,6 +23,7 @@ use App\Models\Setting\YearSettings\ScolarYear;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\User;
+use App\Services\Academic\GradebookReportComputer;
 use App\Services\AcademicYearService;
 use App\Services\SchoolConfigService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -31,6 +32,8 @@ use Illuminate\Support\Str;
 
 class GradebookPdfController extends Controller
 {
+    public function __construct(private readonly GradebookReportComputer $reportComputer) {}
+
     public function formative(Request $request)
     {
         $data = $this->buildContext($request);
@@ -147,6 +150,7 @@ class GradebookPdfController extends Controller
 
         abort_if(! $student, 404, __('Estudiante no encontrado en el grado del tutor.'));
 
+        $studentId = $validated['student_id'];
         $subjectIds = ClassSchedule::where('grade_id', $gradeId)
             ->where('year_id', $yearId)
             ->pluck('subject_id');
@@ -157,60 +161,25 @@ class GradebookPdfController extends Controller
             ->orderBy('id')
             ->get();
 
-        $subjectsData = [];
-        foreach ($subjectIds as $subjectId) {
-            $subject = Subject::find($subjectId);
-            if (! $subject) {
-                continue;
-            }
+        $subjectsById = Subject::whereIn('id', $subjectIds)->get()->keyBy('id');
+        $loaded = $this->reportComputer->loadClassData($yearId, $gradeId, $subjectIds->all(), $trimesters->pluck('id')->all(), [$studentId]);
 
+        $subjectsData = [];
+        foreach ($subjectsById as $subjectId => $subject) {
             $subjectGrades = [];
             foreach ($trimesters as $period) {
-                $blocks = AssessmentBlock::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->with(['activities.grades' => function ($q) use ($validated) {
-                        $q->where('student_id', $validated['student_id']);
-                    }])
-                    ->get();
+                $cell = $subjectId.'|'.$period->id;
+                $formative = $this->reportComputer->formativeByStudent(
+                    $loaded->blocks->get($cell) ?? collect(),
+                    [$studentId],
+                )[$studentId];
 
-                $blockAverages = [];
-                foreach ($blocks as $block) {
-                    $totalActivities = $block->activities->count();
-                    if ($totalActivities === 0) {
-                        continue;
-                    }
-                    $total = 0;
-                    foreach ($block->activities as $activity) {
-                        $grade = $activity->grades->first();
-                        if ($grade && $grade->grade !== null) {
-                            $total += $grade->grade;
-                        }
-                    }
-                    $blockAverages[] = floor($total / $totalActivities * 100) / 100;
-                }
-                $formativeAvg = count($blockAverages) > 0
-                    ? floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100
-                    : null;
-
-                $exam = StudentExam::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->where('student_id', $validated['student_id'])
-                    ->first();
-
-                $project = StudentProject::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->where('student_id', $validated['student_id'])
-                    ->first();
+                $exam = $loaded->exams->get($cell)?->get($studentId);
+                $project = $loaded->projects->get($cell)?->get($studentId);
 
                 $subjectGrades[] = [
                     'trimester' => $period->trimester_name,
-                    'formative' => $formativeAvg,
+                    'formative' => $formative,
                     'exam' => $exam?->grade,
                     'project' => $project?->grade,
                 ];
@@ -288,62 +257,28 @@ class GradebookPdfController extends Controller
         $period = AcademicPeriod::find($validated['trimester_id']);
         abort_if(! $period || $period->is_supletorio, 404, __('Trimestre no encontrado.'));
 
+        $studentId = $validated['student_id'];
         $subjectIds = ClassSchedule::where('grade_id', $gradeId)
             ->where('year_id', $yearId)
             ->pluck('subject_id');
 
+        $subjectsById = Subject::whereIn('id', $subjectIds)->get()->keyBy('id');
+        $loaded = $this->reportComputer->loadClassData($yearId, $gradeId, $subjectIds->all(), [$period->id], [$studentId]);
+
         $subjectsData = [];
-        foreach ($subjectIds as $subjectId) {
-            $subject = Subject::find($subjectId);
-            if (! $subject) {
-                continue;
-            }
+        foreach ($subjectsById as $subjectId => $subject) {
+            $cell = $subjectId.'|'.$period->id;
+            $formative = $this->reportComputer->formativeByStudent(
+                $loaded->blocks->get($cell) ?? collect(),
+                [$studentId],
+            )[$studentId];
 
-            $blocks = AssessmentBlock::where('year_id', $yearId)
-                ->where('subject_id', $subjectId)
-                ->where('grade_id', $gradeId)
-                ->where('trimester_id', $period->id)
-                ->with(['activities.grades' => function ($q) use ($validated) {
-                    $q->where('student_id', $validated['student_id']);
-                }])
-                ->get();
-
-            $blockAverages = [];
-            foreach ($blocks as $block) {
-                $totalActivities = $block->activities->count();
-                if ($totalActivities === 0) {
-                    continue;
-                }
-                $total = 0;
-                foreach ($block->activities as $activity) {
-                    $grade = $activity->grades->first();
-                    if ($grade && $grade->grade !== null) {
-                        $total += $grade->grade;
-                    }
-                }
-                $blockAverages[] = floor($total / $totalActivities * 100) / 100;
-            }
-            $formativeAvg = count($blockAverages) > 0
-                ? floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100
-                : null;
-
-            $exam = StudentExam::where('year_id', $yearId)
-                ->where('subject_id', $subjectId)
-                ->where('grade_id', $gradeId)
-                ->where('trimester_id', $period->id)
-                ->where('student_id', $validated['student_id'])
-                ->first();
-
-            $project = StudentProject::where('year_id', $yearId)
-                ->where('subject_id', $subjectId)
-                ->where('grade_id', $gradeId)
-                ->where('trimester_id', $period->id)
-                ->where('student_id', $validated['student_id'])
-                ->first();
+            $exam = $loaded->exams->get($cell)?->get($studentId);
+            $project = $loaded->projects->get($cell)?->get($studentId);
 
             $subjectsData[] = [
                 'name' => $subject->subject_name,
-                'formative' => $formativeAvg,
+                'formative' => $formative,
                 'exam' => $exam?->grade,
                 'project' => $project?->grade,
             ];
@@ -655,70 +590,33 @@ class GradebookPdfController extends Controller
 
         $gradingScheme = GradingScheme::where('year_id', $yearId)->where('status', 1)->first();
 
-        $studentsData = [];
-        foreach ($students as $student) {
-            $trimesterTotals = [];
+        $studentIds = $students->pluck('id')->all();
 
-            foreach ($trimesters as $period) {
-                $blocks = AssessmentBlock::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->where('teacher_id', $teacherId)
-                    ->with(['activities.grades' => function ($q) use ($student) {
-                        $q->where('student_id', $student->id);
-                    }])
-                    ->get();
+        $totalsByStudent = [];
+        foreach ($trimesters as $period) {
+            $aggregates = $this->reportComputer->classTrimesterAggregates(
+                $yearId,
+                $subjectId,
+                $gradeId,
+                $teacherId,
+                (int) $period->id,
+                $studentIds,
+                $gradingScheme,
+            );
 
-                $blockAverages = [];
-                foreach ($blocks as $block) {
-                    $totalActivities = $block->activities->count();
-                    if ($totalActivities === 0) {
-                        continue;
-                    }
-                    $total = 0;
-                    foreach ($block->activities as $activity) {
-                        $grade = $activity->grades->first();
-                        if ($grade && $grade->grade !== null) {
-                            $total += $grade->grade;
-                        }
-                    }
-                    $blockAverages[] = floor($total / $totalActivities * 100) / 100;
-                }
-                $formativeAvg = count($blockAverages) > 0
-                    ? floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100
-                    : null;
-
-                $exam = StudentExam::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->where('student_id', $student->id)
-                    ->first();
-
-                $project = StudentProject::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->where('student_id', $student->id)
-                    ->first();
-
-                $fw = $formativeAvg !== null ? $formativeAvg * (($gradingScheme->formative_percentage ?? 0) / 100) : 0;
-                $ew = $exam && $exam->grade !== null ? $exam->grade * (($gradingScheme->exam_percentage ?? 0) / 100) : 0;
-                $pw = $project && $project->grade !== null ? $project->grade * (($gradingScheme->project_percentage ?? 0) / 100) : 0;
-
-                $totalVal = $fw + $ew + $pw;
-                $hasData = $formativeAvg !== null || ($exam && $exam->grade !== null) || ($project && $project->grade !== null);
-                $trimesterTotals[] = $hasData ? round($totalVal, 2) : null;
+            foreach ($studentIds as $studentId) {
+                $totalsByStudent[$studentId][] = $aggregates[$studentId]['total'] ?? null;
             }
+        }
 
+        $studentsData = $students->map(function ($student) use ($totalsByStudent): array {
             $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
 
-            $studentsData[] = [
+            return [
                 'name' => $studentName,
-                'trimesters' => $trimesterTotals,
+                'trimesters' => $totalsByStudent[$student->id] ?? [],
             ];
-        }
+        })->values()->all();
 
         $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
@@ -788,77 +686,44 @@ class GradebookPdfController extends Controller
 
         $gradingScheme = GradingScheme::where('year_id', $yearId)->where('status', 1)->first();
 
-        $studentsData = [];
-        foreach ($students as $student) {
-            $trimesterTotals = [];
+        $studentIds = $students->pluck('id')->all();
 
-            foreach ($trimesters as $period) {
-                $blocks = AssessmentBlock::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->where('teacher_id', $teacherId)
-                    ->with(['activities.grades' => function ($q) use ($student) {
-                        $q->where('student_id', $student->id);
-                    }])
-                    ->get();
+        $totalsByStudent = [];
+        foreach ($trimesters as $period) {
+            $aggregates = $this->reportComputer->classTrimesterAggregates(
+                $yearId,
+                $subjectId,
+                $gradeId,
+                $teacherId,
+                (int) $period->id,
+                $studentIds,
+                $gradingScheme,
+            );
 
-                $blockAverages = [];
-                foreach ($blocks as $block) {
-                    $totalActivities = $block->activities->count();
-                    if ($totalActivities === 0) {
-                        continue;
-                    }
-                    $total = 0;
-                    foreach ($block->activities as $activity) {
-                        $grade = $activity->grades->first();
-                        if ($grade && $grade->grade !== null) {
-                            $total += $grade->grade;
-                        }
-                    }
-                    $blockAverages[] = floor($total / $totalActivities * 100) / 100;
-                }
-                $formativeAvg = count($blockAverages) > 0
-                    ? floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100
-                    : null;
-
-                $exam = StudentExam::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->where('student_id', $student->id)
-                    ->first();
-
-                $project = StudentProject::where('year_id', $yearId)
-                    ->where('subject_id', $subjectId)
-                    ->where('grade_id', $gradeId)
-                    ->where('trimester_id', $period->id)
-                    ->where('student_id', $student->id)
-                    ->first();
-
-                $fw = $formativeAvg !== null ? $formativeAvg * (($gradingScheme->formative_percentage ?? 0) / 100) : 0;
-                $ew = $exam && $exam->grade !== null ? $exam->grade * (($gradingScheme->exam_percentage ?? 0) / 100) : 0;
-                $pw = $project && $project->grade !== null ? $project->grade * (($gradingScheme->project_percentage ?? 0) / 100) : 0;
-
-                $totalVal = $fw + $ew + $pw;
-                $hasData = $formativeAvg !== null || ($exam && $exam->grade !== null) || ($project && $project->grade !== null);
-                $trimesterTotals[] = $hasData ? round($totalVal, 2) : null;
+            foreach ($studentIds as $studentId) {
+                $totalsByStudent[$studentId][] = $aggregates[$studentId]['total'] ?? null;
             }
+        }
 
-            $supExam = SupplementaryExam::where('subject_id', $subjectId)
+        $supExams = $studentIds === []
+            ? collect()
+            : SupplementaryExam::query()
+                ->where('subject_id', $subjectId)
                 ->where('grade_id', $gradeId)
                 ->where('year_id', $yearId)
-                ->where('student_id', $student->id)
-                ->first();
+                ->whereIn('student_id', $studentIds)
+                ->get()
+                ->keyBy('student_id');
 
+        $studentsData = $students->map(function ($student) use ($totalsByStudent, $supExams): array {
             $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
 
-            $studentsData[] = [
+            return [
                 'name' => $studentName,
-                'trimesters' => $trimesterTotals,
-                'supletorio' => $supExam?->grade,
+                'trimesters' => $totalsByStudent[$student->id] ?? [],
+                'supletorio' => $supExams->get($student->id)?->grade,
             ];
-        }
+        })->values()->all();
 
         $school = app(SchoolConfigService::class)->getActiveSchool();
         $year = ScolarYear::find($yearId);
@@ -1245,12 +1110,10 @@ class GradebookPdfController extends Controller
         $subjectsData = [];
         $qualSubjectsData = [];
 
-        foreach ($subjectIds as $subjectId) {
-            $subject = Subject::find($subjectId);
-            if (! $subject) {
-                continue;
-            }
+        $subjectsById = Subject::whereIn('id', $subjectIds)->get()->keyBy('id');
+        $numericSubjectIds = [];
 
+        foreach ($subjectsById as $subjectId => $subject) {
             $subjectNameLower = strtolower(Str::ascii($subject->subject_name));
 
             if (str_contains($subjectNameLower, 'orientacion vocacional') || str_contains($subjectNameLower, 'ovp')) {
@@ -1271,50 +1134,24 @@ class GradebookPdfController extends Controller
                 continue;
             }
 
-            $blocks = AssessmentBlock::where('year_id', $yearId)
-                ->where('subject_id', $subjectId)
-                ->where('grade_id', $gradeId)
-                ->where('trimester_id', $period->id)
-                ->with(['activities.grades' => function ($q) use ($studentId) {
-                    $q->where('student_id', $studentId);
-                }])
-                ->get();
+            $numericSubjectIds[] = $subjectId;
+        }
 
-            $blockAverages = [];
-            foreach ($blocks as $block) {
-                $totalActivities = $block->activities->count();
-                if ($totalActivities === 0) {
-                    continue;
-                }
-                $total = 0;
-                foreach ($block->activities as $activity) {
-                    $grade = $activity->grades->first();
-                    if ($grade && $grade->grade !== null) {
-                        $total += $grade->grade;
-                    }
-                }
-                $blockAverages[] = floor($total / $totalActivities * 100) / 100;
-            }
+        $loaded = $this->reportComputer->loadClassData($yearId, $gradeId, $numericSubjectIds ?: [0], [$period->id], [$studentId]);
 
-            $formativeAvg = count($blockAverages) > 0
-                ? floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100
-                : null;
+        foreach ($numericSubjectIds as $subjectId) {
+            $subject = $subjectsById[$subjectId];
+            $cell = $subjectId.'|'.$period->id;
 
-            $exam = StudentExam::where('year_id', $yearId)
-                ->where('subject_id', $subjectId)
-                ->where('grade_id', $gradeId)
-                ->where('trimester_id', $period->id)
-                ->where('student_id', $studentId)
-                ->first();
+            $formative = $this->reportComputer->formativeByStudent(
+                $loaded->blocks->get($cell) ?? collect(),
+                [$studentId],
+            )[$studentId];
 
-            $project = StudentProject::where('year_id', $yearId)
-                ->where('subject_id', $subjectId)
-                ->where('grade_id', $gradeId)
-                ->where('trimester_id', $period->id)
-                ->where('student_id', $studentId)
-                ->first();
+            $exam = $loaded->exams->get($cell)?->get($studentId);
+            $project = $loaded->projects->get($cell)?->get($studentId);
 
-            $formativeWeighted = $formativeAvg !== null ? round($formativeAvg * $formativePct, 2) : null;
+            $formativeWeighted = $formative !== null ? round($formative * $formativePct, 2) : null;
 
             $sumativeRaw = 0;
             $hasSumative = false;
@@ -1337,7 +1174,7 @@ class GradebookPdfController extends Controller
 
             $subjectsData[] = [
                 'name' => $subject->subject_name,
-                'formative' => $formativeAvg,
+                'formative' => $formative,
                 'formativeWeighted' => $formativeWeighted,
                 'sumativeWeighted' => $sumativeWeighted,
                 'nota' => $nota,

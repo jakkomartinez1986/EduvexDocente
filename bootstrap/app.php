@@ -5,6 +5,8 @@ use App\Exceptions\Api\TokenAbilityMissingException;
 use App\Http\Middleware\EnsurePasswordRotated;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Jobs\CleanupExpiredTokens;
+use App\Jobs\RebuildAttendanceSummaries;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\Middleware\Authenticate;
@@ -28,6 +30,19 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function ($schedule): void {
+        // Recalienta los promedios del libro de calificaciones de todas las
+        // clases del año activo (job idempotente; cadencia diaria basta porque
+        // las escrituras invalidan on-write el gradebook).
+        $schedule->command('gradebook:recalculate')->dailyAt('02:00');
+
+        // Materializa los resúmenes de asistencia del año activo al cierre del
+        // día (job idempotente sobre la clave natural; queue-strategy.md §7).
+        $schedule->job(new RebuildAttendanceSummaries)->dailyAt('23:30');
+
+        // Higiene diaria: elimina los tokens de Sanctum ya expirados.
+        $schedule->job(new CleanupExpiredTokens)->daily();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => RoleMiddleware::class,

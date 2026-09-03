@@ -68,10 +68,22 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 300),
             'block_for' => null,
-            'after_commit' => false,
+            'after_commit' => env('REDIS_QUEUE_AFTER_COMMIT', true),
         ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Colas nombradas
+        |--------------------------------------------------------------------------
+        |
+        | Colas con prioridad/aislamiento según queue-strategy.md. Con el driver
+        | redis (Valkey en Cloud) se procesan por nombre (--queue). Con el driver
+        | database este arreglo es informativo: todos los jobs comparten la tabla.
+        |
+        */
+        'queues' => ['default', 'notifications', 'reports', 'sync'],
 
         'deferred' => [
             'driver' => 'deferred',

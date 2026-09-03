@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\TeacherManagement;
 
+use App\Jobs\RecalculateCourseAverages;
+use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
 use App\Models\Academic\GradeBook\Summaries\Subjects\ActivityGrade;
 use App\Services\TeacherManagement\GradebookCache;
 
@@ -61,5 +63,20 @@ final class SaveQuickGradesAction
         }
 
         $gradebookCache->forgetForActivity($activityId);
+
+        $block = Activity::query()
+            ->with('assessmentBlock')
+            ->find($activityId)
+            ?->assessmentBlock;
+
+        if ($block !== null) {
+            RecalculateCourseAverages::dispatch(
+                (int) $block->year_id,
+                (int) $block->subject_id,
+                (int) $block->grade_id,
+                (int) $block->teacher_id,
+                (int) $block->trimester_id,
+            );
+        }
     }
 }

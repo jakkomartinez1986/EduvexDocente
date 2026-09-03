@@ -7,32 +7,32 @@ use App\Models\Incidents\IncidentCommitmentLetter;
 use App\Models\Incidents\IncidentReport;
 use App\Models\Incidents\NotificationChannel;
 use App\Models\StudentManagement\Academics\AcademicNotification;
+use App\Services\Incidents\IncidentPdfService;
 use App\Services\SchoolConfigService;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class IncidentPdfController extends Controller
 {
+    public function __construct(
+        private readonly IncidentPdfService $incidentPdfService,
+        private readonly SchoolConfigService $schoolConfig,
+    ) {}
+
     public function notification(int $id)
     {
         $notification = AcademicNotification::with(['student.user', 'teacher.user', 'grade', 'subject'])->findOrFail($id);
 
-        $notification->update(['printed_at' => now()]);
-        NotificationChannel::where('notification_id', $notification->id)
-            ->where('channel', 'impresa')
-            ->update(['printed_at' => now()]);
+        // La marcación de impresión no se escribe síncronamente en el GET
+        // (anti-patrón C-04): se difiere hasta después de responder para no
+        // bloquear la descarga ni mutar la base dentro de una petición GET.
+        defer(function () use ($notification): void {
+            $notification->update(['printed_at' => now()]);
+            NotificationChannel::where('notification_id', $notification->id)
+                ->where('channel', 'impresa')
+                ->update(['printed_at' => now()]);
+        });
 
-        $school = app(SchoolConfigService::class)->getActiveSchool();
-        $channels = $notification->channels ?? collect();
-
-        $pdf = Pdf::loadView('pdf.incidents.notification', [
-            'notification' => $notification,
-            'school' => $school,
-            'channels' => $channels,
-        ]);
-
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
+        $pdf = $this->incidentPdfService->notification($id);
 
         return $pdf->download("notificacion-{$notification->code}.pdf");
     }
@@ -43,7 +43,7 @@ class IncidentPdfController extends Controller
             'student.user', 'teacher.user', 'grade', 'subject', 'representative.user',
         ])->findOrFail($id);
 
-        $school = app(SchoolConfigService::class)->getActiveSchool();
+        $school = $this->schoolConfig->getActiveSchool();
 
         $pdf = Pdf::loadView('pdf.incidents.commitment-letter', [
             'letter' => $letter,
@@ -63,7 +63,7 @@ class IncidentPdfController extends Controller
             'student.user', 'teacher.user', 'grade', 'subject', 'tutor.user',
         ])->findOrFail($id);
 
-        $school = app(SchoolConfigService::class)->getActiveSchool();
+        $school = $this->schoolConfig->getActiveSchool();
 
         $notifications = AcademicNotification::where('student_id', $report->student_id)
             ->where('type', $report->type)
