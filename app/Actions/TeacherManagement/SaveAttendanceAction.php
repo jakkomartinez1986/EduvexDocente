@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Actions\TeacherManagement;
 
 use App\Models\Setting\YearSettings\CalendarDay;
+use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\TeacherManagement\Attendances\ClassObservation;
+use App\Services\Academic\PdfReportCache;
 
 final class SaveAttendanceAction
 {
+    public function __construct(private readonly PdfReportCache $pdfCache) {}
+
     public function handle(
         int $scheduleId,
         string $date,
@@ -58,6 +62,14 @@ final class SaveAttendanceAction
                     'recorded_by' => $userId,
                 ]
             );
+        }
+
+        $schedule = ClassSchedule::find($scheduleId);
+        if ($schedule !== null) {
+            $this->pdfCache->invalidateForSubjectGrade((int) $schedule->subject_id, (int) $schedule->grade_id);
+        }
+        foreach (array_keys($statuses) as $studentId) {
+            $this->pdfCache->invalidateForStudent((int) $studentId);
         }
     }
 }

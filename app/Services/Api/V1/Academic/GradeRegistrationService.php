@@ -16,6 +16,7 @@ use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\StudentManagement\Academics\HomeworkPending;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
+use App\Services\Academic\PdfReportCache;
 use App\Services\AcademicYearService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +29,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 final class GradeRegistrationService
 {
-    public function __construct(private readonly AcademicYearService $academicYearService) {}
+    public function __construct(
+        private readonly AcademicYearService $academicYearService,
+        private readonly PdfReportCache $pdfCache,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $validated
@@ -165,6 +169,12 @@ final class GradeRegistrationService
             };
         }
 
+        $this->pdfCache->invalidateForSubjectGrade((int) $validated['subject_id'], (int) $validated['grade_id']);
+        $this->pdfCache->invalidateForTeacher((int) $teacher->id);
+        foreach ($validated['grades'] as $item) {
+            $this->pdfCache->invalidateForStudent((int) $item['student_id']);
+        }
+
         return count($validated['grades']);
     }
 
@@ -209,6 +219,12 @@ final class GradeRegistrationService
                     'recorded_by' => $teacher->user_id,
                 ],
             );
+        }
+
+        $this->pdfCache->invalidateForSubjectGrade((int) $validated['subject_id'], (int) $validated['grade_id']);
+        $this->pdfCache->invalidateForTeacher((int) $teacher->id);
+        foreach ($validated['grades'] as $item) {
+            $this->pdfCache->invalidateForStudent((int) $item['student_id']);
         }
 
         return count($validated['grades']);

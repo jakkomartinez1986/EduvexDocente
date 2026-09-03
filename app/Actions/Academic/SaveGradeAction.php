@@ -11,11 +11,15 @@ use App\Models\Academic\GradeBook\Summaries\Subjects\AssessmentBlock;
 use App\Models\Identity\Users\Teacher;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\StudentManagement\Academics\HomeworkPending;
+use App\Services\Academic\PdfReportCache;
 use App\Services\TeacherManagement\GradebookCache;
 
 final class SaveGradeAction
 {
-    public function __construct(private readonly GradebookCache $gradebookCache) {}
+    public function __construct(
+        private readonly GradebookCache $gradebookCache,
+        private readonly PdfReportCache $pdfCache,
+    ) {}
 
     public function __invoke(
         int $activityId,
@@ -44,6 +48,10 @@ final class SaveGradeAction
         $this->gradebookCache->forgetForActivity($activityId);
 
         if ($block !== null) {
+            $this->pdfCache->invalidateForSubjectGrade((int) $block->subject_id, (int) $block->grade_id);
+            $this->pdfCache->invalidateForTeacher((int) $block->teacher_id);
+            $this->pdfCache->invalidateForStudent($studentId);
+
             RecalculateCourseAverages::dispatch(
                 (int) $block->year_id,
                 (int) $block->subject_id,

@@ -24,15 +24,20 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\User;
 use App\Services\Academic\GradebookReportComputer;
+use App\Services\Academic\PdfReportCache;
 use App\Services\AcademicYearService;
 use App\Services\SchoolConfigService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class GradebookPdfController extends Controller
 {
-    public function __construct(private readonly GradebookReportComputer $reportComputer) {}
+    public function __construct(
+        private readonly GradebookReportComputer $reportComputer,
+        private readonly PdfReportCache $pdfCache,
+    ) {}
 
     public function formative(Request $request)
     {
@@ -52,22 +57,21 @@ class GradebookPdfController extends Controller
             ->orderBy('created_at')
             ->get();
 
-        $pdf = Pdf::loadView('pdf.gradebook-formative', $data + [
-            'blocks' => $blocks,
-        ]);
-
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
-
         $filename = 'Notas_Formativas_'.str_replace(['/', '\\', ':'], '-', $data['gradeName'] ?? '').'_'.($data['trimesterName'] ?? '').'.pdf';
 
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'formative',
+            [
+                'year' => $data['year_id'],
+                'subject' => $data['subject_id'],
+                'grade' => $data['grade_id'],
+                'trimester' => $data['trimester_id'],
+                'student' => $data['student_id'] ?? 'all',
+            ],
+            ['teacher:'.$data['teacher_id'], "subject-grade:{$data['subject_id']}:{$data['grade_id']}"],
+            $filename,
+            fn () => $this->renderPdf('pdf.gradebook-formative', $data + ['blocks' => $blocks], 'a4', 'portrait'),
+        );
     }
 
     public function summative(Request $request)
@@ -104,24 +108,21 @@ class GradebookPdfController extends Controller
             ->orderBy('created_at')
             ->get();
 
-        $pdf = Pdf::loadView('pdf.gradebook-summative', $data + [
-            'exams' => $exams,
-            'projects' => $projects,
-            'blocks' => $blocks,
-        ]);
-
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
-
         $filename = 'Notas_Sumativas_'.str_replace(['/', '\\', ':'], '-', $data['gradeName'] ?? '').'_'.($data['trimesterName'] ?? '').'.pdf';
 
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'summative',
+            [
+                'year' => $data['year_id'],
+                'subject' => $data['subject_id'],
+                'grade' => $data['grade_id'],
+                'trimester' => $data['trimester_id'],
+                'student' => $data['student_id'] ?? 'all',
+            ],
+            ['teacher:'.$data['teacher_id'], "subject-grade:{$data['subject_id']}:{$data['grade_id']}"],
+            $filename,
+            fn () => $this->renderPdf('pdf.gradebook-summative', $data + ['exams' => $exams, 'projects' => $projects, 'blocks' => $blocks], 'a4', 'portrait'),
+        );
     }
 
     public function tutorStudentReport(Request $request)
@@ -199,7 +200,10 @@ class GradebookPdfController extends Controller
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $pdf = Pdf::loadView('pdf.tutor-student-report', [
+        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
+        $filename = 'Reporte_Notas_'.str_replace(['/', '\\', ':'], '-', $studentName).'.pdf';
+
+        $viewData = [
             'school' => $school,
             'student' => $student,
             'subjectsData' => $subjectsData,
@@ -210,21 +214,15 @@ class GradebookPdfController extends Controller
             'inspectorName' => $inspector?->fullname ?? '',
             'gradingScheme' => $gradingScheme,
             'generatedAt' => now()->format('d/m/Y H:i'),
-        ]);
+        ];
 
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
-
-        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
-        $filename = 'Reporte_Notas_'.str_replace(['/', '\\', ':'], '-', $studentName).'.pdf';
-
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'tutor-student-report',
+            ['year' => $yearId, 'student' => $studentId],
+            ['teacher:'.auth()->user()->teacher?->id, 'student:'.$studentId],
+            $filename,
+            fn () => $this->renderPdf('pdf.tutor-student-report', $viewData, 'a4', 'portrait'),
+        );
     }
 
     public function tutorStudentReportByTrimester(Request $request)
@@ -292,7 +290,10 @@ class GradebookPdfController extends Controller
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $pdf = Pdf::loadView('pdf.tutor-student-report-trimester', [
+        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
+        $filename = 'Reporte_Notas_'.str_replace(['/', '\\', ':'], '-', $studentName).'_'.str_replace(['/', '\\', ':'], '-', $period->trimester_name).'.pdf';
+
+        $viewData = [
             'school' => $school,
             'student' => $student,
             'subjectsData' => $subjectsData,
@@ -304,21 +305,15 @@ class GradebookPdfController extends Controller
             'inspectorName' => $inspector?->fullname ?? '',
             'gradingScheme' => $gradingScheme,
             'generatedAt' => now()->format('d/m/Y H:i'),
-        ]);
+        ];
 
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
-
-        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
-        $filename = 'Reporte_Notas_'.str_replace(['/', '\\', ':'], '-', $studentName).'_'.str_replace(['/', '\\', ':'], '-', $period->trimester_name).'.pdf';
-
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'tutor-student-report-tri',
+            ['year' => $yearId, 'student' => $studentId, 'trimester' => (int) $period->id],
+            ['teacher:'.$teacherId, 'student:'.$studentId],
+            $filename,
+            fn () => $this->renderPdf('pdf.tutor-student-report-trimester', $viewData, 'a4', 'portrait'),
+        );
     }
 
     public function tutorStudentFormativeByTrimester(Request $request)
@@ -459,7 +454,7 @@ class GradebookPdfController extends Controller
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $pdf = Pdf::loadView('pdf.tutor-student-formative-trimester', [
+        $viewData = [
             'school' => $school,
             'student' => $student,
             'subjectsData' => $subjectsData,
@@ -471,21 +466,18 @@ class GradebookPdfController extends Controller
             'inspectorName' => $inspector?->fullname ?? '',
             'gradingScheme' => $gradingScheme,
             'generatedAt' => now()->format('d/m/Y H:i'),
-        ]);
-
-        $pdf->setPaper('a4', 'landscape');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
+        ];
 
         $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
         $filename = 'Formativas_'.str_replace(['/', '\\', ':'], '-', $studentName).'_'.str_replace(['/', '\\', ':'], '-', $period->trimester_name).'.pdf';
 
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'tutor-formative-tri',
+            ['year' => $yearId, 'student' => $studentId, 'trimester' => (int) $period->id],
+            ['teacher:'.$teacherId, 'student:'.$studentId],
+            $filename,
+            fn () => $this->renderPdf('pdf.tutor-student-formative-trimester', $viewData, 'a4', 'landscape'),
+        );
     }
 
     public function qualitativeReport(Request $request)
@@ -532,24 +524,20 @@ class GradebookPdfController extends Controller
             abort(404, __('Esta asignatura no es cualitativa.'));
         }
 
-        $pdf = Pdf::loadView('pdf.qualitative-report', $data + [
-            'indicators' => $indicators,
-            'grades' => $grades,
-            'qualType' => $qualType,
-        ]);
-
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
-
         $filename = "Reporte_Cualitativo_{$data['subjectName']}_{$data['gradeName']}_{$data['trimesterName']}.pdf";
 
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'qualitative',
+            [
+                'year' => $data['year_id'],
+                'subject' => $data['subject_id'],
+                'grade' => $data['grade_id'],
+                'trimester' => $data['trimester_id'],
+            ],
+            ['teacher:'.$data['teacher_id'], "subject-grade:{$data['subject_id']}:{$data['grade_id']}"],
+            $filename,
+            fn () => $this->renderPdf('pdf.qualitative-report', $data + ['indicators' => $indicators, 'grades' => $grades, 'qualType' => $qualType], 'a4', 'portrait'),
+        );
     }
 
     private function getEjeForGrade(?int $gradeId): ?string
@@ -648,9 +636,12 @@ class GradebookPdfController extends Controller
         $gradeData = $schedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $pdf = Pdf::loadView('pdf.subject-annual-report', [
+        $subjectName = $schedule->subject->subject_name ?? '';
+        $filename = 'Informe_Anual_'.str_replace(['/', '\\', ':'], '-', $subjectName).'_'.str_replace(['/', '\\', ':'], '-', $gradeName).'.pdf';
+
+        $viewData = [
             'school' => $school,
-            'subjectName' => $schedule->subject->subject_name ?? '',
+            'subjectName' => $subjectName,
             'gradeName' => $gradeName,
             'shiftName' => $gradeData->nivel?->shift?->shift_name ?? '',
             'yearName' => $year->year_name ?? '',
@@ -659,21 +650,15 @@ class GradebookPdfController extends Controller
             'trimesters' => $trimesterInfo,
             'studentsData' => $studentsData,
             'generatedAt' => now()->format('d/m/Y H:i'),
-        ]);
+        ];
 
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
-
-        $subjectName = $schedule->subject->subject_name ?? '';
-        $filename = 'Informe_Anual_'.str_replace(['/', '\\', ':'], '-', $subjectName).'_'.str_replace(['/', '\\', ':'], '-', $gradeName).'.pdf';
-
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'subject-annual',
+            ['year' => $yearId, 'subject' => $subjectId, 'grade' => $gradeId],
+            ['teacher:'.$teacherId, "subject-grade:{$subjectId}:{$gradeId}"],
+            $filename,
+            fn () => $this->renderPdf('pdf.subject-annual-report', $viewData, 'a4', 'portrait'),
+        );
     }
 
     public function supletorioReport(Request $request)
@@ -755,9 +740,12 @@ class GradebookPdfController extends Controller
         $gradeData = $schedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $pdf = Pdf::loadView('pdf.supletorio-report', [
+        $subjectName = $schedule->subject->subject_name ?? '';
+        $filename = 'Supletorio_'.str_replace(['/', '\\', ':'], '-', $subjectName).'_'.str_replace(['/', '\\', ':'], '-', $gradeName).'.pdf';
+
+        $viewData = [
             'school' => $school,
-            'subjectName' => $schedule->subject->subject_name ?? '',
+            'subjectName' => $subjectName,
             'gradeName' => $gradeName,
             'shiftName' => $gradeData->nivel?->shift?->shift_name ?? '',
             'yearName' => $year->year_name ?? '',
@@ -765,21 +753,15 @@ class GradebookPdfController extends Controller
             'gradingScheme' => $gradingScheme,
             'studentsData' => $studentsData,
             'generatedAt' => now()->format('d/m/Y H:i'),
-        ]);
+        ];
 
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
-
-        $subjectName = $schedule->subject->subject_name ?? '';
-        $filename = 'Supletorio_'.str_replace(['/', '\\', ':'], '-', $subjectName).'_'.str_replace(['/', '\\', ':'], '-', $gradeName).'.pdf';
-
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'supletorio',
+            ['year' => $yearId, 'subject' => $subjectId, 'grade' => $gradeId],
+            ['teacher:'.$teacherId, "subject-grade:{$subjectId}:{$gradeId}"],
+            $filename,
+            fn () => $this->renderPdf('pdf.supletorio-report', $viewData, 'a4', 'portrait'),
+        );
     }
 
     protected function buildContext(Request $request): array
@@ -1081,7 +1063,9 @@ class GradebookPdfController extends Controller
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $pdf = Pdf::loadView('pdf.tutor-all-students-trimester', [
+        $filename = 'Notas_Todos_'.str_replace(['/', '\\', ':'], '-', $gradeName).'_'.str_replace(['/', '\\', ':'], '-', $selectedPeriod->trimester_name).'.pdf';
+
+        $viewData = [
             'school' => $school,
             'subjects' => $subjects,
             'periodsToShow' => $periodsToShow,
@@ -1093,20 +1077,15 @@ class GradebookPdfController extends Controller
             'teacherName' => auth()->user()?->fullname ?? '',
             'gradingScheme' => $gradingScheme,
             'generatedAt' => now()->format('d/m/Y H:i'),
-        ]);
+        ];
 
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
-
-        $filename = 'Notas_Todos_'.str_replace(['/', '\\', ':'], '-', $gradeName).'_'.str_replace(['/', '\\', ':'], '-', $selectedPeriod->trimester_name).'.pdf';
-
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'tutor-all-students-tri',
+            ['year' => $yearId, 'trimester' => (int) $selectedPeriod->id, 'grade' => $gradeId],
+            ['teacher:'.$teacherId],
+            $filename,
+            fn () => $this->renderPdf('pdf.tutor-all-students-trimester', $viewData, 'a4', 'portrait'),
+        );
     }
 
     public function studentTrimesterReport(Request $request)
@@ -1229,7 +1208,10 @@ class GradebookPdfController extends Controller
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $pdf = Pdf::loadView('pdf.student-trimester-report', [
+        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
+        $filename = 'Reporte_Trimestre_'.str_replace(['/', '\\', ':'], '-', $studentName).'_'.str_replace(['/', '\\', ':'], '-', $period->trimester_name).'.pdf';
+
+        $viewData = [
             'school' => $school,
             'student' => $student,
             'subjectsData' => $subjectsData,
@@ -1246,21 +1228,15 @@ class GradebookPdfController extends Controller
             'formativePct' => $gradingScheme->formative_percentage ?? 70,
             'sumativePct' => round($sumativePct * 100),
             'generatedAt' => now()->format('d/m/Y H:i'),
-        ]);
+        ];
 
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
-
-        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
-        $filename = 'Reporte_Trimestre_'.str_replace(['/', '\\', ':'], '-', $studentName).'_'.str_replace(['/', '\\', ':'], '-', $period->trimester_name).'.pdf';
-
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'student-trimester-report',
+            ['year' => $yearId, 'student' => $studentId, 'trimester' => (int) $period->id],
+            ['teacher:'.$teacherId, 'student:'.$studentId],
+            $filename,
+            fn () => $this->renderPdf('pdf.student-trimester-report', $viewData, 'a4', 'portrait'),
+        );
     }
 
     public function studentAnnualReport(Request $request)
@@ -1453,7 +1429,10 @@ class GradebookPdfController extends Controller
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $pdf = Pdf::loadView('pdf.student-annual-report', [
+        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
+        $filename = 'Reporte_Anual_'.$studentName.'.pdf';
+
+        $viewData = [
             'school' => $school,
             'student' => $student,
             'subjectsData' => $subjectsData,
@@ -1468,21 +1447,15 @@ class GradebookPdfController extends Controller
             'teacherName' => auth()->user()?->fullname ?? '',
             'gradingScheme' => $gradingScheme,
             'generatedAt' => now()->format('d/m/Y H:i'),
-        ]);
+        ];
 
-        $pdf->setPaper('a4', 'portrait');
-        $pdf->setOption('isRemoteEnabled', true);
-        $pdf->setOption('isHtml5ParserEnabled', true);
-        $pdf->setOption('defaultFont', 'sans-serif');
-        $pdf->setOption('marginTop', '2.5mm');
-        $pdf->setOption('marginBottom', '2.5mm');
-        $pdf->setOption('marginLeft', '3mm');
-        $pdf->setOption('marginRight', '3mm');
-
-        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
-        $filename = 'Reporte_Anual_'.$studentName.'.pdf';
-
-        return $pdf->download($filename);
+        return $this->cachedDownload(
+            'student-annual',
+            ['year' => $yearId, 'student' => $studentId, 'grade' => $gradeId],
+            ['teacher:'.$teacherId, 'student:'.$studentId],
+            $filename,
+            fn () => $this->renderPdf('pdf.student-annual-report', $viewData, 'a4', 'portrait'),
+        );
     }
 
     private function buildQualitativeData(string $type, Subject $subject, int $gradeId, int $studentId, int $yearId, $periods): array
@@ -1588,5 +1561,40 @@ class GradebookPdfController extends Controller
             'type' => $type,
             'periods' => $periodGrades,
         ];
+    }
+
+    /**
+     * Configura opciones de página consistentes para todos los PDFs y
+     * devuelve el contenido binario renderizado.
+     */
+    private function renderPdf(string $view, array $data, string $paper, string $orientation): string
+    {
+        $pdf = Pdf::loadView($view, $data);
+        $pdf->setPaper($paper, $orientation);
+        $pdf->setOption('isRemoteEnabled', true);
+        $pdf->setOption('isHtml5ParserEnabled', true);
+        $pdf->setOption('defaultFont', 'sans-serif');
+        $pdf->setOption('marginTop', '2.5mm');
+        $pdf->setOption('marginBottom', '2.5mm');
+        $pdf->setOption('marginLeft', '3mm');
+        $pdf->setOption('marginRight', '3mm');
+
+        return $pdf->output();
+    }
+
+    /**
+     * Genera (o reutiliza de caché) el binario de un PDF de reporte y
+     * devuelve la respuesta de descarga.
+     *
+     * @param  Closure(): string  $render  Debe retornar el binario del PDF.
+     */
+    private function cachedDownload(string $type, array $params, array $buckets, string $filename, Closure $render)
+    {
+        $binary = $this->pdfCache->remember($type, $params, $buckets, $render);
+
+        return response($binary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
     }
 }

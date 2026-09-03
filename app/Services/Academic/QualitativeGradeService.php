@@ -260,6 +260,9 @@ final class QualitativeGradeService
             ),
             default => null,
         };
+
+        app(PdfReportCache::class)->invalidateForSubjectGrade($subjectId, $gradeId);
+        app(PdfReportCache::class)->invalidateForStudent($studentId);
     }
 
     /**

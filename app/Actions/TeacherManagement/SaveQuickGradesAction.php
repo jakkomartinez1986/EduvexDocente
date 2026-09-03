@@ -7,6 +7,7 @@ namespace App\Actions\TeacherManagement;
 use App\Jobs\RecalculateCourseAverages;
 use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
 use App\Models\Academic\GradeBook\Summaries\Subjects\ActivityGrade;
+use App\Services\Academic\PdfReportCache;
 use App\Services\TeacherManagement\GradebookCache;
 
 final class SaveQuickGradesAction
@@ -23,8 +24,10 @@ final class SaveQuickGradesAction
         array $values,
         int $userId,
         ?GradebookCache $gradebookCache = null,
+        ?PdfReportCache $pdfCache = null,
     ): void {
         $gradebookCache ??= app(GradebookCache::class);
+        $pdfCache ??= app(PdfReportCache::class);
         $studentIds = array_map('intval', array_keys($values));
 
         $existing = $studentIds === []
@@ -70,6 +73,12 @@ final class SaveQuickGradesAction
             ?->assessmentBlock;
 
         if ($block !== null) {
+            $pdfCache->invalidateForSubjectGrade((int) $block->subject_id, (int) $block->grade_id);
+            $pdfCache->invalidateForTeacher((int) $block->teacher_id);
+            foreach ($studentIds as $sid) {
+                $pdfCache->invalidateForStudent($sid);
+            }
+
             RecalculateCourseAverages::dispatch(
                 (int) $block->year_id,
                 (int) $block->subject_id,
