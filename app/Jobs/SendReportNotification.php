@@ -56,6 +56,8 @@ class SendReportNotification implements ShouldQueue
             $this->channel,
             $this->to,
             $this->message ?? "Su reporte está listo: {$url}",
+            $this->path,
+            $this->filename,
         );
     }
 }

@@ -38,6 +38,15 @@ class ReportStorageService
      *
      * @param  string  $path  clave devuelta por store().
      */
+    /**
+     * Comprueba si el reporte ya está persistido (para el flujo async: si el
+     * archivo existe se sirve la URL firmada sin re-encolar la generación).
+     */
+    public function exists(string $path): bool
+    {
+        return $this->disk()->exists($path);
+    }
+
     public function url(string $path, ?\DateTimeInterface $expiry = null): string
     {
         $driver = config('filesystems.disks.'.config('filesystems.default').'.driver', 'local');
