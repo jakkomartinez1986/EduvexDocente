@@ -51,8 +51,13 @@ final class GradingPeriodService
             return false;
         }
 
+        $periods = AcademicPeriod::whereIn(
+            'id',
+            $regularTrimesters->pluck('id')->all()
+        )->get()->keyBy('id');
+
         foreach ($regularTrimesters as $t) {
-            $period = AcademicPeriod::find($t['id']);
+            $period = $periods->get($t['id']);
             if ($period && ! $period->isGradingPast()) {
                 return false;
             }
