@@ -65,3 +65,37 @@ it('muestra los módulos docentes a un docente con horario asignado', function (
 
     expect($names)->toContain('Horario', 'Libro Calificaciones', 'Libro Asistencias', 'Registro Asistencia', 'Recuperaciones', 'Libro de Incidencias', 'Notificaciones');
 });
+
+it('muestra el enlace de monitoreo de trabajadores a un administrador', function (): void {
+    $role = Role::firstOrCreate(
+        ['name' => 'SUPER-ADMIN', 'guard_name' => 'web'],
+        ['description' => 'Super Administrador'],
+    );
+    $user = User::factory()->create();
+    $user->assignRole($role);
+
+    auth()->login($user);
+
+    $links = app(NavigationService::class)->filteredGroups()['Administración']['links'] ?? [];
+
+    expect(array_map(fn (array $link) => $link['name'], $links))->toContain('Trabajadores');
+});
+
+it('agrupa canales de mensajería y trabajadores en el menú Administración', function (): void {
+    $role = Role::firstOrCreate(
+        ['name' => 'SUPER-ADMIN', 'guard_name' => 'web'],
+        ['description' => 'Super Administrador'],
+    );
+    $user = User::factory()->create();
+    $user->assignRole($role);
+
+    auth()->login($user);
+
+    $groups = app(NavigationService::class)->filteredGroups();
+
+    $names = array_map(fn (array $link) => $link['name'], $groups['Administración']['links'] ?? []);
+
+    expect($names)->toContain('Canales', 'Trabajadores')
+        ->and(array_map(fn (array $link) => $link['name'], $groups['Con. Esc']['links'] ?? []))
+        ->not->toContain('Canales', 'Trabajadores');
+});

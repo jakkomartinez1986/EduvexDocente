@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsurePasswordRotated;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Jobs\CleanupExpiredTokens;
+use App\Jobs\QueueHeartbeat;
 use App\Jobs\RebuildAttendanceSummaries;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\AuthenticationException;
@@ -31,6 +32,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function ($schedule): void {
+        // Heartbeat de liveness del worker (workers-monitor): se agenda cada
+        // minuto y solo progresa si un worker de cola está activo. La última
+        // escritura de cache es la señal de "worker vivo" que lee la pantalla.
+        $schedule->job(new QueueHeartbeat)->everyMinute();
+
         // Recalienta los promedios del libro de calificaciones de todas las
         // clases del año activo (job idempotente; cadencia diaria basta porque
         // las escrituras invalidan on-write el gradebook).

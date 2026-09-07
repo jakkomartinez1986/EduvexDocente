@@ -1,11 +1,28 @@
 <?php
 
+use App\Logging\RedactSensitiveProcessor;
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 use Monolog\Processor\PsrLogMessageProcessor;
 
 return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sensitive Key Redaction
+    |--------------------------------------------------------------------------
+    |
+    | Substring list matched against log context/extra keys whose values must
+    | never reach the output (security-audit.md §3). Applied by the
+    | RedactSensitiveProcessor. Extend per deployment if new secrets appear.
+    |
+    */
+
+    'redaction' => env('LOG_REDACTION_KEYS')
+        ? explode(',', (string) env('LOG_REDACTION_KEYS'))
+        : [],
 
     /*
     |--------------------------------------------------------------------------
@@ -76,6 +93,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => 14,
             'replace_placeholders' => true,
+            'processors' => [RedactSensitiveProcessor::class],
         ],
 
         'single' => [
@@ -83,6 +101,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'processors' => [RedactSensitiveProcessor::class],
         ],
 
         'daily' => [
@@ -91,6 +110,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'max_files' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+            'processors' => [RedactSensitiveProcessor::class],
         ],
 
         'monthly' => [
@@ -99,6 +119,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'max_files' => 3,
             'replace_placeholders' => true,
+            'processors' => [RedactSensitiveProcessor::class],
         ],
 
         'slack' => [
@@ -129,8 +150,8 @@ return [
             'handler_with' => [
                 'stream' => 'php://stderr',
             ],
-            'formatter' => env('LOG_STDERR_FORMATTER'),
-            'processors' => [PsrLogMessageProcessor::class],
+            'formatter' => env('LOG_STDERR_FORMATTER', JsonFormatter::class),
+            'processors' => [PsrLogMessageProcessor::class, RedactSensitiveProcessor::class],
         ],
 
         'syslog' => [

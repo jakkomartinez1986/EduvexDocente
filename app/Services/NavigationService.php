@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\TeacherManagement\Academics\ClassSchedule;
+use App\Services\TeacherManagement\TeacherCoursesCache;
 use Illuminate\Support\Facades\Route;
 
 class NavigationService
@@ -56,7 +57,6 @@ class NavigationService
      * tiene asignaturas, estos enlaces no deberían mostrarse en el menú.
      */
     private const TEACHER_DEPENDENT_NAMES = [
-        'Horario',
         'Libro Calificaciones',
         'Libro Asistencias',
         'Registro Asistencia',
@@ -91,10 +91,17 @@ class NavigationService
 
         $activeYearId = app(AcademicYearService::class)->getActiveYearId();
 
-        return $activeYearId !== null
-            && ClassSchedule::where('teacher_id', $teacher->id)
+        if ($activeYearId === null) {
+            return false;
+        }
+
+        return app(TeacherCoursesCache::class)->hasCourses(
+            (int) $teacher->id,
+            $activeYearId,
+            fn (): bool => ClassSchedule::where('teacher_id', $teacher->id)
                 ->where('year_id', $activeYearId)
-                ->exists();
+                ->exists(),
+        );
     }
 
     /**
@@ -189,7 +196,13 @@ class NavigationService
                     $this->link('Grado', 'academic-cap', 'Grado', $this->safeRoute('admin.settings.grades.index'), 'admin.settings.grades.*', ['SUPER-ADMIN', 'ADMIN']),
                     $this->link('Area', 'building-office-2', 'Area', $this->safeRoute('admin.settings.areas.index'), 'admin.settings.areas.*', ['SUPER-ADMIN', 'ADMIN']),
                     $this->link('Asignatura', 'bars-3-bottom-right', 'Asignatura', $this->safeRoute('admin.settings.subjects.index'), 'admin.settings.subjects.*', ['SUPER-ADMIN', 'ADMIN']),
+                ],
+            ],
+            'Administración' => [
+                'icon' => 'wrench-screwdriver',
+                'links' => [
                     $this->link('Canales', 'chat-bubble-left-right', 'Canales de Mensajería', $this->safeRoute('admin.settings.messaging-channels.index'), 'admin.settings.messaging-channels.*', ['SUPER-ADMIN', 'ADMIN'], null, 'teal'),
+                    $this->link('Trabajadores', 'server-stack', 'Trabajadores (Colas)', $this->safeRoute('admin.settings.queue-workers.index'), 'admin.settings.queue-workers.*', ['SUPER-ADMIN', 'ADMIN'], null, 'emerald'),
                 ],
             ],
         ];

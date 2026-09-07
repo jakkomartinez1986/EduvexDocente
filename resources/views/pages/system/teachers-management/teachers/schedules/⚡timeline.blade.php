@@ -504,10 +504,11 @@ new #[Title('Horario del Docente')] class extends Component {
 }; ?>
 
 @php
-    $horariosPorDia = $this->isTeacher ? $this->getSchedulesByDay() : [];
-    $stats = $this->isTeacher ? $this->getStats() : [];
-    $distributivo = $this->isTeacher ? $this->getDistributivo() : [];
-    $agenda = $this->isTeacher ? $this->getTodayAgenda() : collect();
+    $isTeacherWithSchedules = $this->isTeacher && $this->hasSchedules;
+    $horariosPorDia = $isTeacherWithSchedules ? $this->getSchedulesByDay() : [];
+    $stats = $isTeacherWithSchedules ? $this->getStats() : [];
+    $distributivo = $isTeacherWithSchedules ? $this->getDistributivo() : [];
+    $agenda = $isTeacherWithSchedules ? $this->getTodayAgenda() : collect();
 @endphp
 
 <div>
@@ -528,7 +529,7 @@ new #[Title('Horario del Docente')] class extends Component {
         <span class="text-zinc-900 dark:text-zinc-100 font-medium">{{ __('Horario del Docente') }}</span>
     </nav>
 
-    @if ($this->hasSchedules)
+    @if ($this->isTeacher && $this->hasSchedules)
         @include('pages.system.teachers-management.teachers.schedules.partials.controls-bar')
 
         @include('pages.system.teachers-management.teachers.schedules.partials.status-panel')

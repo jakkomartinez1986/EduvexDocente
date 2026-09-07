@@ -255,26 +255,49 @@ new #[Title('Dashboard')] class extends Component {
     protected function loadMySubjects(): void
     {
         $dayOrder = ['LUNES' => 1, 'MARTES' => 2, 'MIERCOLES' => 3, 'JUEVES' => 4, 'VIERNES' => 5, 'SABADO' => 6];
+        $teacherId = $this->teacher->id;
+        $yearId = (int) $this->yearId;
 
-        $schedules = ClassSchedule::where('teacher_id', $this->teacher->id)
-            ->where('year_id', $this->yearId)
-            ->where('is_active', true)
-            ->with(['subject', 'grade'])
-            ->get()
-            ->sortBy(fn ($row) => ($dayOrder[$row->day] ?? 9) . ' ' . ($row->start_time?->format('H:i') ?? ''));
+        $schedules = app(\App\Services\TeacherManagement\TeacherCoursesCache::class)->courses(
+            (int) $teacherId,
+            $yearId,
+            function () use ($teacherId, $yearId): array {
+                return ClassSchedule::where('teacher_id', $teacherId)
+                    ->where('year_id', $yearId)
+                    ->where('is_active', true)
+                    ->with(['subject', 'grade'])
+                    ->get()
+                    ->map(fn ($row) => [
+                        'id' => $row->id,
+                        'day' => $row->day,
+                        'start_time' => $row->start_time?->format('H:i'),
+                        'end_time' => $row->end_time?->format('H:i'),
+                        'classroom' => $row->classroom,
+                        'subject_id' => $row->subject_id,
+                        'grade_id' => $row->grade_id,
+                        'subject_name' => $row->subject?->subject_name,
+                        'grade_name' => $row->grade?->grade_name,
+                        'section' => $row->grade?->section,
+                    ])
+                    ->all();
+            },
+        );
 
-        $this->mySubjects = $schedules
-            ->groupBy(fn ($schedule) => $schedule->subject_id . '-' . $schedule->grade_id)
-            ->map(function ($rows) {
-                $first = $rows->first();
+        $rows = collect($schedules)
+            ->sortBy(fn ($row) => ($dayOrder[$row['day'] ?? ''] ?? 9) . ' ' . ($row['start_time'] ?? ''));
+
+        $this->mySubjects = $rows
+            ->groupBy(fn ($schedule) => ($schedule['subject_id'] ?? '').'-'.($schedule['grade_id'] ?? ''))
+            ->map(function ($group) {
+                $first = $group->first();
 
                 return [
-                    'subject' => $first->subject?->subject_name ?? '-',
-                    'grade' => trim(($first->grade?->grade_name ?? '') . ' ' . ($first->grade?->section ?? '')),
-                    'schedule' => $rows
-                        ->map(fn ($row) => $this->getDayLabel($row->day) . ' ' . ($row->start_time?->format('H:i') ?? '') . '-' . ($row->end_time?->format('H:i') ?? ''))
+                    'subject' => $first['subject_name'] ?? '-',
+                    'grade' => trim(($first['grade_name'] ?? '') . ' ' . ($first['section'] ?? '')),
+                    'schedule' => $group
+                        ->map(fn ($row) => $this->getDayLabel($row['day']) . ' ' . ($row['start_time'] ?? '') . '-' . ($row['end_time'] ?? ''))
                         ->implode(', '),
-                    'classroom' => $rows->first(fn ($row) => filled($row->classroom))?->classroom ?? '—',
+                    'classroom' => $group->first(fn ($row) => filled($row['classroom'] ?? null))['classroom'] ?? '—',
                 ];
             })
             ->values()
