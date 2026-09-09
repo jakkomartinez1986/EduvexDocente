@@ -7,6 +7,7 @@ use Illuminate\Queue\Failed\FailedJobProviderInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 
 /**
  * Observabilidad del ecosistema de colas/workers (workers-monitor). Centraliza
@@ -115,6 +116,10 @@ class WorkerMonitorService
 
     /**
      * Jobs fallidos más recientes.
+     *
+     * NOTA: solo expone los campos de presentación. El `payload` serializado y
+     * la excepción completa inflan el snapshot de Livewire (payload.max_size)
+     * en cada poll sin aportar a la UI.
      */
     public function failedJobs(int $limit = 20): Collection
     {
@@ -243,17 +248,19 @@ class WorkerMonitorService
     }
 
     /**
-     * @return array{id: mixed, connection: ?string, queue: ?string, payload: string, failed_at: mixed, exception: ?string, class: ?string}
+     * @return array{id: mixed, queue: ?string, failed_at: mixed, exception: ?string, class: ?string}
      */
     protected function normalizeFailedJob(array $job): array
     {
+        $exception = isset($job['exception']) && is_string($job['exception'])
+            ? Str::limit($job['exception'], 180)
+            : null;
+
         return [
             'id' => $job['id'] ?? null,
-            'connection' => $job['connection'] ?? null,
             'queue' => $job['queue'] ?? null,
-            'payload' => $job['payload'] ?? null,
             'failed_at' => $job['failed_at'] ?? null,
-            'exception' => $job['exception'] ?? null,
+            'exception' => $exception,
             'class' => $this->extractJobName($job['payload'] ?? ''),
         ];
     }

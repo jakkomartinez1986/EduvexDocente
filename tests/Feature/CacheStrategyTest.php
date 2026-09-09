@@ -138,6 +138,32 @@ it('caches the active school id as a primitive', function (): void {
         ->and(Cache::get(cacheKey('school:active-id')))->toBe($school->id);
 });
 
+it('recovers from a stale cached school id that no longer resolves', function (): void {
+    Cache::flush();
+
+    $school = School::factory()->create(['name_school' => 'Escuela Activa']);
+    Cache::put(cacheKey('school:active-id'), 99999);
+
+    $service = app(SchoolConfigService::class);
+
+    expect($service->getActiveSchool()?->id)->toBe($school->id)
+        ->and(Cache::get(cacheKey('school:active-id')))->toBe($school->id);
+});
+
+it('recovers from a cached school id pointing to an inactive school', function (): void {
+    Cache::flush();
+
+    $inactive = School::factory()->inactive()->create(['name_school' => 'Escuela Inactiva']);
+    $school = School::factory()->create(['name_school' => 'Escuela Activa']);
+
+    Cache::put(cacheKey('school:active-id'), $inactive->id);
+
+    $service = app(SchoolConfigService::class);
+
+    expect($service->getActiveSchool()?->id)->toBe($school->id)
+        ->and(Cache::get(cacheKey('school:active-id')))->toBe($school->id);
+});
+
 it('does not cache the School Eloquent model (avoids __PHP_Incomplete_Class)', function (): void {
     Cache::flush();
 

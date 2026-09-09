@@ -329,8 +329,9 @@ new #[Title('Dashboard')] class extends Component {
                 'icon' => 'bell',
                 'color' => 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30',
                 'description' => __('Notificación de :type para :name', ['type' => $notification->type, 'name' => $notification->student?->user?->fullname ?? '-']),
-                'date' => $notification->generated_date ?? $notification->created_at,
-            ]);
+'date' => $notification->generated_date ?? $notification->created_at,
+        ])
+        ->toBase();
 
         $interventions = IncidentIntervention::where('teacher_id', $this->teacher->id)
             ->where('year_id', $this->yearId)
@@ -343,8 +344,9 @@ new #[Title('Dashboard')] class extends Component {
                 'color' => 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30',
                 'description' => __('Incidencia de :type con :name', ['type' => $intervention->type, 'name' => $intervention->student?->user?->fullname ?? '-']),
                 'status' => $intervention->status,
-                'date' => $intervention->date,
-            ]);
+'date' => $intervention->date,
+        ])
+        ->toBase();
 
         $observations = ClassObservation::where('year_id', $this->yearId)
             ->where(function ($q) {
@@ -357,8 +359,9 @@ new #[Title('Dashboard')] class extends Component {
                 'icon' => 'clipboard-document-list',
                 'color' => 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30',
                 'description' => __('Observación de clase: :topic', ['topic' => $observation->classtopic ?? $observation->observation]),
-                'date' => $observation->observation_date,
-            ]);
+'date' => $observation->observation_date,
+        ])
+        ->toBase();
 
         $this->recentActivity = $notifications
             ->merge($interventions)

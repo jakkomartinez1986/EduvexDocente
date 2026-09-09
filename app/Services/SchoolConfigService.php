@@ -25,7 +25,26 @@ class SchoolConfigService
     {
         $schoolId = $this->getActiveSchoolId();
 
-        return $schoolId !== null ? School::find($schoolId) : null;
+        $school = $schoolId !== null ? School::find($schoolId) : null;
+
+        if ($school === null || ! $school->isActive()) {
+            // La caché puede quedar huérfana si la escuela se eliminó/desactivó
+            // por SQL directo (migrate:fresh --seed, imports) sin disparar el
+            // observer. En ese caso ignoramos el id cacheado y resolvemos el
+            // activo real, dejando la caché reparada.
+            Cache::forget(static::cacheKey());
+
+            $school = School::query()
+                ->where('status', 1)
+                ->latest('id')
+                ->first();
+
+            if ($school !== null) {
+                Cache::put(static::cacheKey(), $school->id, now()->addDay());
+            }
+        }
+
+        return $school;
     }
 
     public function getActiveSchoolId(): ?int

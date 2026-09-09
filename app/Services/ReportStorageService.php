@@ -33,12 +33,6 @@ class ReportStorageService
     }
 
     /**
-     * URL accesible del archivo. En discos con URLs firmadas (s3/r2) devuelve
-     * una firma temporal; en discos locales/publicos cae a la URL servida.
-     *
-     * @param  string  $path  clave devuelta por store().
-     */
-    /**
      * Comprueba si el reporte ya está persistido (para el flujo async: si el
      * archivo existe se sirve la URL firmada sin re-encolar la generación).
      */
@@ -47,11 +41,20 @@ class ReportStorageService
         return $this->disk()->exists($path);
     }
 
+    /**
+     * URL accesible del archivo. En discos s3/r2 y en discos locales con el
+     * driver `serve` habilitado devuelve una URL firmada temporal; en discos
+     * locales/publicos sin servir, la URL servida plana.
+     *
+     * @param  string  $path  clave devuelta por store().
+     */
     public function url(string $path, ?\DateTimeInterface $expiry = null): string
     {
-        $driver = config('filesystems.disks.'.config('filesystems.default').'.driver', 'local');
+        $diskConfig = config('filesystems.disks.'.config('filesystems.default'), []);
+        $driver = $diskConfig['driver'] ?? 'local';
+        $serve = (bool) ($diskConfig['serve'] ?? false);
 
-        if ($driver === 's3') {
+        if ($driver === 's3' || $serve) {
             return $this->disk()->temporaryUrl($path, $expiry ?? now()->addMinutes(10));
         }
 

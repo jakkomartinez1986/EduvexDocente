@@ -89,6 +89,24 @@ it('lista jobs fallidos y permite reenviarlos', function (): void {
         ->and(DB::table('jobs')->where('queue', 'default')->count())->toBe(1);
 });
 
+it('no expone el payload ni la excepción completa en el listado de fallidos', function (): void {
+    $queue = Queue::connection('database');
+    $queue->push(new QueueHeartbeat, [], 'default');
+
+    $row = DB::table('jobs')->first();
+    $failer = app('queue.failer');
+
+    $longException = 'TestException: '.str_repeat('x', 5000);
+    $failer->log('database', $row->queue, $row->payload, $longException);
+
+    DB::table('jobs')->where('id', $row->id)->delete();
+
+    $failed = app(WorkerMonitorService::class)->failedJobs()->first();
+
+    expect($failed)->not->toHaveKeys(['payload', 'connection'])
+        ->and(strlen($failed['exception']))->toBeLessThan(200);
+});
+
 it('permite olvidar un job fallido sin reenviarlo', function (): void {
     $failer = app('queue.failer');
     $failer->log('database', 'default', json_encode([

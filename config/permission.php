@@ -201,7 +201,7 @@ return [
          */
 
         'expiration_time' => DateInterval::createFromDateString(
-            env('PERMISSION_CACHE_EXPIRATION', '24 hours'),
+            env('PERMISSION_CACHE_EXPIRATION', '10 minutes'),
         ),
 
         /*

@@ -30,6 +30,7 @@
                                  'grade_id' => $selectedGradeId,
                                  'trimester_id' => $selectedTrimesterId,
                              ]) }}"
+                             target="_blank"
                              title="{{ __('Imprimir reporte cualitativo') }}">
                     {{ __('Imprimir Reporte') }}
                 </flux:button>

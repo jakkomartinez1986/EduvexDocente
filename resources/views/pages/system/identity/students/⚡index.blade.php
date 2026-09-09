@@ -70,7 +70,7 @@ new #[Title('Estudiantes')] class extends Component {
     public function getRecordsProperty()
     {
         $yearId = app(AcademicYearService::class)->getActiveYearId();
-        $query = Student::query()->with(['user', 'enrollments.grade']);
+        $query = Student::query()->with(['user', 'enrollments.grade.nivel.shift']);
 
         if ($this->isTutor) {
             $teacher = auth()->user()->teacher;

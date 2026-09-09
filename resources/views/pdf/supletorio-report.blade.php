@@ -63,7 +63,8 @@
         </table>
     </div>
 
-    <div class="title">{{ __('REPORTE DE CALIFICACIONES') }} — {{ $subjectName }}</div>
+    <div class="title">{{ __('REPORTE DE CALIFICACIONES') }} </div> 
+    {{-- — {{ $subjectName }} --}}
 
     <div class="info-section">
         <table>

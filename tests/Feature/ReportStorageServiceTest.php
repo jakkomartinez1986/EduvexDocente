@@ -23,3 +23,14 @@ it('resuelve la URL servida para un disco local/publico', function (): void {
     expect($url)->toBeString()
         ->and($url)->toContain('/storage/reports/incidents/notificacion-1.pdf');
 });
+
+it('resuelve una URL firmada para el disco local con serve habilitado', function (): void {
+    config(['filesystems.default' => 'local']);
+
+    $url = app(ReportStorageService::class)->url('reports/gradebooks/notas.pdf');
+
+    expect($url)->toBeString()
+        ->and($url)->toContain('/storage/reports/gradebooks/notas.pdf')
+        ->and($url)->toContain('signature=')
+        ->and($url)->toContain('expires=');
+});

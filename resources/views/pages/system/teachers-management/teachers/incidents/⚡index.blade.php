@@ -1970,7 +1970,7 @@ new #[Title('Libro de Incidencias')] class extends Component
                                 <flux:badge :color="match($letter->status) { 'signed' => 'green', 'closed' => 'blue', default => 'yellow' }">
                                     {{ $letter->status }}
                                 </flux:badge>
-                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.commitment-letter', $letter->id) }}">
+                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.commitment-letter', $letter->id) }}" target="_blank">
                                     {{ __('PDF') }}
                                 </flux:button>
                             </div>
@@ -2010,7 +2010,7 @@ new #[Title('Libro de Incidencias')] class extends Component
                                 <flux:badge :color="match($report->status) { 'sent' => 'green', 'archived' => 'blue', default => 'yellow' }">
                                     {{ $report->status }}
                                 </flux:badge>
-                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.report', $report->id) }}">
+                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.report', $report->id) }}" target="_blank">
                                     {{ __('PDF') }}
                                 </flux:button>
                             </div>

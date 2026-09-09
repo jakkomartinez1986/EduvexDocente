@@ -9,13 +9,15 @@ use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
 use App\Models\Academic\GradeBook\Summaries\Subjects\ActivityGrade;
 use App\Services\Academic\PdfReportCache;
 use App\Services\TeacherManagement\GradebookCache;
+use App\Support\Database\BulkWrite;
 
 final class SaveQuickGradesAction
 {
     /**
-     * Guarda el rango de notas de la actividad en lote: una sola lectura de
-     * las filas existentes y un único INSERT para las nuevas (≈2 consultas
-     * estables en lugar de 2N en N+1 de updateOrCreate).
+     * Guarda el rango de notas de la actividad en ~3 consultas estables: una
+     * sola lectura de las filas existentes, un único UPDATE con CASE para las
+     * que cambian y un único INSERT batch para las nuevas (en lugar de 2N en
+     * el N+1 de updateOrCreate, H-07).
      *
      * @param  array<int, string>  $values  clave = student_id, valor = nota o ''
      */
@@ -28,7 +30,7 @@ final class SaveQuickGradesAction
     ): void {
         $gradebookCache ??= app(GradebookCache::class);
         $pdfCache ??= app(PdfReportCache::class);
-        $studentIds = array_map('intval', array_keys($values));
+        $studentIds = array_values(array_unique(array_map('intval', array_keys($values))));
 
         $existing = $studentIds === []
             ? collect()
@@ -38,22 +40,32 @@ final class SaveQuickGradesAction
                 ->get()
                 ->keyBy('student_id');
 
+        $changedMap = [];
         $rows = [];
         $now = now();
 
         foreach ($values as $studentId => $value) {
+            $studentIdVal = (int) $studentId;
             $grade = $value !== '' ? min(max((float) $value, 0), 10) : null;
-            $row = $existing->get((int) $studentId);
+            $row = $existing->get($studentIdVal);
 
             if ($row !== null) {
-                $row->update(['grade' => $grade, 'recorded_by' => $userId]);
+                $sameGrade = $row->grade === null && $grade === null
+                    || $row->grade !== null && $grade !== null && abs((float) $row->grade - $grade) < 0.001;
+
+                if (! $sameGrade || (int) $row->recorded_by !== $userId) {
+                    $changedMap[$studentIdVal] = [
+                        'grade' => $grade,
+                        'recorded_by' => $userId,
+                    ];
+                }
 
                 continue;
             }
 
             $rows[] = [
                 'activity_id' => $activityId,
-                'student_id' => (int) $studentId,
+                'student_id' => $studentIdVal,
                 'grade' => $grade,
                 'recorded_by' => $userId,
                 'created_at' => $now,
@@ -61,8 +73,51 @@ final class SaveQuickGradesAction
             ];
         }
 
+        if ($changedMap !== []) {
+            $gradeBy = [];
+            $recordedByBy = [];
+
+            foreach ($changedMap as $studentIdVal => $valueRow) {
+                $gradeBy[$studentIdVal] = $valueRow['grade'];
+                $recordedByBy[$studentIdVal] = $valueRow['recorded_by'];
+            }
+
+            BulkWrite::caseUpdate(
+                ActivityGrade::query()->where('activity_id', $activityId),
+                'student_id',
+                [
+                    'grade' => $gradeBy,
+                    'recorded_by' => $recordedByBy,
+                ],
+            );
+        }
+
         if ($rows !== []) {
-            ActivityGrade::insert($rows);
+            BulkWrite::insertBatch(ActivityGrade::class, $rows, function (array $row): void {
+                $rowGrade = $row['grade'];
+                $rowRecordedBy = $row['recorded_by'];
+
+                $active = ActivityGrade::query()
+                    ->where('activity_id', $row['activity_id'])
+                    ->where('student_id', $row['student_id'])
+                    ->first();
+
+                if ($active !== null) {
+                    $active->update(['grade' => $rowGrade, 'recorded_by' => $rowRecordedBy]);
+
+                    return;
+                }
+
+                $trashed = ActivityGrade::withTrashed()
+                    ->where('activity_id', $row['activity_id'])
+                    ->where('student_id', $row['student_id'])
+                    ->first();
+
+                if ($trashed !== null) {
+                    $trashed->restore();
+                    $trashed->update(['grade' => $rowGrade, 'recorded_by' => $rowRecordedBy]);
+                }
+            });
         }
 
         $gradebookCache->forgetForActivity($activityId);

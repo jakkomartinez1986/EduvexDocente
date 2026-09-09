@@ -14,6 +14,7 @@
                              'subject_id' => $selectedSubjectId,
                              'grade_id' => $selectedGradeId,
                          ]) }}"
+                         target="_blank"
                          title="{{ __('Imprimir reporte de supletorio') }}">
                 {{ __('Imprimir Reporte') }}
             </flux:button>

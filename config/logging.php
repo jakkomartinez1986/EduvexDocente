@@ -154,6 +154,21 @@ return [
             'processors' => [PsrLogMessageProcessor::class, RedactSensitiveProcessor::class],
         ],
 
+        // H-08: canal JSON a stdout para entornos serverless/Cloud
+        // (LOG_CHANNEL=json). Cada línea es un registro JSON legible por
+        // CloudWatch/LogTail con la redacción de secretos activa.
+        'json' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stdout',
+            ],
+            'formatter' => JsonFormatter::class,
+            'processors' => [PsrLogMessageProcessor::class, RedactSensitiveProcessor::class],
+            'replace_placeholders' => true,
+        ],
+
         'syslog' => [
             'driver' => 'syslog',
             'level' => env('LOG_LEVEL', 'debug'),

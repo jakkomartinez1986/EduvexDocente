@@ -12,6 +12,7 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\TeacherManagement\Attendances\ClassObservation;
 use App\Models\User;
+use App\Support\Database\BulkWrite;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -126,9 +127,10 @@ final class AttendanceRegistrationService
             $observations = (array) ($validated['observations'] ?? []);
 
             // Una sola lectura de las filas activas del día (en vez de un
-            // SELECT por estudiante) y escrituras agrupadas: soft delete por
-            // instancia (dispara el observer que publica el tombstone de
-            // sync) y un único INSERT para los nuevos estados.
+            // SELECT por estudiante) y escrituras agrupadas (H-07): soft
+            // delete por instancia (dispara el observer que publica el
+            // tombstone de sync), un único UPDATE con CASE para los que
+            // cambian y un único INSERT batch para los nuevos estados.
             $existingByStudent = $studentIds->isEmpty()
                 ? collect()
                 : Attendance::query()
@@ -139,6 +141,7 @@ final class AttendanceRegistrationService
                     ->keyBy('student_id');
 
             $toDelete = [];
+            $changedMap = [];
             $recordedRows = [];
             $now = now();
 
@@ -165,7 +168,9 @@ final class AttendanceRegistrationService
                 ];
 
                 if ($attendance !== null) {
-                    $attendance->update($attendanceValues);
+                    if ($this->attendanceDiffers($attendance, $attendanceValues)) {
+                        $changedMap[$studentId] = $attendanceValues;
+                    }
 
                     continue;
                 }
@@ -184,36 +189,82 @@ final class AttendanceRegistrationService
                 $attendance->delete();
             }
 
-            if ($recordedRows !== []) {
-                try {
-                    Attendance::insert($recordedRows);
-                } catch (UniqueConstraintViolationException) {
-                    // Carrera contra un proceso sin lock (p. ej. canal web):
-                    // reintento fila a fila, respetando la fila activa previa.
-                    foreach ($recordedRows as $row) {
-                        try {
-                            Attendance::create($row);
-                        } catch (UniqueConstraintViolationException) {
-                            Attendance::query()
-                                ->where('class_schedule_id', $row['class_schedule_id'])
-                                ->where('student_id', $row['student_id'])
-                                ->whereDate('date', $row['date'])
-                                ->firstOrFail()
-                                ->update([
-                                    'class_observation_id' => $row['class_observation_id'],
-                                    'calendarday_id' => $row['calendarday_id'],
-                                    'year_id' => $row['year_id'],
-                                    'status' => $row['status'],
-                                    'observation' => $row['observation'],
-                                    'recorded_by' => $row['recorded_by'],
-                                ]);
-                        }
-                    }
+            if ($changedMap !== []) {
+                $statusBy = [];
+                $observationBy = [];
+                $classObservationIdBy = [];
+                $calendarDayIdBy = [];
+
+                foreach ($changedMap as $studentId => $attendanceValues) {
+                    $statusBy[$studentId] = $attendanceValues['status'];
+                    $observationBy[$studentId] = $attendanceValues['observation'];
+                    $classObservationIdBy[$studentId] = $attendanceValues['class_observation_id'];
+                    $calendarDayIdBy[$studentId] = $attendanceValues['calendarday_id'];
                 }
+
+                BulkWrite::caseUpdate(
+                    Attendance::query()
+                        ->where('class_schedule_id', $schedule->id)
+                        ->whereDate('date', $date),
+                    'student_id',
+                    [
+                        'status' => $statusBy,
+                        'observation' => $observationBy,
+                        'class_observation_id' => $classObservationIdBy,
+                        'calendarday_id' => $calendarDayIdBy,
+                    ],
+                    ['recorded_by' => $teacher->user_id],
+                );
+            }
+
+            if ($recordedRows !== []) {
+                BulkWrite::insertBatch(Attendance::class, $recordedRows, function (array $row) use ($date, $schedule): void {
+                    Attendance::query()
+                        ->where('class_schedule_id', $schedule->id)
+                        ->where('student_id', $row['student_id'])
+                        ->whereDate('date', $date)
+                        ->firstOrFail()
+                        ->update([
+                            'class_observation_id' => $row['class_observation_id'],
+                            'calendarday_id' => $row['calendarday_id'],
+                            'year_id' => $row['year_id'],
+                            'status' => $row['status'],
+                            'observation' => $row['observation'],
+                            'recorded_by' => $row['recorded_by'],
+                        ]);
+                });
             }
 
             return $this->detail($teacher, $validated);
         });
+    }
+
+    /**
+     * Determina si una fila existente difiere de los valores que se escriben,
+     * normalizando ids bigint (string en PDO pgsql) y valores nulos para no
+     * re-escribir filas sin cambios.
+     *
+     * @param  array<string, mixed>  $values
+     */
+    private function attendanceDiffers(Attendance $attendance, array $values): bool
+    {
+        return self::valueChanged($attendance->status, $values['status'])
+            || self::valueChanged($attendance->observation, $values['observation'])
+            || self::valueChanged($attendance->class_observation_id, $values['class_observation_id'])
+            || self::valueChanged($attendance->calendarday_id, $values['calendarday_id'])
+            || self::valueChanged($attendance->recorded_by, $values['recorded_by'])
+            || self::valueChanged($attendance->year_id, $values['year_id']);
+    }
+
+    private static function valueChanged(mixed $current, mixed $incoming): bool
+    {
+        if ($current === null || $incoming === null) {
+            return $current !== $incoming;
+        }
+
+        return is_numeric($current) && is_numeric($incoming)
+            ? (string) $current !== (string) $incoming
+            : $current !== $incoming;
     }
 
     /**
