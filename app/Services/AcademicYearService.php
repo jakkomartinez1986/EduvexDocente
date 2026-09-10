@@ -30,14 +30,23 @@ class AcademicYearService
 
     public function getActiveYearId(): ?int
     {
-        return Cache::remember(
+        $id = Cache::remember(
             static::cacheKey(),
             now()->addDay(),
-            fn (): ?int => ScolarYear::query()
-                ->where('status', true)
-                ->latest('year_name')
-                ->value('id'),
+            fn (): ?int => $this->resolveActiveYearId(),
         );
+
+        return $id !== null ? (int) $id : null;
+    }
+
+    private function resolveActiveYearId(): ?int
+    {
+        $id = ScolarYear::query()
+            ->where('status', true)
+            ->latest('year_name')
+            ->value('id');
+
+        return $id !== null ? (int) $id : null;
     }
 
     public static function cacheKey(): string

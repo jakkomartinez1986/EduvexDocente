@@ -49,14 +49,23 @@ class SchoolConfigService
 
     public function getActiveSchoolId(): ?int
     {
-        return Cache::remember(
+        $id = Cache::remember(
             static::cacheKey(),
             now()->addDay(),
-            fn (): ?int => School::query()
-                ->where('status', 1)
-                ->latest('id')
-                ->value('id'),
+            fn (): ?int => $this->resolveActiveSchoolId(),
         );
+
+        return $id !== null ? (int) $id : null;
+    }
+
+    private function resolveActiveSchoolId(): ?int
+    {
+        $id = School::query()
+            ->where('status', 1)
+            ->latest('id')
+            ->value('id');
+
+        return $id !== null ? (int) $id : null;
     }
 
     public static function cacheKey(): string
