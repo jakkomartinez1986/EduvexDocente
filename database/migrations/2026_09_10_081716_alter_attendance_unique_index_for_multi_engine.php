@@ -29,8 +29,9 @@ return new class extends Migration
 
         // Eliminar duplicados activos antes de crear el índice único.
         // (Idempotente: no hace nada cuando no hay duplicados.)
+        // Derived table intermedia: compatible con MySQL (1093), PostgreSQL y SQLite.
         DB::statement(
-            'DELETE FROM attendances WHERE deleted_at IS NULL AND id NOT IN (SELECT MAX(id) FROM attendances WHERE deleted_at IS NULL GROUP BY class_schedule_id, student_id, date)',
+            'DELETE FROM attendances WHERE deleted_at IS NULL AND id NOT IN (SELECT id FROM (SELECT MAX(id) AS id FROM attendances WHERE deleted_at IS NULL GROUP BY class_schedule_id, student_id, date) AS dedupe_attendances)',
         );
 
         if ($driver === 'pgsql') {
