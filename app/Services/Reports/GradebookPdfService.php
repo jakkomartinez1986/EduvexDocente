@@ -23,6 +23,7 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\User;
 use App\Services\Academic\GradebookReportComputer;
+use App\Services\Academic\PdfReportCache;
 use App\Services\AcademicYearService;
 use App\Services\SchoolConfigService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -74,6 +75,7 @@ class GradebookPdfService
         private readonly GradebookReportComputer $reportComputer,
         private readonly AcademicYearService $years,
         private readonly SchoolConfigService $schoolConfig,
+        private readonly PdfReportCache $pdfCache,
     ) {}
 
     /**
@@ -139,7 +141,7 @@ class GradebookPdfService
             $r = $this->tutorResolved($ctx);
             $studentName = trim(($r['student']?->user->lastname ?? '').' '.($r['student']?->user->name ?? ''));
 
-            return match ($type) {
+            $name = match ($type) {
                 self::TUTOR_STUDENT => 'Reporte_Notas_'.$safe($studentName).'.pdf',
                 self::TUTOR_STUDENT_TRI => 'Reporte_Notas_'.$safe($studentName).'_'.$safe($r['period']->trimester_name).'.pdf',
                 self::TUTOR_FORMATIVE_TRI => 'Formativas_'.$safe($studentName).'_'.$safe($r['period']->trimester_name).'.pdf',
@@ -147,11 +149,25 @@ class GradebookPdfService
                 self::STUDENT_TRI => 'Reporte_Trimestre_'.$safe($studentName).'_'.$safe($r['period']->trimester_name).'.pdf',
                 self::STUDENT_ANNUAL => 'Reporte_Anual_'.$studentName.'.pdf',
             };
+
+            if ($type === self::TUTOR_ALL_TRI) {
+                $gradeId = $r['tutorSchedule']->grade_id;
+                $buckets = ClassSchedule::where('grade_id', $gradeId)
+                    ->where('year_id', $r['year_id'])
+                    ->distinct()
+                    ->pluck('subject_id')
+                    ->map(fn (int $subjectId): string => "subject-grade:{$subjectId}:{$gradeId}")
+                    ->all();
+            } else {
+                $buckets = ["student:{$ctx['student_id']}"];
+            }
+
+            return substr($name, 0, -4).$this->versionSuffix($buckets).'.pdf';
         }
 
         $r = $this->subjectResolved($ctx);
 
-        return match ($type) {
+        $name = match ($type) {
             self::FORMATIVE => 'Notas_Formativas_'.$safe($r['gradeName']).'_'.$safe($r['period']->trimester_name).'.pdf',
             self::SUMMATIVE => 'Notas_Sumativas_'.$safe($r['gradeName']).'_'.$safe($r['period']->trimester_name).'.pdf',
             self::QUALITATIVE => "Reporte_Cualitativo_{$r['subjectName']}_{$r['gradeName']}_{$r['period']?->trimester_name}.pdf",
@@ -159,6 +175,35 @@ class GradebookPdfService
             self::SUPLETORIO => 'Supletorio_'.$safe($r['subjectName']).'_'.$safe($r['gradeName']).'.pdf',
             default => throw new \RuntimeException("Tipo de reporte no soportado: {$type}"),
         };
+
+        $buckets = ["subject-grade:{$ctx['subject_id']}:{$ctx['grade_id']}"];
+
+        return substr($name, 0, -4).$this->versionSuffix($buckets).'.pdf';
+    }
+
+    /**
+     * Suffix determinístico de versión para el nombre de archivo: cambia cuando
+     * se incrementa la versión de cualquier bucket que invalida el reporte,
+     * forzando que el Object Storage aloje un archivo nuevo en vez de re-servir
+     * el PDF obsoleto. Debe usarse coherentemente en filename() y en el render
+     * para que el chequeo previo al dispatch coincida con el archivo real.
+     *
+     * @param  list<string>  $buckets
+     */
+    private function versionSuffix(array $buckets): string
+    {
+        if ($buckets === []) {
+            return '';
+        }
+
+        sort($buckets);
+
+        $versions = [];
+        foreach ($buckets as $bucket) {
+            $versions[] = $this->pdfCache->version($bucket);
+        }
+
+        return '.v'.substr(hash('xxh128', implode(':', $versions)), 0, 12);
     }
 
     /**
@@ -183,7 +228,7 @@ class GradebookPdfService
             ->orderBy('created_at')
             ->get();
 
-        $filename = 'Notas_Formativas_'.str_replace(['/', '\\', ':'], '-', $data['gradeName'] ?? '').'_'.($data['trimesterName'] ?? '').'.pdf';
+        $filename = $this->filename(self::FORMATIVE, $ctx);
 
         return [
             'binary' => $this->renderPdf('pdf.gradebook-formative', $data + ['blocks' => $blocks], 'a4', 'portrait'),
@@ -229,7 +274,7 @@ class GradebookPdfService
             ->orderBy('created_at')
             ->get();
 
-        $filename = 'Notas_Sumativas_'.str_replace(['/', '\\', ':'], '-', $data['gradeName'] ?? '').'_'.($data['trimesterName'] ?? '').'.pdf';
+        $filename = $this->filename(self::SUMMATIVE, $ctx);
 
         return [
             'binary' => $this->renderPdf('pdf.gradebook-summative', $data + ['exams' => $exams, 'projects' => $projects, 'blocks' => $blocks], 'a4', 'portrait'),
@@ -285,7 +330,7 @@ class GradebookPdfService
             abort(404, __('Esta asignatura no es cualitativa.'));
         }
 
-        $filename = "Reporte_Cualitativo_{$data['subjectName']}_{$data['gradeName']}_{$data['trimesterName']}.pdf";
+        $filename = $this->filename(self::QUALITATIVE, $ctx);
 
         return [
             'binary' => $this->renderPdf('pdf.qualitative-report', $data + ['indicators' => $indicators, 'grades' => $grades, 'qualType' => $qualType], 'a4', 'portrait'),
@@ -363,7 +408,7 @@ class GradebookPdfService
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
         $subjectName = $schedule->subject->subject_name ?? '';
-        $filename = 'Informe_Anual_'.str_replace(['/', '\\', ':'], '-', $subjectName).'_'.str_replace(['/', '\\', ':'], '-', $gradeName).'.pdf';
+        $filename = $this->filename(self::SUBJECT_ANNUAL, $ctx);
 
         $viewData = [
             'school' => $school,
@@ -463,7 +508,7 @@ class GradebookPdfService
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
         $subjectName = $schedule->subject->subject_name ?? '';
-        $filename = 'Supletorio_'.str_replace(['/', '\\', ':'], '-', $subjectName).'_'.str_replace(['/', '\\', ':'], '-', $gradeName).'.pdf';
+        $filename = $this->filename(self::SUPLETORIO, $ctx);
 
         $viewData = [
             'school' => $school,
@@ -554,8 +599,7 @@ class GradebookPdfService
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
-        $filename = 'Reporte_Notas_'.str_replace(['/', '\\', ':'], '-', $studentName).'.pdf';
+        $filename = $this->filename(self::TUTOR_STUDENT, $ctx);
 
         $viewData = [
             'school' => $school,
@@ -636,8 +680,7 @@ class GradebookPdfService
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
-        $filename = 'Reporte_Notas_'.str_replace(['/', '\\', ':'], '-', $studentName).'_'.str_replace(['/', '\\', ':'], '-', $period->trimester_name).'.pdf';
+        $filename = $this->filename(self::TUTOR_STUDENT_TRI, $ctx);
 
         $viewData = [
             'school' => $school,
@@ -806,8 +849,7 @@ class GradebookPdfService
             'generatedAt' => now()->format('d/m/Y H:i'),
         ];
 
-        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
-        $filename = 'Formativas_'.str_replace(['/', '\\', ':'], '-', $studentName).'_'.str_replace(['/', '\\', ':'], '-', $period->trimester_name).'.pdf';
+        $filename = $this->filename(self::TUTOR_FORMATIVE_TRI, $ctx);
 
         return [
             'binary' => $this->renderPdf('pdf.tutor-student-formative-trimester', $viewData, 'a4', 'landscape'),
@@ -1043,7 +1085,7 @@ class GradebookPdfService
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $filename = 'Notas_Todos_'.str_replace(['/', '\\', ':'], '-', $gradeName).'_'.str_replace(['/', '\\', ':'], '-', $selectedPeriod->trimester_name).'.pdf';
+        $filename = $this->filename(self::TUTOR_ALL_TRI, $ctx);
 
         $viewData = [
             'school' => $school,
@@ -1180,8 +1222,7 @@ class GradebookPdfService
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
-        $filename = 'Reporte_Trimestre_'.str_replace(['/', '\\', ':'], '-', $studentName).'_'.str_replace(['/', '\\', ':'], '-', $period->trimester_name).'.pdf';
+        $filename = $this->filename(self::STUDENT_TRI, $ctx);
 
         $viewData = [
             'school' => $school,
@@ -1394,8 +1435,7 @@ class GradebookPdfService
         $gradeData = $tutorSchedule->grade;
         $gradeName = ($gradeData->grade_name ?? '').' '.($gradeData->section ?? '');
 
-        $studentName = trim(($student->user->lastname ?? '').' '.($student->user->name ?? ''));
-        $filename = 'Reporte_Anual_'.$studentName.'.pdf';
+        $filename = $this->filename(self::STUDENT_ANNUAL, $ctx);
 
         $viewData = [
             'school' => $school,

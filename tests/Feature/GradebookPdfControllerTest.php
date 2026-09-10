@@ -8,6 +8,7 @@ use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Services\Reports\GradebookPdfService;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Testing\TestResponse;
 
 beforeEach(function (): void {
     Cache::flush();
@@ -116,4 +117,26 @@ it('encola el reporte del tutor por trimestre cuando existe la asignación', fun
     Bus::assertDispatched(GeneratePdfReport::class, fn (GeneratePdfReport $job) => $job->type === GradebookPdfService::TUTOR_STUDENT_TRI
         && $job->context['student_id'] === $student->id
         && $job->context['trimester_id'] === $context['trimester']->id);
+});
+
+it('no vuelve a encolar el reporte mientras hay una generación en vuelo', function (): void {
+    Bus::fake();
+
+    $context = academicContext();
+    $user = $context['teacher']->user;
+    if (! $user->email_verified_at) {
+        $user->forceFill(['email_verified_at' => now()])->save();
+    }
+
+    $request = fn (): TestResponse => $this->actingAs($user)
+        ->get(route('admin.summaries.gradebook.pdf.print-formative', [
+            'subject_id' => $context['subject']->id,
+            'grade_id' => $context['grade']->id,
+            'trimester_id' => $context['trimester']->id,
+        ]));
+
+    $request()->assertOk()->assertViewIs('reports.processing');
+    $request()->assertOk()->assertViewIs('reports.processing');
+
+    Bus::assertDispatchedTimes(GeneratePdfReport::class, 1);
 });

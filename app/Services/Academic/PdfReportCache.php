@@ -89,7 +89,7 @@ final class PdfReportCache
     /**
      * Retorna la versión actual de un bucket (inicia en 1).
      */
-    private function version(string $bucket): string
+    public function version(string $bucket): string
     {
         return (string) (Cache::get($this->versionKey($bucket), 1));
     }

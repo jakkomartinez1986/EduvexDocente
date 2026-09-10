@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\System\Teacher\Concerns;
 
 use App\Services\Reports\AsyncReportDispatcher;
 use App\Services\Reports\PdfReportRenderer;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Flujo async de reportes PDF (C-04) compartido por los controladores que antes
@@ -29,7 +30,15 @@ trait DispatchesAsyncPdfReports
             return redirect()->away($dispatcher->signedUrl($path));
         }
 
-        $dispatcher->dispatch($type, $entityId, $context);
+        // La página de espera refresca la misma URL cada pocos segundos. Sin
+        // esta protección, un refresh durante el render (que puede tardar
+        // decenas de segundos) encola un job duplicado: GeneratePdfReport es
+        // ShouldBeUniqueUntilProcessing y libera el lock al iniciar handle().
+        // El lock dura más que el render típico; si expira y el reporte sigue
+        // sin existir, el siguiente refresh reintentará el dispatch.
+        if (Cache::lock('pdf-dispatch:'.$path, 120)->get()) {
+            $dispatcher->dispatch($type, $entityId, $context);
+        }
 
         return view('reports.processing', [
             'reportUrl' => request()->fullUrl(),
