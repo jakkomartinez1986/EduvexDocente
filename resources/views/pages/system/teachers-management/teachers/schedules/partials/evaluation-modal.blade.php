@@ -67,7 +67,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                            {{ __('Fecha de evaluacion') }}
+                            {{ __('Fecha de evaluación') }}
                         </label>
                         <input type="date"
                             wire:model="evaluationDate"

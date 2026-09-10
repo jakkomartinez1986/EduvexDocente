@@ -21,6 +21,7 @@ use App\Services\AcademicYearService;
 use App\Services\Messaging\ChannelStatusService;
 use App\Services\Messaging\NotificationMessageBuilder;
 use App\Services\Messaging\WaMeLinkService;
+use App\Services\SchoolConfigService;
 use App\Jobs\SendChannelMessageJob;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -555,7 +556,7 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
     {
         $notification = AcademicNotification::with(['student.user', 'student.representatives.user', 'teacher.user', 'grade', 'subject'])->findOrFail($notificationId);
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
 
         $pdf = Pdf::loadView('pdf.incidents.notification', [
             'notification' => $notification,
@@ -1092,7 +1093,7 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
 
     public function getCurrentSchoolProperty(): ?School
     {
-        return School::where('status', 1)->first();
+        return app(SchoolConfigService::class)->getActiveSchool();
     }
 
     protected function getCurrentTrimesterId(): ?int
@@ -1424,7 +1425,7 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
                                 <flux:badge :color="match($letter->status) { 'signed' => 'green', 'closed' => 'blue', default => 'yellow' }">
                                     {{ $letter->status }}
                                 </flux:badge>
-                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.commitment-letter', $letter->id) }}">
+                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.commitment-letter', $letter->id) }}" target="_blank">
                                     {{ __('PDF') }}
                                 </flux:button>
                             </div>
@@ -1464,7 +1465,7 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
                                 <flux:badge :color="match($report->status) { 'sent' => 'green', 'archived' => 'blue', default => 'yellow' }">
                                     {{ $report->status }}
                                 </flux:badge>
-                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.report', $report->id) }}">
+                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.report', $report->id) }}" target="_blank">
                                     {{ __('PDF') }}
                                 </flux:button>
                             </div>

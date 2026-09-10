@@ -50,7 +50,7 @@
                 <td class="header-center">
                     <h1>{{ $school->name_school ?? 'UNIDAD EDUCATIVA' }}</h1>
                     <p>{{ trim(($school->location ?? '') . ' ' . ($school->address ?? '')) }}</p>
-                    @if($school->distrit)
+                    @if($school && $school->distrit)
                         <p>{{ $school->distrit }}</p>
                     @endif
                 </td>
@@ -63,7 +63,8 @@
         </table>
     </div>
 
-    <div class="title">{{ __('REPORTE DE CALIFICACIONES') }} — {{ $subjectName }}</div>
+    <div class="title">{{ __('REPORTE DE CALIFICACIONES') }} </div> 
+    {{-- — {{ $subjectName }} --}}
 
     <div class="info-section">
         <table>

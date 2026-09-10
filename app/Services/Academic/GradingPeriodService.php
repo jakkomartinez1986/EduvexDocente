@@ -40,6 +40,9 @@ final class GradingPeriodService
         return $period->isGradingOpen();
     }
 
+    /**
+     * @param  Collection<int, array{id: int, is_supletorio: bool}>  $trimesters
+     */
     public function isSupletorioAvailable(Collection $trimesters): bool
     {
         $regularTrimesters = $trimesters->filter(fn ($t) => ! ($t['is_supletorio'] ?? false));
@@ -48,8 +51,13 @@ final class GradingPeriodService
             return false;
         }
 
+        $periods = AcademicPeriod::whereIn(
+            'id',
+            $regularTrimesters->pluck('id')->all()
+        )->get()->keyBy('id');
+
         foreach ($regularTrimesters as $t) {
-            $period = AcademicPeriod::find($t['id']);
+            $period = $periods->get($t['id']);
             if ($period && ! $period->isGradingPast()) {
                 return false;
             }

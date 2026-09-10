@@ -39,6 +39,7 @@ use Illuminate\Support\Carbon;
 ])]
 class AttendanceSummary extends Model
 {
+    /** @use HasFactory<AttendanceSummaryFactory> */
     use HasFactory, SoftDeletes;
 
     protected function casts(): array

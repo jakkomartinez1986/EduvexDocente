@@ -2,8 +2,29 @@
 
 namespace App\Providers;
 
+use App\Models\Security\Authorizations\Permission as AppPermission;
+use App\Models\Security\Authorizations\Role as AppRole;
+use App\Models\Setting\EducationalSettings\Area;
+use App\Models\Setting\EducationalSettings\Classroom;
+use App\Models\Setting\EducationalSettings\Grade;
+use App\Models\Setting\EducationalSettings\Nivel;
+use App\Models\Setting\EducationalSettings\School;
+use App\Models\Setting\EducationalSettings\Shift;
+use App\Models\Setting\EducationalSettings\Subject;
+use App\Models\Setting\Messaging\ChannelConfiguration;
+use App\Models\Setting\YearSettings\AcademicPeriod;
+use App\Models\Setting\YearSettings\ScolarYear;
+use App\Models\StudentManagement\Academics\AcademicNotification;
+use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
+use App\Observers\AcademicYearCacheObserver;
 use App\Observers\AttendanceObserver;
+use App\Observers\ChannelConfigurationCacheObserver;
+use App\Observers\ClassScheduleCacheObserver;
+use App\Observers\NotificationCacheObserver;
+use App\Observers\PermissionCacheObserver;
+use App\Observers\SchoolCacheObserver;
+use App\Observers\StaticCatalogCacheObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -13,6 +34,8 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Sanctum\TransientToken;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,6 +56,27 @@ class AppServiceProvider extends ServiceProvider
         $this->configureApiRateLimiters();
 
         Attendance::observe(AttendanceObserver::class);
+
+        Role::observe(PermissionCacheObserver::class);
+        Permission::observe(PermissionCacheObserver::class);
+        AppRole::observe(PermissionCacheObserver::class);
+        AppPermission::observe(PermissionCacheObserver::class);
+
+        ScolarYear::observe(AcademicYearCacheObserver::class);
+        AcademicPeriod::observe(AcademicYearCacheObserver::class);
+        School::observe(SchoolCacheObserver::class);
+
+        AcademicNotification::observe(NotificationCacheObserver::class);
+        ChannelConfiguration::observe(ChannelConfigurationCacheObserver::class);
+
+        Shift::observe(StaticCatalogCacheObserver::class);
+        Nivel::observe(StaticCatalogCacheObserver::class);
+        Grade::observe(StaticCatalogCacheObserver::class);
+        Area::observe(StaticCatalogCacheObserver::class);
+        Subject::observe(StaticCatalogCacheObserver::class);
+        Classroom::observe(StaticCatalogCacheObserver::class);
+
+        ClassSchedule::observe(ClassScheduleCacheObserver::class);
     }
 
     /**
