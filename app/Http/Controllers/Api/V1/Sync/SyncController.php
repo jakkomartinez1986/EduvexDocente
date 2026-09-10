@@ -51,6 +51,7 @@ final class SyncController extends Controller
             $teacher,
             $collections,
             $request->validated('cursor'),
+            (int) $request->validated('limit', 500),
         );
 
         return ApiResponse::success(data: $data);

@@ -369,7 +369,7 @@ new #[Title('Registro de Asistencia')] class extends Component {
         return match ($weekday) {
             'LUNES' => 'Lunes',
             'MARTES' => 'Martes',
-            'MIERCOLES' => 'Miercoles',
+            'MIERCOLES' => 'Miércoles',
             'JUEVES' => 'Jueves',
             'VIERNES' => 'Viernes',
             'SABADO' => 'Sabado',

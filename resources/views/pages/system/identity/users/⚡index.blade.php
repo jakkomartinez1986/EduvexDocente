@@ -52,7 +52,7 @@ new #[Title('Usuarios')] class extends Component {
 
     public function getRecordsProperty()
     {
-        $managementRoles = ['DECE', 'INSPECTOR', 'RECTOR', 'VICERRECTOR','SUPER-ADMIN','ADMIN'];
+        $managementRoles = ['DECE', 'INSPECTOR', 'RECTOR', 'VICERRECTOR','SUPER-ADMIN','ADMIN','DOCENTE'];
 
         return User::query()
             ->with(['roles'])

@@ -13,6 +13,7 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\TeacherManagement\Attendances\ClassObservation;
 use App\Services\AcademicYearService;
+use App\Services\SchoolConfigService;
 use Carbon\Carbon;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -139,28 +140,41 @@ new #[Title('Dashboard')] class extends Component {
             return;
         }
 
-        $scheduleIds = ClassSchedule::where('teacher_id', $this->teacher->id)
-            ->where('year_id', $this->yearId)
-            ->where('is_active', true)
-            ->pluck('id');
+        $stats = app(\App\Services\TeacherManagement\DashboardStatsCache::class)->counts(
+            (int) $this->teacher->id,
+            (int) $this->yearId,
+            function (): array {
+                $scheduleIds = ClassSchedule::where('teacher_id', $this->teacher->id)
+                    ->where('year_id', $this->yearId)
+                    ->where('is_active', true)
+                    ->pluck('id');
 
-        $attendanceStudentIds = Attendance::whereIn('class_schedule_id', $scheduleIds)->pluck('student_id');
+                $attendanceStudentIds = Attendance::whereIn('class_schedule_id', $scheduleIds)->pluck('student_id');
 
-        $activityStudentIds = ActivityGrade::whereHas('activity.assessmentBlock', function ($q) {
-            $q->where('teacher_id', $this->teacher->id)
-                ->where(fn ($year) => $year->whereNull('year_id')->orWhere('year_id', $this->yearId));
-        })->pluck('student_id');
+                $activityStudentIds = ActivityGrade::whereHas('activity.assessmentBlock', function ($q) {
+                    $q->where('teacher_id', $this->teacher->id)
+                        ->where(fn ($year) => $year->whereNull('year_id')->orWhere('year_id', $this->yearId));
+                })->pluck('student_id');
 
-        $this->stat1 = $scheduleIds->count();
-        $this->stat2 = $attendanceStudentIds->merge($activityStudentIds)->unique()->count();
-        $this->stat3 = HomeworkPending::where('teacher_id', $this->teacher->id)
-            ->where('year_id', $this->yearId)
-            ->where('status', 'pending')
-            ->count();
-        $this->stat4 = AcademicNotification::where('teacher_id', $this->teacher->id)
-            ->where('year_id', $this->yearId)
-            ->whereNotNull('sent_at')
-            ->count();
+                return [
+                    1 => $scheduleIds->count(),
+                    2 => $attendanceStudentIds->merge($activityStudentIds)->unique()->count(),
+                    3 => HomeworkPending::where('teacher_id', $this->teacher->id)
+                        ->where('year_id', $this->yearId)
+                        ->where('status', 'pending')
+                        ->count(),
+                    4 => AcademicNotification::where('teacher_id', $this->teacher->id)
+                        ->where('year_id', $this->yearId)
+                        ->whereNotNull('sent_at')
+                        ->count(),
+                ];
+            },
+        );
+
+        $this->stat1 = $stats[1];
+        $this->stat2 = $stats[2];
+        $this->stat3 = $stats[3];
+        $this->stat4 = $stats[4];
 
         $this->stat1Label = __('Clases activas');
         $this->stat1Icon = 'academic-cap';
@@ -241,26 +255,49 @@ new #[Title('Dashboard')] class extends Component {
     protected function loadMySubjects(): void
     {
         $dayOrder = ['LUNES' => 1, 'MARTES' => 2, 'MIERCOLES' => 3, 'JUEVES' => 4, 'VIERNES' => 5, 'SABADO' => 6];
+        $teacherId = $this->teacher->id;
+        $yearId = (int) $this->yearId;
 
-        $schedules = ClassSchedule::where('teacher_id', $this->teacher->id)
-            ->where('year_id', $this->yearId)
-            ->where('is_active', true)
-            ->with(['subject', 'grade'])
-            ->get()
-            ->sortBy(fn ($row) => ($dayOrder[$row->day] ?? 9) . ' ' . ($row->start_time?->format('H:i') ?? ''));
+        $schedules = app(\App\Services\TeacherManagement\TeacherCoursesCache::class)->courses(
+            (int) $teacherId,
+            $yearId,
+            function () use ($teacherId, $yearId): array {
+                return ClassSchedule::where('teacher_id', $teacherId)
+                    ->where('year_id', $yearId)
+                    ->where('is_active', true)
+                    ->with(['subject', 'grade'])
+                    ->get()
+                    ->map(fn ($row) => [
+                        'id' => $row->id,
+                        'day' => $row->day,
+                        'start_time' => $row->start_time?->format('H:i'),
+                        'end_time' => $row->end_time?->format('H:i'),
+                        'classroom' => $row->classroom,
+                        'subject_id' => $row->subject_id,
+                        'grade_id' => $row->grade_id,
+                        'subject_name' => $row->subject?->subject_name,
+                        'grade_name' => $row->grade?->grade_name,
+                        'section' => $row->grade?->section,
+                    ])
+                    ->all();
+            },
+        );
 
-        $this->mySubjects = $schedules
-            ->groupBy(fn ($schedule) => $schedule->subject_id . '-' . $schedule->grade_id)
-            ->map(function ($rows) {
-                $first = $rows->first();
+        $rows = collect($schedules)
+            ->sortBy(fn ($row) => ($dayOrder[$row['day'] ?? ''] ?? 9) . ' ' . ($row['start_time'] ?? ''));
+
+        $this->mySubjects = $rows
+            ->groupBy(fn ($schedule) => ($schedule['subject_id'] ?? '').'-'.($schedule['grade_id'] ?? ''))
+            ->map(function ($group) {
+                $first = $group->first();
 
                 return [
-                    'subject' => $first->subject?->subject_name ?? '-',
-                    'grade' => trim(($first->grade?->grade_name ?? '') . ' ' . ($first->grade?->section ?? '')),
-                    'schedule' => $rows
-                        ->map(fn ($row) => $this->getDayLabel($row->day) . ' ' . ($row->start_time?->format('H:i') ?? '') . '-' . ($row->end_time?->format('H:i') ?? ''))
+                    'subject' => $first['subject_name'] ?? '-',
+                    'grade' => trim(($first['grade_name'] ?? '') . ' ' . ($first['section'] ?? '')),
+                    'schedule' => $group
+                        ->map(fn ($row) => $this->getDayLabel($row['day']) . ' ' . ($row['start_time'] ?? '') . '-' . ($row['end_time'] ?? ''))
                         ->implode(', '),
-                    'classroom' => $rows->first(fn ($row) => filled($row->classroom))?->classroom ?? '—',
+                    'classroom' => $group->first(fn ($row) => filled($row['classroom'] ?? null))['classroom'] ?? '—',
                 ];
             })
             ->values()
@@ -292,8 +329,9 @@ new #[Title('Dashboard')] class extends Component {
                 'icon' => 'bell',
                 'color' => 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30',
                 'description' => __('Notificación de :type para :name', ['type' => $notification->type, 'name' => $notification->student?->user?->fullname ?? '-']),
-                'date' => $notification->generated_date ?? $notification->created_at,
-            ]);
+'date' => $notification->generated_date ?? $notification->created_at,
+        ])
+        ->toBase();
 
         $interventions = IncidentIntervention::where('teacher_id', $this->teacher->id)
             ->where('year_id', $this->yearId)
@@ -306,8 +344,9 @@ new #[Title('Dashboard')] class extends Component {
                 'color' => 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30',
                 'description' => __('Incidencia de :type con :name', ['type' => $intervention->type, 'name' => $intervention->student?->user?->fullname ?? '-']),
                 'status' => $intervention->status,
-                'date' => $intervention->date,
-            ]);
+'date' => $intervention->date,
+        ])
+        ->toBase();
 
         $observations = ClassObservation::where('year_id', $this->yearId)
             ->where(function ($q) {
@@ -320,8 +359,9 @@ new #[Title('Dashboard')] class extends Component {
                 'icon' => 'clipboard-document-list',
                 'color' => 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30',
                 'description' => __('Observación de clase: :topic', ['topic' => $observation->classtopic ?? $observation->observation]),
-                'date' => $observation->observation_date,
-            ]);
+'date' => $observation->observation_date,
+        ])
+        ->toBase();
 
         $this->recentActivity = $notifications
             ->merge($interventions)
@@ -368,7 +408,7 @@ new #[Title('Dashboard')] class extends Component {
 
     public function getCurrentSchoolProperty(): ?School
     {
-        return School::where('status', 1)->first();
+        return app(SchoolConfigService::class)->getActiveSchool();
     }
 
     public function getStatColorClasses(string $color): string

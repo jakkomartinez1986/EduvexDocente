@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Security\Authorizations\Permission;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -57,8 +58,10 @@ new #[Title('Permisos')] class extends Component {
     {
         return Permission::query()
             ->when($this->search, fn ($q) =>
-                $q->where('name', 'ilike', "%{$this->search}%")
-                    ->orWhere('label', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'name', "%{$this->search}%")
+                    ->where(function ($q2) {
+                        DatabaseDialect::orIlike($q2, 'label', "%{$this->search}%");
+                    })
             )
             ->when($this->moduleFilter, fn ($q) =>
                 $q->where('module', $this->moduleFilter)

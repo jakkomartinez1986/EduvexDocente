@@ -13,12 +13,12 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Services\Api\V1\Academic\GradeRegistrationService;
 use App\Services\Api\V1\TeacherManagement\AttendanceRegistrationService;
-use Illuminate\Log\Logger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
@@ -45,6 +45,12 @@ final class SyncService
         'summative_grades' => 'upsert_batch',
         'supplementary_grades' => 'upsert_batch',
     ];
+
+    /**
+     * Página máxima por colección en cada pull (§sync: evita respuestas
+     * ilimitadas cuando un docente tiene mucha actividad entre syncs).
+     */
+    private const DEFAULT_PULL_LIMIT = 500;
 
     public function __construct(
         private readonly AttendanceRegistrationService $attendanceRegistrationService,
@@ -105,12 +111,15 @@ final class SyncService
     }
 
     /**
-     * Pull incremental: cambios por colección desde el watermark del cursor.
+     * Pull incremental paginado: cambios por colección desde el watermark del
+     * cursor. Las colecciones que superan `$limit` marcan `has_more` y NO
+     * avanzan su watermark, de modo que la siguiente petición con el mismo
+     * cursor re-entrega la misma ventana (el merge local es idempotente).
      *
      * @param  array<int, string>  $collections
      * @return array<string, mixed>
      */
-    public function pull(Teacher $teacher, array $collections, ?string $cursor): array
+    public function pull(Teacher $teacher, array $collections, ?string $cursor, int $limit = self::DEFAULT_PULL_LIMIT): array
     {
         $startedAt = microtime(true);
 
@@ -118,10 +127,15 @@ final class SyncService
         $boundary = Carbon::now();
 
         $changes = [];
+        $hasMore = [];
+
         foreach ($collections as $collection) {
-            $changes[$collection] = $collection === 'attendance'
-                ? $this->attendanceChanges($teacher, $since['attendance'], $boundary)
-                : $this->gradebookChanges($teacher, $since['gradebook'], $boundary);
+            [$collectionChanges, $collectionHasMore] = $collection === 'attendance'
+                ? $this->attendanceChanges($teacher, $since['attendance'], $boundary, $limit)
+                : $this->gradebookChanges($teacher, $since['gradebook'], $boundary, $limit);
+
+            $changes[$collection] = $collectionChanges;
+            $hasMore[$collection] = $collectionHasMore;
         }
 
         // Trazabilidad de pull para monitoreo (Fase 11): volumen entregado
@@ -129,14 +143,25 @@ final class SyncService
         $this->syncLog()->info('sync.pull', [
             'teacher_id' => $teacher->id,
             'collections' => $collections,
+            'limit' => $limit,
+            'has_more' => array_keys(array_filter($hasMore)),
             'upserts' => collect($changes)->sum(fn (array $c): int => count($c['upserts'])),
             'tombstones' => collect($changes)->sum(fn (array $c): int => count($c['tombstones'])),
             'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
         ]);
 
+        // Solo avanzan los watermarks de las colecciones entregadas completas.
+        $boundaries = [];
+
+        foreach ($collections as $collection) {
+            $key = $collection === 'attendance' ? 'attendance' : 'gradebook';
+            $boundaries[$key] = $hasMore[$collection] ? $since[$key] : $boundary;
+        }
+
         return [
             'changes' => $changes,
-            'cursor' => $this->encodeCursor(array_fill_keys($collections, $boundary)),
+            'cursor' => $this->encodeCursor($boundaries),
+            'has_more' => $hasMore,
             'server_time' => $boundary->toISOString(),
         ];
     }
@@ -144,7 +169,7 @@ final class SyncService
     /**
      * Canal de logging dedicado a sincronización (config/logging.php → sync).
      */
-    private function syncLog(): Logger
+    private function syncLog(): LoggerInterface
     {
         return Log::channel('sync');
     }
@@ -269,7 +294,11 @@ final class SyncService
             }
 
             if ($entity === 'summative_grades') {
-                return ['updated' => $this->gradeRegistrationService->storeSummative($teacher, (string) $payload['type'], $payload)];
+                return ['updated' => $this->gradeRegistrationService->storeSummative(
+                    $teacher,
+                    $payload['type'] === 'project' ? 'project' : 'exam',
+                    $payload,
+                )];
             }
 
             return ['updated' => $this->gradeRegistrationService->storeSupplementary($teacher, $payload)];
@@ -330,26 +359,31 @@ final class SyncService
     /**
      * Upserts + tombstones de la colección attendance en la ventana dada.
      *
-     * @return array{upserts: array<int, array<string, mixed>>, tombstones: array<int, array<string, int|string>>}
+     * @return array{array{upserts: array<int, array<string, mixed>>, tombstones: array<int, array<string, int|string>>}, bool}
      */
-    private function attendanceChanges(Teacher $teacher, Carbon $since, Carbon $boundary): array
+    private function attendanceChanges(Teacher $teacher, Carbon $since, Carbon $boundary, int $limit): array
     {
         $ownScheduleIds = ClassSchedule::query()
             ->where('teacher_id', $teacher->id)
             ->select('id');
 
-        $upserts = Attendance::query()
+        $query = Attendance::query()
             ->whereIn('class_schedule_id', $ownScheduleIds)
             ->whereNull('deleted_at')
             ->whereBetween('updated_at', [$since, $boundary])
             ->orderBy('updated_at')
-            ->orderBy('id')
-            ->get()
+            ->orderBy('id');
+
+        $rows = $query->limit($limit + 1)->get();
+        $hasMore = count($rows) > $limit;
+
+        $upserts = $rows
+            ->take($limit)
             ->map(fn (Attendance $attendance): array => [
                 'id' => $attendance->id,
                 'schedule_id' => $attendance->class_schedule_id,
                 'student_id' => $attendance->student_id,
-                'date' => $attendance->date?->toDateString(),
+                'date' => Carbon::parse((string) $attendance->date)->toDateString(),
                 'status' => $attendance->status,
                 'observation' => $attendance->observation,
                 'arrival_time' => $attendance->arrival_time?->format('H:i'),
@@ -358,27 +392,35 @@ final class SyncService
             ->all();
 
         return [
-            'upserts' => $upserts,
-            'tombstones' => $this->tombstones($teacher, 'attendance', $since, $boundary),
+            [
+                'upserts' => $upserts,
+                'tombstones' => $this->tombstones($teacher, 'attendance', $since, $boundary),
+            ],
+            $hasMore,
         ];
     }
 
     /**
-     * @return array{upserts: array<int, array<string, mixed>>, tombstones: array<int, array<string, int|string>>}
+     * @return array{array{upserts: array<int, array<string, mixed>>, tombstones: array<int, array<string, int|string>>}, bool}
      */
-    private function gradebookChanges(Teacher $teacher, Carbon $since, Carbon $boundary): array
+    private function gradebookChanges(Teacher $teacher, Carbon $since, Carbon $boundary, int $limit): array
     {
         $ownActivityIds = Activity::query()
             ->whereIn('assessment_block_id', AssessmentBlock::query()->where('teacher_id', $teacher->id)->select('id'))
             ->select('id');
 
-        $upserts = ActivityGrade::query()
+        $query = ActivityGrade::query()
             ->whereIn('activity_id', $ownActivityIds)
             ->whereNull('deleted_at')
             ->whereBetween('updated_at', [$since, $boundary])
             ->orderBy('updated_at')
-            ->orderBy('id')
-            ->get()
+            ->orderBy('id');
+
+        $rows = $query->limit($limit + 1)->get();
+        $hasMore = count($rows) > $limit;
+
+        $upserts = $rows
+            ->take($limit)
             ->map(fn (ActivityGrade $grade): array => [
                 'activity_id' => $grade->activity_id,
                 'student_id' => $grade->student_id,
@@ -388,8 +430,11 @@ final class SyncService
             ->all();
 
         return [
-            'upserts' => $upserts,
-            'tombstones' => $this->tombstones($teacher, 'activity_grade', $since, $boundary),
+            [
+                'upserts' => $upserts,
+                'tombstones' => $this->tombstones($teacher, 'activity_grade', $since, $boundary),
+            ],
+            $hasMore,
         ];
     }
 

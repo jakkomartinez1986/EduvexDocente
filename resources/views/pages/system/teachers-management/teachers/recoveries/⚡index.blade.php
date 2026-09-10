@@ -588,7 +588,7 @@ new #[Title('Recuperaciones')] class extends Component {
         }
 
         if (! $this->isGradingOpen()) {
-            Flux::toast(variant: 'danger', text: __('El periodo de calificación está cerrado, no se puede actualizar el libro.'));
+            Flux::toast(variant: 'danger', text: __('El período de calificación está cerrado, no se puede actualizar el libro.'));
 
             return;
         }
@@ -630,7 +630,7 @@ new #[Title('Recuperaciones')] class extends Component {
         }
 
         if (! $this->isGradingOpen()) {
-            Flux::toast(variant: 'danger', text: __('El periodo de calificación está cerrado, no se puede actualizar el libro.'));
+            Flux::toast(variant: 'danger', text: __('El período de calificación está cerrado, no se puede actualizar el libro.'));
 
             return;
         }

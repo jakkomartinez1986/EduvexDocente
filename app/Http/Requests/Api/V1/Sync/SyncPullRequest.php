@@ -36,6 +36,7 @@ final class SyncPullRequest extends FormRequest
                 },
             ],
             'cursor' => ['sometimes', 'nullable', 'string'],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:5000'],
         ];
     }
 
@@ -47,6 +48,7 @@ final class SyncPullRequest extends FormRequest
         return [
             'collections' => 'collections',
             'cursor' => 'cursor',
+            'limit' => 'limit',
         ];
     }
 }

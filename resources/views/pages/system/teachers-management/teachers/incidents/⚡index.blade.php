@@ -26,6 +26,7 @@ use App\Services\AcademicYearService;
 use App\Services\Messaging\ChannelStatusService;
 use App\Services\Messaging\NotificationMessageBuilder;
 use App\Services\Messaging\WaMeLinkService;
+use App\Services\SchoolConfigService;
 use App\Jobs\SendChannelMessageJob;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -544,7 +545,7 @@ new #[Title('Libro de Incidencias')] class extends Component
     {
         $notification = AcademicNotification::with(['student.user', 'student.representatives.user', 'teacher.user', 'grade', 'subject'])->findOrFail($notificationId);
 
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
 
         $pdf = Pdf::loadView('pdf.incidents.notification', [
             'notification' => $notification,
@@ -955,16 +956,42 @@ new #[Title('Libro de Incidencias')] class extends Component
             return collect();
         }
 
-        $studentIds = StudentEnrollment::whereIn('grade_id', $gradeIds)
+        $enrollments = StudentEnrollment::whereIn('grade_id', $gradeIds)
             ->where('year_id', $this->yearId)
             ->where('status', 'active')
-            ->pluck('student_id')
-            ->toArray();
+            ->get(['student_id', 'grade_id']);
+
+        $studentIds = $enrollments->pluck('student_id')->unique()->values()->all();
+        $gradeIdsByStudent = $enrollments->groupBy('student_id')->map->first()->map->grade_id;
 
         $students = Student::whereIn('id', $studentIds)
             ->with(['user', 'representatives.user'])
             ->get()
             ->keyBy('id');
+
+        if ($studentIds !== []) {
+            $absencesByStudent = Attendance::whereIn('student_id', $studentIds)
+                ->where('year_id', $this->yearId)
+                ->whereBetween('date', [$currentPeriod->start_date, $currentPeriod->end_date])
+                ->where('status', 'I')
+                ->orderBy('date')
+                ->get()
+                ->groupBy('student_id');
+
+            $lastNotifIds = AcademicNotification::whereIn('student_id', $studentIds)
+                ->where('type', 'asistencia')
+                ->where('year_id', $this->yearId)
+                ->selectRaw('max(id) as last_id')
+                ->groupBy('student_id')
+                ->pluck('last_id');
+
+            $lastNotifs = AcademicNotification::whereIn('id', $lastNotifIds)
+                ->get()
+                ->keyBy('student_id');
+        } else {
+            $absencesByStudent = collect();
+            $lastNotifs = collect();
+        }
 
         $today = now()->toDateString();
         $weekStart = now()->startOfWeek(Carbon::MONDAY)->toDateString();
@@ -972,13 +999,8 @@ new #[Title('Libro de Incidencias')] class extends Component
 
         $results = collect();
 
-        foreach ($students as $student) {
-            $baseQuery = Attendance::where('student_id', $student->id)
-                ->where('year_id', $this->yearId)
-                ->whereBetween('date', [$currentPeriod->start_date, $currentPeriod->end_date])
-                ->where('status', 'I');
-
-            $allAbsences = $baseQuery->orderBy('date')->get();
+        foreach ($students as $studentId => $student) {
+            $allAbsences = $absencesByStudent->get($studentId) ?? collect();
 
             if ($allAbsences->isEmpty()) {
                 continue;
@@ -1008,11 +1030,7 @@ new #[Title('Libro de Incidencias')] class extends Component
                 $consecutiveDates = $currentConsecutive;
             }
 
-            $lastNotif = AcademicNotification::where('student_id', $student->id)
-                ->where('type', 'asistencia')
-                ->where('year_id', $this->yearId)
-                ->latest()
-                ->first();
+            $lastNotif = $lastNotifs->get($studentId);
 
             $results->push((object) [
                 'student' => $student,
@@ -1023,7 +1041,7 @@ new #[Title('Libro de Incidencias')] class extends Component
                 'consecutiveCount' => count($consecutiveDates),
                 'allAbsenceDates' => $sortedDates->implode(', '),
                 'lastNotif' => $lastNotif?->generated_date?->format('d/m/Y') ?? '-',
-                'gradeName' => $schedules->firstWhere('grade_id', $student->enrollments->first()?->grade_id)?->grade?->grade_name ?? '',
+                'gradeName' => $schedules->firstWhere('grade_id', $gradeIdsByStudent->get($studentId))?->grade?->grade_name ?? '',
             ]);
         }
 
@@ -1457,7 +1475,7 @@ new #[Title('Libro de Incidencias')] class extends Component
 
     public function getCurrentSchoolProperty()
     {
-        return School::where('status', 1)->first();
+        return app(SchoolConfigService::class)->getActiveSchool();
     }
 }; ?>
 
@@ -1952,7 +1970,7 @@ new #[Title('Libro de Incidencias')] class extends Component
                                 <flux:badge :color="match($letter->status) { 'signed' => 'green', 'closed' => 'blue', default => 'yellow' }">
                                     {{ $letter->status }}
                                 </flux:badge>
-                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.commitment-letter', $letter->id) }}">
+                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.commitment-letter', $letter->id) }}" target="_blank">
                                     {{ __('PDF') }}
                                 </flux:button>
                             </div>
@@ -1992,7 +2010,7 @@ new #[Title('Libro de Incidencias')] class extends Component
                                 <flux:badge :color="match($report->status) { 'sent' => 'green', 'archived' => 'blue', default => 'yellow' }">
                                     {{ $report->status }}
                                 </flux:badge>
-                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.report', $report->id) }}">
+                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('admin.teacher.incidents.pdf.report', $report->id) }}" target="_blank">
                                     {{ __('PDF') }}
                                 </flux:button>
                             </div>

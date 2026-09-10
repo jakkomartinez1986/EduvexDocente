@@ -17,9 +17,12 @@ use App\Notifications\AcademicNotificationSent;
 use App\Services\AcademicYearService;
 use App\Services\Messaging\ChannelStatusService;
 use App\Services\Messaging\WaMeLinkService;
+use App\Services\TeacherManagement\NotificationStatsCache;
 use App\Jobs\SendChannelMessageJob;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Flux\Flux;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
@@ -28,7 +31,11 @@ use Livewire\Component;
 
 new #[Title('Administración de Notificaciones')] class extends Component
 {
+    private const NOTIFICATIONS_PER_PAGE = 25;
+
     public ?int $yearId = null;
+
+    public int $page = 1;
     public array $trimesters = [];
     public ?int $selectedTrimesterId = null;
     public ?int $selectedNivelId = null;
@@ -262,6 +269,7 @@ new #[Title('Administración de Notificaciones')] class extends Component
 
     public function updatedSelectedTrimesterId($value): void
     {
+        $this->page = 1;
         $this->resetAfterNivel();
     }
 
@@ -274,6 +282,7 @@ new #[Title('Administración de Notificaciones')] class extends Component
         }
 
         $this->selectedNivelId = $value;
+        $this->page = 1;
         $this->resetAfterNivel();
     }
 
@@ -286,6 +295,7 @@ new #[Title('Administración de Notificaciones')] class extends Component
         }
 
         $this->selectedGradeName = $value;
+        $this->page = 1;
         $this->resetAfterGrado();
     }
 
@@ -298,6 +308,7 @@ new #[Title('Administración de Notificaciones')] class extends Component
         }
 
         $this->selectedGradeId = $value;
+        $this->page = 1;
         $this->resetAfterParalelo();
     }
 
@@ -310,6 +321,17 @@ new #[Title('Administración de Notificaciones')] class extends Component
         }
 
         $this->selectedSubjectId = $value;
+        $this->page = 1;
+    }
+
+    public function gotoPage(int $page): void
+    {
+        $this->page = max(1, $page);
+    }
+
+    public function updatedSearch($value): void
+    {
+        $this->page = 1;
     }
 
     protected function applyAcademicFilters(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
@@ -323,8 +345,27 @@ new #[Title('Administración de Notificaciones')] class extends Component
             ->when($this->currentTeacher?->id, fn ($q, int $teacherId) => $q->where('teacher_id', $teacherId));
     }
 
-    public function getStudentGroupsProperty()
+    private ?LengthAwarePaginator $studentPager = null;
+
+    public function getStudentGroupsProperty(): Collection
     {
+        return $this->studentPager()
+            ->getCollection()
+            ->groupBy(fn ($n) => $n->student_id)
+            ->map(fn ($items) => (object) [
+                'student' => $items->first()?->student,
+                'grade' => $items->first()?->grade,
+                'notifications' => $items->sortByDesc(fn ($n) => $n->generated_date),
+            ])
+            ->values();
+    }
+
+    public function studentPager(): LengthAwarePaginator
+    {
+        if ($this->studentPager !== null) {
+            return $this->studentPager;
+        }
+
         $query = $this->applyAcademicFilters(
             AcademicNotification::query()
                 ->with(['student.user', 'subject', 'grade', 'channels', 'teacher.user'])
@@ -342,31 +383,41 @@ new #[Title('Administración de Notificaciones')] class extends Component
             });
         }
 
-        $notifications = $query->latest('generated_date')->get();
-
-        return $notifications
-            ->groupBy(fn ($n) => $n->student_id)
-            ->map(fn ($items) => (object) [
-                'student' => $items->first()?->student,
-                'grade' => $items->first()?->grade,
-                'notifications' => $items->sortByDesc(fn ($n) => $n->generated_date),
-            ])
-            ->values();
+        return $this->studentPager = $query->latest('generated_date')->paginate(
+            self::NOTIFICATIONS_PER_PAGE,
+            ['*'],
+            'page',
+            max(1, $this->page),
+        );
     }
 
-    public function getStatsProperty()
+    public function getStatsProperty(): array
     {
-        $query = $this->applyAcademicFilters(
+        return app(NotificationStatsCache::class)->stats(
+            (int) $this->yearId,
+            $this->currentTeacher?->id,
+            [
+                'trimester_id' => $this->selectedTrimesterId,
+                'nivel_id' => $this->selectedNivelId,
+                'grade_name' => $this->selectedGradeName,
+                'grade_id' => $this->selectedGradeId,
+                'subject_id' => $this->selectedSubjectId,
+            ],
+            fn (): array => $this->computeNotificationStats(),
+        );
+    }
+
+    protected function computeNotificationStats(): array
+    {
+        $base = $this->applyAcademicFilters(
             AcademicNotification::query()->where('year_id', $this->yearId),
         );
 
-        $notifications = $query->get();
-
         return [
-            'total' => $notifications->count(),
-            'attended' => $notifications->where('parent_attended', true)->count(),
-            'not_attended' => $notifications->where('parent_attended', false)->count(),
-            'printed' => $notifications->whereNotNull('printed_at')->count(),
+            'total' => (clone $base)->count(),
+            'attended' => (clone $base)->where('parent_attended', true)->count(),
+            'not_attended' => (clone $base)->where('parent_attended', false)->count(),
+            'printed' => (clone $base)->whereNotNull('printed_at')->count(),
         ];
     }
 
@@ -387,6 +438,10 @@ new #[Title('Administración de Notificaciones')] class extends Component
         $notification->update(['sent_at' => $now]);
 
         foreach ($notification->channels as $channel) {
+            if (in_array($channel->channel, [ChannelConfiguration::CHANNEL_WHATSAPP, ChannelConfiguration::CHANNEL_TELEGRAM], true)) {
+                ChannelStatusService::forget($channel->channel);
+            }
+
             $channel->update(['status' => 'sent', 'sent_at' => $now]);
         }
 
@@ -423,6 +478,10 @@ new #[Title('Administración de Notificaciones')] class extends Component
 
         $channelRecord->update(['status' => 'sent', 'sent_at' => $now]);
         $notification->update(['sent_at' => $notification->sent_at ?? $now]);
+
+        if (in_array($channel, [ChannelConfiguration::CHANNEL_WHATSAPP, ChannelConfiguration::CHANNEL_TELEGRAM], true)) {
+            ChannelStatusService::forget($channel);
+        }
 
         Flux::toast(variant: 'success', text: __('Notificación enviada por ') . $channel . '.');
     }
@@ -796,6 +855,29 @@ new #[Title('Administración de Notificaciones')] class extends Component
             <flux:text variant="subtle">{{ __('No hay notificaciones para los filtros seleccionados.') }}</flux:text>
         </div>
     @endforelse
+
+    @if($this->studentPager->hasPages())
+        <div class="flex items-center justify-between pt-2">
+            <flux:button
+                variant="ghost"
+                size="sm"
+                :disabled="! $this->studentPager->onFirstPage()"
+                wire:click="gotoPage({{ $this->studentPager->currentPage() - 1 }})"
+                icon="arrow-left"
+            >{{ __('Anterior') }}</flux:button>
+            <flux:text variant="subtle" size="sm">
+                {{ __('Página') }} {{ $this->studentPager->currentPage() }} {{ __('de') }} {{ $this->studentPager->lastPage() }}
+            </flux:text>
+            <flux:button
+                variant="ghost"
+                size="sm"
+                :disabled="! $this->studentPager->hasMorePages()"
+                wire:click="gotoPage({{ $this->studentPager->currentPage() + 1 }})"
+                icon="arrow-right"
+                icon-trailing
+            >{{ __('Siguiente') }}</flux:button>
+        </div>
+    @endif
 
     {{-- ==================== MODAL: ASISTENCIA DEL REPRESENTANTE ==================== --}}
     <flux:modal wire:model="showAttendanceModal" class="max-w-lg">

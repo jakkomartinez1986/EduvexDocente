@@ -2,6 +2,7 @@
 
 namespace App\Models\Setting\YearSettings;
 
+use Database\Factories\Setting\YearSettings\GradingSchemeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +28,7 @@ use Illuminate\Support\Carbon;
 ])]
 class GradingScheme extends Model
 {
+    /** @use HasFactory<GradingSchemeFactory> */
     use HasFactory, SoftDeletes;
 
     protected $table = 'grading_schemes';
@@ -43,6 +45,9 @@ class GradingScheme extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<ScolarYear, $this>
+     */
     public function year(): BelongsTo
     {
         return $this->belongsTo(ScolarYear::class, 'year_id');

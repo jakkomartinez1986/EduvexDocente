@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Setting\YearSettings\CalendarDay;
 use App\Models\Setting\YearSettings\ScolarYear;
+use App\Support\Database\DatabaseDialect;
 use Carbon\Carbon;
 use Flux\Flux;
 use Livewire\Attributes\Title;
@@ -192,9 +193,9 @@ new #[Title('Calendario Escolar')] class extends Component
             ->with(['year', 'trimester'])
             ->when($this->yearFilter, fn ($q) => $q->where('year_id', $this->yearFilter))
             ->when($this->search, fn ($q) => $q->where(function ($q2) {
-                $q2->where('day_name', 'ilike', "%{$this->search}%")
-                    ->orWhere('activity', 'ilike', "%{$this->search}%")
-                    ->orWhere('month_name', 'ilike', "%{$this->search}%");
+                DatabaseDialect::ilike($q2, 'day_name', "%{$this->search}%");
+                DatabaseDialect::orIlike($q2, 'activity', "%{$this->search}%");
+                DatabaseDialect::orIlike($q2, 'month_name', "%{$this->search}%");
             })
             )
             ->orderBy('date')

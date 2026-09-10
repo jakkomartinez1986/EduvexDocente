@@ -6,6 +6,7 @@ use App\Models\Identity\Users\Student;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\Setting\EducationalSettings\School;
 use App\Services\AcademicYearService;
+use App\Services\SchoolConfigService;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -26,7 +27,7 @@ new #[Title('Detalle de Estudiante')] class extends Component {
 
     public function getSchoolProperty(): ?School
     {
-        return School::where('status', 1)->first();
+        return app(SchoolConfigService::class)->getActiveSchool();
     }
 
     public function getActiveYearProperty()

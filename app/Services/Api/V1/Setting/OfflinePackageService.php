@@ -4,28 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services\Api\V1\Setting;
 
-use App\Http\Resources\Api\V1\Setting\AreaResource;
-use App\Http\Resources\Api\V1\Setting\ClassroomResource;
 use App\Http\Resources\Api\V1\Setting\ClassScheduleResource;
-use App\Http\Resources\Api\V1\Setting\GradeResource;
-use App\Http\Resources\Api\V1\Setting\NivelResource;
 use App\Http\Resources\Api\V1\Setting\SchoolResource;
 use App\Http\Resources\Api\V1\Setting\ScolarYearResource;
-use App\Http\Resources\Api\V1\Setting\ShiftResource;
-use App\Http\Resources\Api\V1\Setting\SubjectResource;
 use App\Http\Resources\Api\V1\Setting\TeacherResource;
 use App\Models\Identity\Users\Teacher;
-use App\Models\Setting\EducationalSettings\Area;
-use App\Models\Setting\EducationalSettings\Classroom;
-use App\Models\Setting\EducationalSettings\Grade;
-use App\Models\Setting\EducationalSettings\Nivel;
-use App\Models\Setting\EducationalSettings\School;
-use App\Models\Setting\EducationalSettings\Shift;
-use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\Setting\YearSettings\ScolarYear;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\User;
 use App\Services\AcademicYearService;
+use App\Services\SchoolConfigService;
+use App\Services\StaticCatalogService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
@@ -57,7 +46,7 @@ final class OfflinePackageService
 
     private function school(): ?SchoolResource
     {
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
 
         return $school ? new SchoolResource($school) : null;
     }
@@ -78,18 +67,14 @@ final class OfflinePackageService
     }
 
     /**
+     * Catálogos estáticos de la institución, cacheados 24 h
+     * (StaticCatalogService, invalidado on save por StaticCatalogCacheObserver).
+     *
      * @return array<string, mixed>
      */
     private function catalogs(): array
     {
-        return [
-            'shifts' => ShiftResource::collection(Shift::where('status', 1)->orderBy('shift_name')->get()),
-            'nivels' => NivelResource::collection(Nivel::where('status', 1)->orderBy('nivel_name')->get()),
-            'grades' => GradeResource::collection(Grade::where('status', 1)->orderBy('grade_name')->get()),
-            'areas' => AreaResource::collection(Area::orderBy('area_name')->get()),
-            'subjects' => SubjectResource::collection(Subject::orderBy('subject_name')->get()),
-            'classrooms' => ClassroomResource::collection(Classroom::where('status', 1)->orderBy('classroom_name')->get()),
-        ];
+        return app(StaticCatalogService::class)->catalogs();
     }
 
     private function teacher(?Teacher $teacher): ?TeacherResource

@@ -22,7 +22,7 @@
                 <div class="flex-1 flex items-center justify-center text-zinc-400">
                     <div class="text-center py-8">
                         <flux:icon.exclamation-circle class="mx-auto mb-2 size-8 text-amber-300 dark:text-amber-600" />
-                        <p class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{ __('No hay bloques de evaluacion configurados') }}</p>
+                        <p class="text-sm font-medium text-zinc-600 dark:text-zinc-400">{{ __('No hay bloques de evaluación configurados') }}</p>
                         <p class="text-xs text-zinc-400 mt-1">{{ __('Crea bloques y actividades en el Libro de Calificaciones primero.') }}</p>
                     </div>
                 </div>

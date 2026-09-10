@@ -446,7 +446,7 @@
       </div>
       
       <div class="border-t border-gray-700 pt-8 flex flex-col md:flex-row justify-between items-center text-gray-500 text-sm">
-        <p>&copy; {{ date('Y') }} VCodeWorks. Todos los derechos reservados.</p>
+        <p>&copy; {{ date('Y') }} RU-TAH. Todos los derechos reservados.</p>
         <p class="mt-2 md:mt-0">Latacunga - Ecuador</p>
       </div>
     </div>

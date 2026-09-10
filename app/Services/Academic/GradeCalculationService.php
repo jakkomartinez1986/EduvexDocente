@@ -6,6 +6,8 @@ namespace App\Services\Academic;
 
 use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
 use App\Models\Academic\GradeBook\Summaries\Subjects\AssessmentBlock;
+use App\Models\Academic\GradeBook\Summaries\Subjects\StudentExam;
+use App\Models\Academic\GradeBook\Summaries\Subjects\StudentProject;
 use App\Models\Setting\YearSettings\GradingScheme;
 use Illuminate\Support\Collection;
 
@@ -43,6 +45,9 @@ final class GradeCalculationService
         return floor($total / $block->activities->count() * 100) / 100;
     }
 
+    /**
+     * @param  Collection<int, AssessmentBlock>  $assessmentBlocks
+     */
     public function formativeAverage(Collection $assessmentBlocks, int $studentId): ?float
     {
         $blockAverages = [];
@@ -61,6 +66,9 @@ final class GradeCalculationService
         return floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100;
     }
 
+    /**
+     * @param  Collection<int, AssessmentBlock>  $assessmentBlocks
+     */
     public function totalAverage(
         Collection $assessmentBlocks,
         ?GradingScheme $gradingScheme,
@@ -91,6 +99,9 @@ final class GradeCalculationService
         return floor(($formativeWeighted + $examWeighted + $projectWeighted) * 100) / 100;
     }
 
+    /**
+     * @param  Collection<int, AssessmentBlock>  $blocks
+     */
     public function trimesterFormativeAverage(
         Collection $blocks,
         int $studentId,
@@ -120,6 +131,9 @@ final class GradeCalculationService
         return floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100;
     }
 
+    /**
+     * @param  Collection<int, AssessmentBlock>  $blocks
+     */
     public function trimesterTotal(
         Collection $blocks,
         ?GradingScheme $gradingScheme,
@@ -150,6 +164,80 @@ final class GradeCalculationService
         }
 
         return round($total, 2);
+    }
+
+    /**
+     * Agregados trimestrales de una clase completa. Fuente única de verdad
+     * para el SFC del gradebook (replica EXACTA de ensureTrimesterAggregates):
+     *
+     * - `formative[{studentId}]`: promedio de bloques, redondeado con floor por
+     *   bloque y por trimestre, saltando bloques sin actividades.
+     * - `total[{studentId}]`: ponderado formative/examen/proyecto usando el
+     *   promedio NO redondeado de bloques, con la condición de "sin datos".
+     *
+     * Pura (sin queries): recibe las colecciones ya cargadas para que el
+     * resultado sea cacheable y testeable con fábricas.
+     *
+     * @param  Collection<int, AssessmentBlock>  $blocks
+     * @param  Collection<int, StudentExam>|Collection<int, StudentProject>  $exams  keyBy student_id
+     * @param  Collection<int, StudentExam>|Collection<int, StudentProject>  $projects  keyBy student_id
+     * @param  array<int, int>  $studentIds
+     * @return array{formative: array<int, float|null>, total: array<int, float|null>, hasData: bool}
+     */
+    public function classTrimesterAggregates(
+        Collection $blocks,
+        Collection $exams,
+        Collection $projects,
+        array $studentIds,
+        ?GradingScheme $gradingScheme,
+    ): array {
+        $formativePercentage = $gradingScheme ? (float) $gradingScheme->formative_percentage / 100 : 0;
+        $examPercentage = $gradingScheme ? (float) $gradingScheme->exam_percentage / 100 : 0;
+        $projectPercentage = $gradingScheme ? (float) $gradingScheme->project_percentage / 100 : 0;
+
+        $formative = [];
+        $total = [];
+
+        foreach ($studentIds as $sid) {
+            $blockAverages = [];
+            foreach ($blocks as $block) {
+                if ($block->activities->count() === 0) {
+                    continue;
+                }
+                $sum = 0;
+                foreach ($block->activities as $activity) {
+                    $grade = $activity->grades->firstWhere('student_id', $sid);
+                    if ($grade && $grade->grade !== null) {
+                        $sum += $grade->grade;
+                    }
+                }
+                $blockAverages[] = $sum / $block->activities->count();
+            }
+
+            if (count($blockAverages) > 0) {
+                $formative[$sid] = floor(array_sum($blockAverages) / count($blockAverages) * 100) / 100;
+            }
+
+            $rawAvg = count($blockAverages) > 0 ? array_sum($blockAverages) / count($blockAverages) : null;
+            $exam = $exams[$sid] ?? null;
+            $project = $projects[$sid] ?? null;
+
+            $summed = ($rawAvg !== null ? $rawAvg * $formativePercentage : 0)
+                + ($exam && $exam->grade !== null ? $exam->grade * $examPercentage : 0)
+                + ($project && $project->grade !== null ? $project->grade * $projectPercentage : 0);
+
+            if ($summed == 0 && ! $rawAvg && ! $exam && ! $project) {
+                $total[$sid] = null;
+            } else {
+                $total[$sid] = round($summed, 2);
+            }
+        }
+
+        return [
+            'formative' => $formative,
+            'total' => $total,
+            'hasData' => $blocks->count() > 0 || $exams->count() > 0 || $projects->count() > 0,
+        ];
     }
 
     public function blockAverageForDisplay(AssessmentBlock $block): ?float
