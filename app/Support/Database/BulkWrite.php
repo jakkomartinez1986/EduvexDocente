@@ -16,10 +16,18 @@ use PDO;
  * Escritura en lote con el mínimo de consultas por operación (H-07).
  *
  * - caseUpdate(): un único UPDATE que asigna valores DISTINTOS por fila
- *   mediante expresiones CASE SQL (dialect-safe: PostgreSQL, MySQL, SQLite),
- *   manteniendo el `WHERE` del builder que se recibe como scope base.
- * - insertBatch(): un único INSERT para las filas nuevas, con reintento fila
- *   a fila ante carreras de unicidad.
+ *   mediante expresiones CASE SQL (dialect-safe: PostgreSQL, MySQL, MariaDB
+ *   y SQLite), manteniendo el `WHERE` del builder que se recibe como scope base.
+ *   Los segmentos con todos sus valores NULL se asignan como `col = NULL`
+ *   (un CASE sin tipos deja a PostgreSQL sin tipo de resultado).
+ * - insertBatch(): un único INSERT para las filas nuevas. Cada intento se
+ *   envuelve en un savepoint: si el batch colisiona por unicidad, se hace
+ *   ROLLBACK al savepoint (PostgreSQL aborta la transacción ante un error de
+ *   unicidad, 25P02) y se reintenta fila a fila, resolviendo el conflicto con
+ *   $onConflict. Las filas deben entregarse en el formato que el motor espera
+ *   (p. ej. fechas Y-m-d): PostgreSQL, MySQL y MariaDB normalizan los valores
+ *   de fecha en el servidor, por lo que el INSERT es portable sin aplicar
+ *   casts de Eloquent.
  *
  * Por qué no `upsert()`: el índice único de `attendances` es PARCIAL
  * (WHERE deleted_at IS NULL) y Laravel no permite `ON CONFLICT ... WHERE`;
@@ -55,7 +63,18 @@ final class BulkWrite
         $pdo = self::pdo($query);
 
         foreach ($segments as $column => $byKey) {
-            $values[$column] = DB::raw('CASE '.self::identifier($query, $keyColumn).' '.self::whenClauses($byKey, $pdo).' END');
+            if ($byKey === []) {
+                continue;
+            }
+
+            // Un CASE cuyos THEN son todos NULL queda sin tipo y PostgreSQL lo
+            // infiere como text (no asigna a bigint/date). Cuando el segmento es
+            // todo NULL basta con asignar la columna directamente.
+            $hasNonNull = collect($byKey)->contains(fn (mixed $value): bool => $value !== null);
+
+            $values[$column] = $hasNonNull
+                ? DB::raw('CASE '.self::identifier($query, $keyColumn).' '.self::whenClauses($byKey, $pdo).' END')
+                : DB::raw('NULL');
         }
 
         $query->update($values);
@@ -76,13 +95,24 @@ final class BulkWrite
             return;
         }
 
+        $connection = (new $modelClass)->getConnection();
+
+        $connection->beginTransaction();
+
         try {
             $modelClass::insert($rows);
+            $connection->commit();
         } catch (UniqueConstraintViolationException) {
+            $connection->rollBack();
+
             foreach ($rows as $row) {
+                $connection->beginTransaction();
+
                 try {
                     $modelClass::create($row);
+                    $connection->commit();
                 } catch (UniqueConstraintViolationException) {
+                    $connection->rollBack();
                     $onConflict($row);
                 }
             }

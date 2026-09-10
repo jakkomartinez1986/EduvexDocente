@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Setting\EducationalSettings\Area;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -24,7 +25,7 @@ new #[Title('Areas')] class extends Component {
         return Area::query()
             ->withCount('subjects')
             ->when($this->search, fn ($q) =>
-                $q->where('area_name', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'area_name', "%{$this->search}%")
             )
             ->latest()
             ->paginate($this->perPage);

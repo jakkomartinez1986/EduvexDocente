@@ -6,6 +6,7 @@ use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Log\Logger;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Mockery;
@@ -431,12 +432,22 @@ it('bloquea escrituras duplicadas de nota a nivel de BD', function (): void {
         'grade' => 8.0,
     ]);
 
-    expect(fn (): object => ActivityGrade::factory()->create([
-        'activity_id' => $context['activity']->id,
-        'student_id' => $a->id,
-        'grade' => 5.0,
-    ]))->toThrow(UniqueConstraintViolationException::class)
-        ->and(ActivityGrade::query()->where('activity_id', $context['activity']->id)->count())->toEqual(1);
+    // En PostgreSQL una sentencia que viola unicidad aborta la transacción
+    // activa (25P02): se aísla el intento en un savepoint para recuperarla
+    // antes de verificar el estado real de la fila.
+    DB::beginTransaction();
+
+    try {
+        expect(fn (): object => ActivityGrade::factory()->create([
+            'activity_id' => $context['activity']->id,
+            'student_id' => $a->id,
+            'grade' => 5.0,
+        ]))->toThrow(UniqueConstraintViolationException::class);
+    } finally {
+        DB::rollBack();
+    }
+
+    expect(ActivityGrade::query()->where('activity_id', $context['activity']->id)->count())->toEqual(1);
 });
 
 it('permite el exito parcial dentro del mismo lote', function (): void {

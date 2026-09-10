@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Setting\EducationalSettings\School;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -24,9 +25,9 @@ new #[Title('Colegios')] class extends Component {
     {
         return School::query()
             ->when($this->search, fn ($q) =>
-                $q->where('name_school', 'ilike', "%{$this->search}%")
-                    ->orWhere('email', 'ilike', "%{$this->search}%")
-                    ->orWhere('phone', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'name_school', "%{$this->search}%")
+                    ->orWhere(fn ($q2) => DatabaseDialect::ilike($q2, 'email', "%{$this->search}%"))
+                    ->orWhere(fn ($q2) => DatabaseDialect::ilike($q2, 'phone', "%{$this->search}%"))
             )
             ->latest()
             ->paginate($this->perPage);

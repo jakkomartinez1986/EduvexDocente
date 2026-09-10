@@ -149,14 +149,24 @@ class LoadTestDataSeeder extends Seeder
      */
     private function resetLoadData(): void
     {
+        $driver = DB::connection()->getDriverName();
+
         $userIds = collect()
             ->merge(Teacher::query()->pluck('user_id'))
             ->merge(Student::query()->pluck('user_id'))
             ->map(fn ($id): int => (int) $id)
             ->all();
 
-        if (DB::connection()->getDriverName() === 'pgsql') {
+        if ($driver === 'pgsql') {
             DB::statement('TRUNCATE TABLE teachers, students RESTART IDENTITY CASCADE');
+        } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+            $tables = ['activity_grades', 'attendances', 'class_observations', 'activities', 'assessment_blocks', 'class_schedules', 'student_enrollments', 'students', 'teachers'];
+
+            DB::statement('SET FOREIGN_KEY_CHECKS = 0');
+            foreach ($tables as $table) {
+                DB::statement("TRUNCATE TABLE {$table}");
+            }
+            DB::statement('SET FOREIGN_KEY_CHECKS = 1');
         } else {
             DB::table('activity_grades')->delete();
             DB::table('attendances')->delete();

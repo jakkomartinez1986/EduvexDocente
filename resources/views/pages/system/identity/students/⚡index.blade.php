@@ -3,6 +3,7 @@
 use App\Models\Identity\Users\Student;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Services\AcademicYearService;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -101,14 +102,14 @@ new #[Title('Estudiantes')] class extends Component {
             ->select('students.*')
             ->leftJoin('users', 'students.user_id', '=', 'users.id')
             ->when($this->search, fn ($q) =>
-                $q->where('student_code', 'ilike', "%{$this->search}%")
-                    ->orWhere('users.name', 'ilike', "%{$this->search}%")
-                    ->orWhere('users.lastname', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'student_code', "%{$this->search}%")
+                    ->orWhere(fn ($q2) => DatabaseDialect::ilike($q2, 'users.name', "%{$this->search}%"))
+                    ->orWhere(fn ($q2) => DatabaseDialect::ilike($q2, 'users.lastname', "%{$this->search}%"))
                     ->orWhere('users.dni', 'like', "%{$this->search}%")
             )
             ->orderBy($sortColumn, $this->sortDirection)
-            ->orderByRaw("(SELECT g.grade_name FROM student_enrollments se JOIN grades g ON se.grade_id = g.id WHERE se.student_id = students.id AND se.year_id = ? AND se.status = 'active' LIMIT 1) NULLS LAST", [$yearId])
-            ->orderByRaw("(SELECT g.section FROM student_enrollments se JOIN grades g ON se.grade_id = g.id WHERE se.student_id = students.id AND se.year_id = ? AND se.status = 'active' LIMIT 1) NULLS LAST", [$yearId])
+            ->orderByRaw(DatabaseDialect::nullsLastRaw("(SELECT g.grade_name FROM student_enrollments se JOIN grades g ON se.grade_id = g.id WHERE se.student_id = students.id AND se.year_id = ? AND se.status = 'active' LIMIT 1)", 'asc'), [$yearId])
+            ->orderByRaw(DatabaseDialect::nullsLastRaw("(SELECT g.section FROM student_enrollments se JOIN grades g ON se.grade_id = g.id WHERE se.student_id = students.id AND se.year_id = ? AND se.status = 'active' LIMIT 1)", 'asc'), [$yearId])
             ->paginate($this->perPage);
     }
 
