@@ -10,7 +10,6 @@ use App\Models\Identity\Users\Teacher;
 use App\Models\Setting\EducationalSettings\Area;
 use App\Models\Setting\EducationalSettings\Grade;
 use App\Models\Setting\EducationalSettings\Nivel;
-use App\Models\Setting\EducationalSettings\School;
 use App\Models\Setting\EducationalSettings\Shift;
 use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\Setting\YearSettings\AcademicPeriod;
@@ -19,6 +18,7 @@ use App\Models\Setting\YearSettings\ScolarYear;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\User;
 use App\Services\AcademicYearService;
+use App\Services\SchoolConfigService;
 use App\Support\Api\ApiModules;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -122,7 +122,7 @@ final class ConfigurationService
      */
     private function institution(): ?array
     {
-        $school = School::where('status', 1)->first();
+        $school = app(SchoolConfigService::class)->getActiveSchool();
 
         if ($school === null) {
             return null;

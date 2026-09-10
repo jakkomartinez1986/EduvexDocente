@@ -8,6 +8,9 @@ use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
 
 final class SaveActivityAction
 {
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public function __invoke(
         ?int $editingActivityId,
         array $data,

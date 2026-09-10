@@ -23,6 +23,9 @@ class GradebookSidebar extends Component
 
     public mixed $activeBlockId = null;
 
+    /** @var array<int, AcademicPeriod|null> mapa memoizado de períodos por id */
+    protected array $periodMap = [];
+
     public function selectBlock(mixed $blockId): void
     {
         $this->dispatch('gradebook-select-block', blockId: $blockId);
@@ -65,7 +68,7 @@ class GradebookSidebar extends Component
         }
 
         if ($this->selectedTrimesterId && $this->selectedTrimesterId != -1) {
-            $period = AcademicPeriod::find($this->selectedTrimesterId);
+            $period = $this->period((int) $this->selectedTrimesterId);
 
             if ($this->isSumativaAvailable((int) $this->selectedTrimesterId)) {
                 $items[] = (object) [
@@ -138,7 +141,7 @@ class GradebookSidebar extends Component
 
     protected function isSumativaAvailable(int $trimesterId): bool
     {
-        $period = AcademicPeriod::find($trimesterId);
+        $period = $this->period($trimesterId);
         if (! $period) {
             return false;
         }
@@ -156,13 +159,22 @@ class GradebookSidebar extends Component
         }
 
         foreach ($regularTrimesters as $t) {
-            $period = AcademicPeriod::find($t['id']);
+            $period = $this->period($t['id']);
             if ($period && ! $period->isGradingPast()) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Lookup memoizado de AcademicPeriod por id (evita N+1 en la render del
+     * sidebar a lo largo de isSumativaAvailable/isSupletorioAvailable).
+     */
+    protected function period(int $id): ?AcademicPeriod
+    {
+        return $this->periodMap[$id] ??= AcademicPeriod::find($id);
     }
 
     protected function getTrimesters(): array

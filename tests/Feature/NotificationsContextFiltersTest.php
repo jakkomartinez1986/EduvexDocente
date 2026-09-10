@@ -468,3 +468,54 @@ test('la cadena de filtros aplica al listado de estudiantes y a las estadisticas
     expect(count($component->instance()->studentGroups))->toBe(1)
         ->and($component->instance()->stats['total'])->toBe(1);
 });
+
+test('el listado pagina las notificaciones agrupadas por estudiante', function () {
+    $ctx = seedFilterSchoolContext();
+
+    foreach (range(1, 30) as $i) {
+        seedFilteredNotification($ctx, [
+            'code' => 'NOT-PAG-'.$i,
+            'generated_date' => now()->subDays(30 - $i)->toDateString(),
+        ]);
+    }
+
+    $this->actingAs(filtersAdminUser());
+    $component = filterComponent();
+
+    $pager = $component->instance()->studentPager();
+
+    expect($pager->hasPages())->toBeTrue()
+        ->and($pager->currentPage())->toBe(1)
+        ->and($pager->lastPage())->toBe(2)
+        ->and(count($component->instance()->studentGroups))->toBe(25);
+
+    $component->call('gotoPage', 2);
+
+    $pager2 = $component->instance()->studentPager();
+
+    expect($pager2->currentPage())->toBe(2)
+        ->and($pager2->hasMorePages())->toBeFalse()
+        ->and(count($component->instance()->studentGroups))->toBe(5);
+});
+
+test('cambiar un filtro vuelve a la primera pagina del listado', function () {
+    $ctx = seedFilterSchoolContext();
+
+    foreach (range(1, 30) as $i) {
+        seedFilteredNotification($ctx, [
+            'code' => 'NOT-RES-'.$i,
+            'generated_date' => now()->subDays(30 - $i)->toDateString(),
+        ]);
+    }
+
+    $this->actingAs(filtersAdminUser());
+    $component = filterComponent();
+
+    $component->call('gotoPage', 2);
+
+    expect($component->instance()->studentPager()->currentPage())->toBe(2);
+
+    $component->set('selectedNivelId', (string) $ctx['nivel_bachillerato_id']);
+
+    expect($component->instance()->studentPager()->currentPage())->toBe(1);
+});

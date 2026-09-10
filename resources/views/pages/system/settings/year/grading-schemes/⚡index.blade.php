@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Setting\YearSettings\GradingScheme;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -26,7 +27,7 @@ new #[Title('Esquemas de Calificacion')] class extends Component {
             ->with('year')
             ->when($this->search, fn ($q) =>
                 $q->whereHas('year', fn ($yq) =>
-                    $yq->where('year_name', 'ilike', "%{$this->search}%")
+                    DatabaseDialect::ilike($yq, 'year_name', "%{$this->search}%")
                 )
             )
             ->latest()

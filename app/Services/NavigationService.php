@@ -2,10 +2,15 @@
 
 namespace App\Services;
 
+use App\Models\TeacherManagement\Academics\ClassSchedule;
+use App\Services\TeacherManagement\TeacherCoursesCache;
 use Illuminate\Support\Facades\Route;
 
 class NavigationService
 {
+    /**
+     * @return array<string, array{icon: string, links: array<int, array{name: string, icon: string, label: string, route: ?string, current: bool, roles: array<int, string>, badge: ?string, color: ?string}>}>
+     */
     public function filteredGroups(): array
     {
         $all = $this->allGroups();
@@ -13,6 +18,8 @@ class NavigationService
         $userRoles = auth()->check()
             ? auth()->user()->roles->pluck('name')->map(fn ($r) => strtoupper($r))->toArray()
             : [];
+
+        $canAccessTeacherModules = $this->canAccessTeacherModules();
 
         $filtered = [];
 
@@ -25,6 +32,10 @@ class NavigationService
                 }
 
                 if (! isset($link['roles']) || count(array_intersect($userRoles, $link['roles'])) > 0) {
+                    if ($this->isTeacherDependentLink($link) && ! $canAccessTeacherModules) {
+                        continue;
+                    }
+
                     $filteredLinks[] = $link;
                 }
             }
@@ -40,6 +51,62 @@ class NavigationService
         return $filtered;
     }
 
+    /**
+     * Los módulos del group "Docente" que dependen de un perfil docente y de
+     * asignaturas asignadas en el año activo. Si el usuario no es docente o no
+     * tiene asignaturas, estos enlaces no deberían mostrarse en el menú.
+     */
+    private const TEACHER_DEPENDENT_NAMES = [
+        'Libro Calificaciones',
+        'Libro Asistencias',
+        'Registro Asistencia',
+        'Recuperaciones',
+        'Libro de Incidencias',
+    ];
+
+    /**
+     * @param  array{name: string, icon: string, label: string, route: ?string, current: bool, roles: array<int, string>, badge: ?string, color: ?string}  $link
+     */
+    private function isTeacherDependentLink(array $link): bool
+    {
+        return in_array($link['name'], self::TEACHER_DEPENDENT_NAMES, true);
+    }
+
+    /**
+     * Indica si el usuario autenticado está habilitado para acceder a los
+     * módulos docentes, es decir, tiene un perfil de docente y al menos una
+     * asignatura asignada (horario) en el año lectivo activo.
+     */
+    private function canAccessTeacherModules(): bool
+    {
+        if (! auth()->check()) {
+            return false;
+        }
+
+        $teacher = auth()->user()->teacher;
+
+        if ($teacher === null) {
+            return false;
+        }
+
+        $activeYearId = app(AcademicYearService::class)->getActiveYearId();
+
+        if ($activeYearId === null) {
+            return false;
+        }
+
+        return app(TeacherCoursesCache::class)->hasCourses(
+            (int) $teacher->id,
+            $activeYearId,
+            fn (): bool => ClassSchedule::where('teacher_id', $teacher->id)
+                ->where('year_id', $activeYearId)
+                ->exists(),
+        );
+    }
+
+    /**
+     * @return array<string, array{icon: string, links: array<int, array{name: string, icon: string, label: string, route: ?string, current: bool, roles: array<int, string>, badge: ?string, color: ?string}>}>
+     */
     public function allGroups(): array
     {
         return [
@@ -129,12 +196,22 @@ class NavigationService
                     $this->link('Grado', 'academic-cap', 'Grado', $this->safeRoute('admin.settings.grades.index'), 'admin.settings.grades.*', ['SUPER-ADMIN', 'ADMIN']),
                     $this->link('Area', 'building-office-2', 'Area', $this->safeRoute('admin.settings.areas.index'), 'admin.settings.areas.*', ['SUPER-ADMIN', 'ADMIN']),
                     $this->link('Asignatura', 'bars-3-bottom-right', 'Asignatura', $this->safeRoute('admin.settings.subjects.index'), 'admin.settings.subjects.*', ['SUPER-ADMIN', 'ADMIN']),
+                ],
+            ],
+            'Administración' => [
+                'icon' => 'wrench-screwdriver',
+                'links' => [
                     $this->link('Canales', 'chat-bubble-left-right', 'Canales de Mensajería', $this->safeRoute('admin.settings.messaging-channels.index'), 'admin.settings.messaging-channels.*', ['SUPER-ADMIN', 'ADMIN'], null, 'teal'),
+                    $this->link('Trabajadores', 'server-stack', 'Trabajadores (Colas)', $this->safeRoute('admin.settings.queue-workers.index'), 'admin.settings.queue-workers.*', ['SUPER-ADMIN', 'ADMIN'], null, 'emerald'),
                 ],
             ],
         ];
     }
 
+    /**
+     * @param  array<int, string>  $roles
+     * @return array{name: string, icon: string, label: string, route: ?string, current: bool, roles: array<int, string>, badge: ?string, color: ?string}
+     */
     private function link(string $name, string $icon, string $label, ?string $route, string $current, array $roles = [], ?string $badge = null, ?string $color = null): array
     {
         return [
@@ -149,6 +226,9 @@ class NavigationService
         ];
     }
 
+    /**
+     * @param  array<int|string, mixed>  $params
+     */
     private function safeRoute(string $name, array $params = []): ?string
     {
         if (Route::has($name)) {

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Setting\EducationalSettings\Subject;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -24,7 +25,7 @@ new #[Title('Asignaturas')] class extends Component {
         return Subject::query()
             ->with('area')
             ->when($this->search, fn ($q) =>
-                $q->where('subject_name', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'subject_name', "%{$this->search}%")
             )
             ->latest()
             ->paginate($this->perPage);

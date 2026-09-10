@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Setting\YearSettings\ScolarYear;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -25,7 +26,7 @@ new #[Title('Años Escolares')] class extends Component {
         return ScolarYear::query()
             ->withCount(['academicPeriods', 'gradingSchemes', 'calendarDays'])
             ->when($this->search, fn ($q) =>
-                $q->where('year_name', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'year_name', "%{$this->search}%")
             )
             ->latest()
             ->paginate($this->perPage);

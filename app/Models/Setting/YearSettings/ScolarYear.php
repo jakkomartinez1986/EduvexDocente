@@ -2,6 +2,7 @@
 
 namespace App\Models\Setting\YearSettings;
 
+use Database\Factories\Setting\YearSettings\ScolarYearFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
 #[Fillable(['year_name', 'start_date', 'end_date', 'status'])]
 class ScolarYear extends Model
 {
+    /** @use HasFactory<ScolarYearFactory> */
     use HasFactory, SoftDeletes;
 
     protected function casts(): array
@@ -33,16 +35,25 @@ class ScolarYear extends Model
         ];
     }
 
+    /**
+     * @return HasMany<AcademicPeriod, $this>
+     */
     public function academicPeriods(): HasMany
     {
         return $this->hasMany(AcademicPeriod::class, 'year_id');
     }
 
+    /**
+     * @return HasMany<GradingScheme, $this>
+     */
     public function gradingSchemes(): HasMany
     {
         return $this->hasMany(GradingScheme::class, 'year_id');
     }
 
+    /**
+     * @return HasMany<CalendarDay, $this>
+     */
     public function calendarDays(): HasMany
     {
         return $this->hasMany(CalendarDay::class, 'year_id');

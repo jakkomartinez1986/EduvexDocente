@@ -6,6 +6,7 @@ use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Log\Logger;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Mockery;
@@ -129,6 +130,59 @@ it('entrega upserts de asistencia en el pull y avanza el cursor', function (): v
         ->json('data.changes.attendance.upserts'))->pluck('id');
 
     expect($third->diff($seenIds))->toBeEmpty();
+});
+
+it('pagina el pull con limit y no avanza el cursor mientras quede has_more', function (): void {
+    $context = syncContext();
+    [$a, $b] = $context['students'];
+    $headers = bearerTokenFor($context['teacher']->user);
+
+    $this->postJson('/api/v1/sync/push', [
+        'device_id' => (string) Str::uuid(),
+        'operations' => [[
+            'operation_id' => (string) Str::uuid(),
+            'entity' => 'attendance_day',
+            'action' => 'replace_day',
+            'payload' => [
+                'schedule_id' => $context['schedule']->id,
+                'date' => now()->toDateString(),
+                'classtopic' => 'Tema',
+                'statuses' => [(string) $a->id => 'A', (string) $b->id => 'AI'],
+            ],
+        ]],
+    ], $headers)->assertOk();
+
+    $url = fn (?string $cursor = null): string => '/api/v1/sync/pull?'.http_build_query(array_filter([
+        'collections' => 'attendance',
+        'limit' => 1,
+        'cursor' => $cursor,
+    ]));
+
+    $first = $this->getJson($url(), $headers)
+        ->assertOk()
+        ->assertJsonCount(1, 'data.changes.attendance.upserts')
+        ->assertJsonPath('data.has_more.attendance', true);
+
+    $cursor = $first->json('data.cursor');
+    $firstIds = collect($first->json('data.changes.attendance.upserts'))->pluck('id');
+
+    $second = $this->getJson($url($cursor), $headers)
+        ->assertOk()
+        ->assertJsonCount(1, 'data.changes.attendance.upserts')
+        ->assertJsonPath('data.has_more.attendance', true);
+
+    $secondIds = collect($second->json('data.changes.attendance.upserts'))->pluck('id');
+
+    expect($firstIds->intersect($secondIds))->not->toBeEmpty()
+        ->and(Attendance::query()->count())->toBe(2);
+
+    $final = $this->getJson('/api/v1/sync/pull?'.http_build_query([
+        'collections' => 'attendance',
+        'cursor' => $second->json('data.cursor'),
+    ]), $headers)
+        ->assertOk()
+        ->assertJsonCount(2, 'data.changes.attendance.upserts')
+        ->assertJsonPath('data.has_more.attendance', false);
 });
 
 it('publica tombstones cuando la correccion a P elimina filas activas', function (): void {
@@ -378,12 +432,22 @@ it('bloquea escrituras duplicadas de nota a nivel de BD', function (): void {
         'grade' => 8.0,
     ]);
 
-    expect(fn (): object => ActivityGrade::factory()->create([
-        'activity_id' => $context['activity']->id,
-        'student_id' => $a->id,
-        'grade' => 5.0,
-    ]))->toThrow(UniqueConstraintViolationException::class)
-        ->and(ActivityGrade::query()->where('activity_id', $context['activity']->id)->count())->toEqual(1);
+    // En PostgreSQL una sentencia que viola unicidad aborta la transacción
+    // activa (25P02): se aísla el intento en un savepoint para recuperarla
+    // antes de verificar el estado real de la fila.
+    DB::beginTransaction();
+
+    try {
+        expect(fn (): object => ActivityGrade::factory()->create([
+            'activity_id' => $context['activity']->id,
+            'student_id' => $a->id,
+            'grade' => 5.0,
+        ]))->toThrow(UniqueConstraintViolationException::class);
+    } finally {
+        DB::rollBack();
+    }
+
+    expect(ActivityGrade::query()->where('activity_id', $context['activity']->id)->count())->toEqual(1);
 });
 
 it('permite el exito parcial dentro del mismo lote', function (): void {

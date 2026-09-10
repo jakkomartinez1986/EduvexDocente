@@ -89,6 +89,7 @@
                                          'grade_id' => $selectedGradeId,
                                          'trimester_id' => $selectedTrimesterId,
                                      ]) }}"
+                                     target="_blank"
                                      title="{{ __('Imprimir notas formativas') }}">
                             {{ __('Imprimir Formativas') }}
                         </flux:button>
@@ -98,6 +99,7 @@
                                          'grade_id' => $selectedGradeId,
                                          'trimester_id' => $selectedTrimesterId,
                                      ]) }}"
+                                     target="_blank"
                                      title="{{ __('Imprimir notas sumativas') }}">
                             {{ __('Imprimir Sumativas') }}
                         </flux:button>
@@ -110,6 +112,7 @@
                                          'subject_id' => $selectedSubjectId,
                                          'grade_id' => $selectedGradeId,
                                      ]) }}"
+                                     target="_blank"
                                      title="{{ __('Informe anual de la asignatura') }}">
                             {{ __('Informe Anual') }}
                         </flux:button>

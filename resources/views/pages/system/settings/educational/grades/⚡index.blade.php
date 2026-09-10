@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Setting\EducationalSettings\Grade;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -25,7 +26,7 @@ new #[Title('Grados')] class extends Component {
         return Grade::query()
             ->with('nivel')
             ->when($this->search, fn ($q) =>
-                $q->where('grade_name', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'grade_name', "%{$this->search}%")
             )
             ->latest()
             ->paginate($this->perPage);
@@ -102,7 +103,7 @@ new #[Title('Grados')] class extends Component {
                     @forelse ($this->records as $grade)
                         <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition">
                             <td class="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">{{ $grade->grade_name }}</td>
-                            <td class="px-4 py-3 text-zinc-700 dark:text-zinc-300">{{ $grade->nivel->nivel_name ?? '-' }}</td>
+                            <td class="px-4 py-3 text-zinc-700 dark:text-zinc-300">{{ $grade->nivel->nivel_name ?? '-' }} / {{ $grade->nivel->shift->shift_name ?? '-' }}</td>
                             <td class="px-4 py-3 text-center text-zinc-700 dark:text-zinc-300">{{ $grade->section ?? '-' }}</td>
                             <td class="px-4 py-3 text-center">
                                 <button wire:click="confirmToggle({{ $grade->id }})"
