@@ -34,3 +34,18 @@ it('resuelve una URL firmada para el disco local con serve habilitado', function
         ->and($url)->toContain('signature=')
         ->and($url)->toContain('expires=');
 });
+
+it('expone la última modificación del reporte en disco', function (): void {
+    Storage::fake('local');
+    $service = app(ReportStorageService::class);
+
+    $path = $service->store('pdf-contenido', 'gradebooks', 'notas.pdf');
+
+    expect($service->lastModified($path))->toBeInt();
+});
+
+it('devuelve null si el archivo no existe en el disco', function (): void {
+    Storage::fake('local');
+
+    expect(app(ReportStorageService::class)->lastModified('reports/gradebooks/no-existe.pdf'))->toBeNull();
+});

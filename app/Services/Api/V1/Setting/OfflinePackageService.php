@@ -16,6 +16,7 @@ use App\Services\AcademicYearService;
 use App\Services\SchoolConfigService;
 use App\Services\StaticCatalogService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Construye el paquete de configuración que un cliente offline (móvil o
@@ -37,6 +38,7 @@ final class OfflinePackageService
         return [
             'generated_at' => now()->toISOString(),
             'school' => $this->school(),
+            'logos' => $this->logos(),
             'school_year' => $this->schoolYear($year),
             'catalogs' => $this->catalogs(),
             'teacher' => $this->teacher($teacher),
@@ -64,6 +66,42 @@ final class OfflinePackageService
         ]);
 
         return new ScolarYearResource($year);
+    }
+
+    /**
+     * Logotipos embebidos en base64 para que el cliente offline renderice los
+     * PDFs (header: report_logo_path, footer: logo_path) sin depender de la
+     * red. null cuando la escuela no tiene logo o el archivo no existe.
+     *
+     * @return array{logo: string|null, report_logo: string|null}|null
+     */
+    private function logos(): ?array
+    {
+        $school = app(SchoolConfigService::class)->getActiveSchool();
+
+        if ($school === null) {
+            return null;
+        }
+
+        return [
+            'logo' => $this->logoDataUri($school->logo_path),
+            'report_logo' => $this->logoDataUri($school->report_logo_path),
+        ];
+    }
+
+    private function logoDataUri(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        return 'data:'.$disk->mimeType($path).';base64,'.base64_encode((string) $disk->get($path));
     }
 
     /**
