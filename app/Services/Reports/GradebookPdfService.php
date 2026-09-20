@@ -128,6 +128,42 @@ class GradebookPdfService
     }
 
     /**
+     * Buckets de PdfReportCache que determinan la versión del archivo de un
+     * tipo de reporte. Única autoridad sobre qué buckets participan en
+     * filename() y versionSignature() para que ambos deriven la misma versión.
+     *
+     * @param  array<string, mixed>  $ctx
+     * @return list<string>
+     */
+    private function bucketsFor(string $type, array $ctx): array
+    {
+        if (in_array($type, self::TUTOR_TYPES, true)) {
+            if ($type === self::TUTOR_ALL_TRI) {
+                $r = $this->tutorResolved($ctx);
+
+                return ClassSchedule::where('grade_id', $r['tutorSchedule']->grade_id)
+                    ->where('year_id', $r['year_id'])
+                    ->distinct()
+                    ->pluck('subject_id')
+                    ->map(fn (int $subjectId): string => "subject-grade:{$subjectId}:{$r['tutorSchedule']->grade_id}")
+                    ->all();
+            }
+
+            if (! isset($ctx['student_id'])) {
+                return [];
+            }
+
+            return ["student:{$ctx['student_id']}"];
+        }
+
+        if (! isset($ctx['subject_id'], $ctx['grade_id'])) {
+            return [];
+        }
+
+        return ["subject-grade:{$ctx['subject_id']}:{$ctx['grade_id']}"];
+    }
+
+    /**
      * Nombre determinístico del archivo; usa las mismas búsquedas baratas que
      * los renderers para que el chequeo previo coincida con el resultado.
      *
@@ -150,19 +186,7 @@ class GradebookPdfService
                 self::STUDENT_ANNUAL => 'Reporte_Anual_'.$studentName.'.pdf',
             };
 
-            if ($type === self::TUTOR_ALL_TRI) {
-                $gradeId = $r['tutorSchedule']->grade_id;
-                $buckets = ClassSchedule::where('grade_id', $gradeId)
-                    ->where('year_id', $r['year_id'])
-                    ->distinct()
-                    ->pluck('subject_id')
-                    ->map(fn (int $subjectId): string => "subject-grade:{$subjectId}:{$gradeId}")
-                    ->all();
-            } else {
-                $buckets = ["student:{$ctx['student_id']}"];
-            }
-
-            return substr($name, 0, -4).$this->versionSuffix($buckets).'.pdf';
+            return substr($name, 0, -4).$this->versionSuffix($this->bucketsFor($type, $ctx)).'.pdf';
         }
 
         $r = $this->subjectResolved($ctx);
@@ -176,9 +200,20 @@ class GradebookPdfService
             default => throw new \RuntimeException("Tipo de reporte no soportado: {$type}"),
         };
 
-        $buckets = ["subject-grade:{$ctx['subject_id']}:{$ctx['grade_id']}"];
+        return substr($name, 0, -4).$this->versionSuffix($this->bucketsFor($type, $ctx)).'.pdf';
+    }
 
-        return substr($name, 0, -4).$this->versionSuffix($buckets).'.pdf';
+    /**
+     * Hash corto de la versión de los buckets que afectan al reporte. Comparte
+     * bucketsFor() con filename() para que uniqueId() del job cambie
+     * exactamente cuando el archivo cambiaría de nombre (capa 3 del cache
+     * strategy) sin replicar la lógica de buckets.
+     *
+     * @param  array<string, mixed>  $ctx
+     */
+    public function versionSignature(string $type, array $ctx): string
+    {
+        return $this->bucketVersionsSignature($this->bucketsFor($type, $ctx));
     }
 
     /**
@@ -192,6 +227,18 @@ class GradebookPdfService
      */
     private function versionSuffix(array $buckets): string
     {
+        $signature = $this->bucketVersionsSignature($buckets);
+
+        return $signature === '' ? '' : '.v'.$signature;
+    }
+
+    /**
+     * Hash determinístico de las versiones actuales de un conjunto de buckets.
+     *
+     * @param  list<string>  $buckets
+     */
+    private function bucketVersionsSignature(array $buckets): string
+    {
         if ($buckets === []) {
             return '';
         }
@@ -203,7 +250,7 @@ class GradebookPdfService
             $versions[] = $this->pdfCache->version($bucket);
         }
 
-        return '.v'.substr(hash('xxh128', implode(':', $versions)), 0, 12);
+        return substr(hash('xxh128', implode(':', $versions)), 0, 12);
     }
 
     /**

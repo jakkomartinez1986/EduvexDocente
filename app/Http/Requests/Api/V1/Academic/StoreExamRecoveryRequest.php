@@ -25,6 +25,7 @@ final class StoreExamRecoveryRequest extends FormRequest
             'student_id' => ['required', 'integer'],
             'recovery_grade' => ['required', 'numeric', 'min:0', 'max:20'],
             'update_method' => ['nullable', 'string', 'in:'.implode(',', array_keys(ExamRecovery::METHODS))],
+            'client_uid' => ['nullable', 'uuid'],
         ];
     }
 
@@ -41,6 +42,7 @@ final class StoreExamRecoveryRequest extends FormRequest
             'student_id' => 'student_id',
             'recovery_grade' => 'recovery_grade',
             'update_method' => 'update_method',
+            'client_uid' => 'client_uid',
         ];
     }
 }

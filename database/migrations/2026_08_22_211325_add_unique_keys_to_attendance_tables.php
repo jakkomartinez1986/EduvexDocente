@@ -22,13 +22,16 @@ return new class extends Migration
     {
         $driver = DB::connection()->getDriverName();
 
-        DB::statement('DELETE FROM attendances WHERE deleted_at IS NULL AND id NOT IN (SELECT MAX(id) FROM attendances WHERE deleted_at IS NULL GROUP BY class_schedule_id, student_id, date)');
+        // Derived table intermedia: MySQL (1093) exige no apuntar a la misma
+        // tabla en la subconsulta de un DELETE; la materialización lo permite
+        // y es válido también en PostgreSQL y SQLite.
+        DB::statement('DELETE FROM attendances WHERE deleted_at IS NULL AND id NOT IN (SELECT id FROM (SELECT MAX(id) AS id FROM attendances WHERE deleted_at IS NULL GROUP BY class_schedule_id, student_id, date) AS dedupe_attendances)');
 
         if ($driver === 'pgsql' || $driver === 'sqlite') {
             DB::statement('CREATE UNIQUE INDEX attendances_schedule_student_date_unique ON attendances (class_schedule_id, student_id, date) WHERE deleted_at IS NULL');
         }
 
-        DB::statement('DELETE FROM class_observations WHERE id NOT IN (SELECT MAX(id) FROM class_observations GROUP BY class_schedule_id, observation_date)');
+        DB::statement('DELETE FROM class_observations WHERE id NOT IN (SELECT id FROM (SELECT MAX(id) AS id FROM class_observations GROUP BY class_schedule_id, observation_date) AS dedupe_class_observations)');
 
         Schema::table('class_observations', function (Blueprint $table): void {
             $table->unique(['class_schedule_id', 'observation_date'], 'class_observations_schedule_date_unique');

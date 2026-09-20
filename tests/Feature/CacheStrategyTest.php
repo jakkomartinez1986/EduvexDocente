@@ -193,6 +193,30 @@ it('invalidates the active school cache on save and delete', function (): void {
         ->and(Cache::get(cacheKey('school:active-id')))->toBe($school->id);
 });
 
+it('normalizes a legacy string school id from cache (MySQL returns strings)', function (): void {
+    Cache::flush();
+
+    $school = School::factory()->create(['name_school' => 'Escuela Activa']);
+    Cache::put(cacheKey('school:active-id'), (string) $school->id);
+    $service = app(SchoolConfigService::class);
+
+    expect($service->getActiveSchoolId())->toBeInt()
+        ->and($service->getActiveSchoolId())->toBe($school->id)
+        ->and($service->getActiveSchool())->toBeInstanceOf(School::class);
+});
+
+it('normalizes a legacy string academic year id from cache', function (): void {
+    Cache::flush();
+
+    $year = ScolarYear::factory()->active()->create(['year_name' => '2026']);
+    Cache::put(cacheKey('academic:active-year'), (string) $year->id);
+    $service = app(AcademicYearService::class);
+
+    expect($service->getActiveYearId())->toBeInt()
+        ->and($service->getActiveYearId())->toBe($year->id)
+        ->and($service->getActiveYear())->toBeInstanceOf(ScolarYear::class);
+});
+
 it('caches static catalogs as serializable arrays (not Eloquent models)', function (): void {
     Cache::flush();
 

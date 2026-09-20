@@ -10,6 +10,9 @@ use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\User;
+use App\Services\Academic\PdfReportCache;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 function gradebookWriteContext(): array
 {
@@ -277,9 +280,76 @@ it('registra una recuperación y al aplicarla actualiza la nota final', function
         ->where('student_id', $studentA->id)
         ->value('grade'))->toBe(7.0);
 
-    // Aplicar dos veces debe fallar.
+    // Aplicar dos veces es idempotente: no-op sin re-aplicar.
     $this->postJson("/api/v1/grades/recoveries/{$recoveryId}/apply", [], $headers)
-        ->assertStatus(422);
+        ->assertOk()
+        ->assertJsonPath('data.recovery.is_applied', true);
+
+    expect((float) ActivityGrade::query()
+        ->where('activity_id', $activity->id)
+        ->where('student_id', $studentA->id)
+        ->value('grade'))->toBe(7.0);
 
     expect(ActivityRecovery::query()->where('id', $recoveryId)->value('is_applied'))->toBeTrue();
+});
+
+it('asigna un client_uid automático al registrar recuperaciones de actividad', function (): void {
+    $context = gradebookWriteContext();
+    [$studentA] = $context['students'];
+    $teacherUser = $context['teacher']->user;
+
+    $activity = Activity::factory()->create(['assessment_block_id' => $context['block']->id]);
+
+    ActivityGrade::factory()->create([
+        'activity_id' => $activity->id,
+        'student_id' => $studentA->id,
+        'grade' => 6.0,
+        'recorded_by' => $teacherUser->id,
+    ]);
+
+    $this->postJson("/api/v1/grades/activities/{$activity->id}/recoveries", [
+        'student_id' => $studentA->id,
+        'recovery_grade' => 8.0,
+    ], bearerTokenFor($teacherUser))->assertStatus(201);
+
+    expect(Str::isUuid(ActivityRecovery::query()->value('client_uid')))->toBeTrue();
+
+    $provided = (string) Str::uuid();
+
+    $this->postJson("/api/v1/grades/activities/{$activity->id}/recoveries", [
+        'student_id' => $studentA->id,
+        'recovery_grade' => 9.0,
+        'client_uid' => $provided,
+    ], bearerTokenFor($teacherUser))->assertStatus(201);
+
+    expect(ActivityRecovery::query()->where('client_uid', $provided)->exists())->toBeTrue();
+});
+
+it('guardar notas de actividad por API invalida el caché de PDFs', function (): void {
+    Cache::flush();
+    $context = gradebookWriteContext();
+    [$studentA] = $context['students'];
+
+    $activity = Activity::factory()->create(['assessment_block_id' => $context['block']->id]);
+
+    $cache = app(PdfReportCache::class);
+    $subjectId = (int) $context['subject']->id;
+    $gradeId = (int) $context['grade']->id;
+    $teacherId = (int) $context['teacher']->id;
+    $studentId = (int) $studentA->id;
+
+    $beforeSubjectGrade = $cache->version("subject-grade:{$subjectId}:{$gradeId}");
+    $beforeTeacher = $cache->version("teacher:{$teacherId}");
+    $beforeStudent = $cache->version("student:{$studentId}");
+
+    /** @var User $user */
+    $user = $context['teacher']->user;
+
+    $this->putJson("/api/v1/grades/activities/{$activity->id}/grades", [
+        'grades' => [gradesPayload($studentA, 8)],
+    ], bearerTokenFor($user))->assertOk();
+
+    expect((int) $cache->version("subject-grade:{$subjectId}:{$gradeId}"))->toBeGreaterThan((int) $beforeSubjectGrade)
+        ->and((int) $cache->version("teacher:{$teacherId}"))->toBeGreaterThan((int) $beforeTeacher)
+        ->and((int) $cache->version("student:{$studentId}"))->toBeGreaterThan((int) $beforeStudent);
 });

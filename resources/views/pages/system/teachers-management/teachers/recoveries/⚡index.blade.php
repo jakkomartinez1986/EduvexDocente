@@ -13,8 +13,10 @@ use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\StudentManagement\Academics\HomeworkPending;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
+use App\Services\Academic\PdfReportCache;
 use App\Services\AcademicYearService;
 use Flux\Flux;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -485,6 +487,7 @@ new #[Title('Recuperaciones')] class extends Component {
 
         ActivityRecovery::create([
             'activity_id' => $this->selectedActivityId,
+            'client_uid' => (string) Str::uuid(),
             'student_id' => $studentId,
             'year_id' => $this->yearId,
             'recorded_by' => auth()->id(),
@@ -553,6 +556,7 @@ new #[Title('Recuperaciones')] class extends Component {
 
         ExamRecovery::create([
             'student_id' => $studentId,
+            'client_uid' => (string) Str::uuid(),
             'subject_id' => $this->selectedSubjectId,
             'grade_id' => $this->selectedGradeId,
             'trimester_id' => $this->selectedTrimesterId,
@@ -604,6 +608,12 @@ new #[Title('Recuperaciones')] class extends Component {
             ['grade' => $recovery->final_grade, 'recorded_by' => auth()->id()]
         );
 
+        $block = $recovery->activity->assessmentBlock;
+        $pdfCache = app(PdfReportCache::class);
+        $pdfCache->invalidateForSubjectGrade((int) $block->subject_id, (int) $block->grade_id);
+        $pdfCache->invalidateForTeacher((int) $block->teacher_id);
+        $pdfCache->invalidateForStudent((int) $recovery->student_id);
+
         HomeworkPending::where('activity_id', $recovery->activity_id)
             ->where('student_id', $recovery->student_id)
             ->where('status', 'not_submitted')
@@ -651,6 +661,11 @@ new #[Title('Recuperaciones')] class extends Component {
             ],
             ['grade' => $recovery->final_grade, 'recorded_by' => auth()->id()]
         );
+
+        $pdfCache = app(PdfReportCache::class);
+        $pdfCache->invalidateForSubjectGrade((int) $recovery->subject_id, (int) $recovery->grade_id);
+        $pdfCache->invalidateForTeacher((int) auth()->user()->teacher?->id);
+        $pdfCache->invalidateForStudent((int) $recovery->student_id);
 
         Flux::toast(variant: 'success', text: __('Nota de examen actualizada en el libro de calificaciones.'));
     }
