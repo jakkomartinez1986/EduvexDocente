@@ -7,6 +7,7 @@ use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\TeacherManagement\Attendances\ClassObservation;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Str;
 
 function attendanceContext(): array
 {
@@ -366,4 +367,81 @@ it('resume asistencias por período derivando presentes de clases impartidas', f
     $totals = $response->json('data.totals');
     expect($totals['total_classes'])->toBe(6); // 2 clases × 3 estudiantes
     expect($totals['late_count'])->toBe(2);
+});
+
+it('persiste el presente con novedad (N) junto a novedad, tipo, client_uuid, teacher_id y recorded_at', function (): void {
+    $context = attendanceContext();
+    [$studentA] = $context['students'];
+    $headers = bearerTokenFor($context['teacher']->user);
+    $today = now()->toDateString();
+    $clientUuid = (string) Str::uuid();
+
+    $response = $this->putJson('/api/v1/teachermanagement/attendances/register', [
+        'schedule_id' => $context['schedule']->id,
+        'date' => $today,
+        'classtopic' => 'Tema',
+        'statuses' => [(string) $studentA->id => 'N'],
+        'novedades' => [(string) $studentA->id => 'Reincorporación tras incapacidad'],
+        'novedad_types' => [(string) $studentA->id => 'Otra'],
+        'client_uuids' => [(string) $studentA->id => $clientUuid],
+    ], $headers)->assertOk();
+
+    $row = Attendance::query()
+        ->where('student_id', $studentA->id)
+        ->where('class_schedule_id', $context['schedule']->id)
+        ->whereDate('date', $today)
+        ->first();
+
+    expect($row)->not->toBeNull();
+    expect($row->status)->toBe('N');
+    expect($row->novedad)->toBe('Reincorporación tras incapacidad');
+    expect($row->novedad_type)->toBe('Otra');
+    expect($row->client_uuid)->toBe($clientUuid);
+    expect($row->teacher_id)->toBe($context['schedule']->teacher_id);
+    expect($row->recorded_at)->not->toBeNull();
+
+    // El resumen cuenta la fila N como novedad, no como falta ni atraso.
+    expect($response->json('data.summary.novedad'))->toBe(1);
+});
+
+it('convierte P con novedad en N al persistir', function (): void {
+    $context = attendanceContext();
+    [$studentA] = $context['students'];
+    $headers = bearerTokenFor($context['teacher']->user);
+    $today = now()->toDateString();
+
+    $this->putJson('/api/v1/teachermanagement/attendances/register', [
+        'schedule_id' => $context['schedule']->id,
+        'date' => $today,
+        'classtopic' => 'Tema',
+        'statuses' => [(string) $studentA->id => 'P'],
+        'novedades' => [(string) $studentA->id => 'Certificado médico'],
+        'novedad_types' => [(string) $studentA->id => 'Otra'],
+    ], $headers)->assertOk();
+
+    $row = Attendance::query()
+        ->where('student_id', $studentA->id)
+        ->where('class_schedule_id', $context['schedule']->id)
+        ->whereDate('date', $today)
+        ->first();
+
+    expect($row)->not->toBeNull();
+    expect($row->status)->toBe('N');
+    expect($row->novedad)->toBe('Certificado médico');
+});
+
+it('rechaza novedad_type fuera del catálogo de novedades', function (): void {
+    $context = attendanceContext();
+    [$studentA] = $context['students'];
+    $headers = bearerTokenFor($context['teacher']->user);
+
+    $this->putJson('/api/v1/teachermanagement/attendances/register', [
+        'schedule_id' => $context['schedule']->id,
+        'date' => now()->toDateString(),
+        'classtopic' => 'Tema',
+        'statuses' => [(string) $studentA->id => 'N'],
+        'novedades' => [(string) $studentA->id => 'Algo'],
+        'novedad_types' => [(string) $studentA->id => 'Inexistente'],
+    ], $headers)->assertStatus(422)
+        ->assertJsonValidationErrors(['novedad_types.'.$studentA->id]);
 });

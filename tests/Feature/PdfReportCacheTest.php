@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Services\Academic\PdfReportCache;
+use Illuminate\Support\Facades\Cache;
 
 it('devuelve el valor generado y lo reutiliza en llamadas subsecuentes', function (): void {
     $cache = app(PdfReportCache::class);
@@ -76,4 +77,34 @@ it('no invalida claves de buckets no afectados', function (): void {
 
     expect($callsTen)->toBe(1)
         ->and($callsTwenty)->toBe(1);
+});
+
+it('el contador de versión es estrictamente creciente al invalidar', function (): void {
+    Cache::flush();
+    $cache = app(PdfReportCache::class);
+
+    $cache->invalidateForStudent(77);
+    $first = (int) $cache->version('student:77');
+
+    $cache->invalidateForStudent(77);
+    $second = (int) $cache->version('student:77');
+
+    $cache->invalidateForStudent(77);
+    $third = (int) $cache->version('student:77');
+
+    expect($second)->toBe($first + 1)
+        ->and($third)->toBe($second + 1);
+});
+
+it('tras una eviction el contador se ancla al tiempo y no reutiliza versiones viejas', function (): void {
+    Cache::flush();
+    $cache = app(PdfReportCache::class);
+
+    // Simula una versión antigua que todavía vive como archivo en el disco.
+    $staleVersion = now()->subDays(2)->getTimestamp() + 1;
+    Cache::put('pdf-report:version:student:88', $staleVersion);
+
+    $cache->invalidateForStudent(88);
+
+    expect((int) $cache->version('student:88'))->toBeGreaterThan($staleVersion);
 });

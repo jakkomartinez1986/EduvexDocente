@@ -25,7 +25,7 @@ return new class extends Migration
             $table->timestamp('applied_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
-            $table->index(['student_id', 'subject_id', 'grade_id', 'trimester_id', 'year_id']);
+            $table->index(['student_id', 'subject_id', 'grade_id', 'trimester_id', 'year_id'], 'exam_recoveries_student_lookup_index');
         });
     }
 

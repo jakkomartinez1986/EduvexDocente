@@ -8,6 +8,7 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Attendance>
@@ -28,14 +29,19 @@ class AttendanceFactory extends Factory
             ])->id,
             'year_id' => $schedule->year_id,
             'tutor_id' => null,
+            'teacher_id' => $schedule->teacher_id,
             'student_id' => Student::factory(),
             'date' => now()->toDateString(),
-            'status' => $this->faker->randomElement(['A', 'I', 'J', 'AI', 'AA']),
+            'client_uuid' => (string) Str::uuid(),
+            'status' => $this->faker->randomElement(['A', 'I', 'J', 'AI', 'AA', 'N']),
             'arrival_time' => null,
             'justification' => null,
             'justification_file_path' => null,
+            'novedad' => null,
+            'novedad_type' => null,
             'observation' => null,
             'recorded_by' => User::factory(),
+            'recorded_at' => now(),
         ];
     }
 }

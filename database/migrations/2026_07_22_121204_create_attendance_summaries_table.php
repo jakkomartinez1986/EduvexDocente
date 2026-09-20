@@ -25,7 +25,7 @@ return new class extends Migration
             $table->integer('abandonment_count')->default(0);
             $table->integer('permission_count')->default(0);
             $table->softDeletes();
-            $table->timestamp('last_updated');
+            $table->timestamp('last_updated')->nullable();
             $table->timestamps();
         });
     }

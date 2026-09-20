@@ -14,14 +14,24 @@ return new class extends Migration
      * solo una fila activa por horario/estudiante/día, mientras que los
      * tombstones del soft delete nunca bloquean re-inserciones ni entre sí.
      * La sintaxis es válida en PostgreSQL y SQLite.
+     *
+     * NOTA: Para soporte MySQL/MariaDB, ver la migración
+     * alter_attendance_unique_index_for_multi_engine.
      */
     public function up(): void
     {
-        DB::statement('DELETE FROM attendances WHERE deleted_at IS NULL AND id NOT IN (SELECT MAX(id) FROM attendances WHERE deleted_at IS NULL GROUP BY class_schedule_id, student_id, date)');
+        $driver = DB::connection()->getDriverName();
 
-        DB::statement('CREATE UNIQUE INDEX attendances_schedule_student_date_unique ON attendances (class_schedule_id, student_id, date) WHERE deleted_at IS NULL');
+        // Derived table intermedia: MySQL (1093) exige no apuntar a la misma
+        // tabla en la subconsulta de un DELETE; la materialización lo permite
+        // y es válido también en PostgreSQL y SQLite.
+        DB::statement('DELETE FROM attendances WHERE deleted_at IS NULL AND id NOT IN (SELECT id FROM (SELECT MAX(id) AS id FROM attendances WHERE deleted_at IS NULL GROUP BY class_schedule_id, student_id, date) AS dedupe_attendances)');
 
-        DB::statement('DELETE FROM class_observations WHERE id NOT IN (SELECT MAX(id) FROM class_observations GROUP BY class_schedule_id, observation_date)');
+        if ($driver === 'pgsql' || $driver === 'sqlite') {
+            DB::statement('CREATE UNIQUE INDEX attendances_schedule_student_date_unique ON attendances (class_schedule_id, student_id, date) WHERE deleted_at IS NULL');
+        }
+
+        DB::statement('DELETE FROM class_observations WHERE id NOT IN (SELECT id FROM (SELECT MAX(id) AS id FROM class_observations GROUP BY class_schedule_id, observation_date) AS dedupe_class_observations)');
 
         Schema::table('class_observations', function (Blueprint $table): void {
             $table->unique(['class_schedule_id', 'observation_date'], 'class_observations_schedule_date_unique');
@@ -31,7 +41,15 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::statement('DROP INDEX attendances_schedule_student_date_unique');
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'pgsql' || $driver === 'sqlite') {
+            DB::statement('DROP INDEX attendances_schedule_student_date_unique');
+        } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+            Schema::table('attendances', function (Blueprint $table): void {
+                $table->dropIndex('attendances_schedule_student_date_unique');
+            });
+        }
 
         Schema::table('class_observations', function (Blueprint $table): void {
             $table->index(['class_schedule_id', 'observation_date'], 'class_observations_class_schedule_id_observation_date_index');

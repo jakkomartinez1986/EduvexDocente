@@ -29,16 +29,21 @@ final class AttendanceResource extends JsonResource
             'calendarday_id' => $attendance->calendarday_id,
             'year_id' => $attendance->year_id,
             'tutor_id' => $attendance->tutor_id,
+            'teacher_id' => $attendance->teacher_id,
             'student_id' => $attendance->student_id,
             'date' => Carbon::parse($attendance->date)->toDateString(),
+            'client_uuid' => $attendance->client_uuid,
             'status' => $attendance->status,
             'arrival_time' => $attendance->arrival_time
                 ? Carbon::parse($attendance->arrival_time)->format('H:i')
                 : null,
             'justification' => $attendance->justification,
             'justification_file_path' => $attendance->justification_file_path,
+            'novedad' => $attendance->novedad,
+            'novedad_type' => $attendance->novedad_type,
             'observation' => $attendance->observation,
             'recorded_by' => $attendance->recorded_by,
+            'recorded_at' => $attendance->recorded_at?->toISOString(),
             'notification_data' => $attendance->notification_data,
             'notification_sent_at' => $attendance->notification_sent_at?->toISOString(),
         ];

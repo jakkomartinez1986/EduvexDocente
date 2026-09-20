@@ -6,6 +6,7 @@ use App\Models\Identity\Users\Representative;
 use App\Models\Identity\Users\Student;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Services\AcademicYearService;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -81,16 +82,16 @@ new #[Title('Representantes')] class extends Component {
         return $query
             ->when($this->search, fn ($q) =>
                 $q->orWhereHas('user', fn ($u) =>
-                    $u->where('name', 'ilike', "%{$this->search}%")
-                        ->orWhere('lastname', 'liike', "%{$this->search}%")
-                        ->orWhere('dni', 'ilike', "%{$this->search}%")
+                    DatabaseDialect::ilike($u, 'name', "%{$this->search}%")
+                        ->orWhere(fn ($u2) => DatabaseDialect::ilike($u2, 'lastname', "%{$this->search}%"))
+                        ->orWhere(fn ($u2) => DatabaseDialect::ilike($u2, 'dni', "%{$this->search}%"))
                 )
                 ->orWhereHas('student', fn ($s) =>
-                    $s->where('student_code', 'ilike', "%{$this->search}%")
+                    DatabaseDialect::ilike($s, 'student_code', "%{$this->search}%")
                         ->orWhereHas('user', fn ($su) =>
-                            $su->where('name', 'ilike', "%{$this->search}%")
-                                ->orWhere('lastname', 'ilike', "%{$this->search}%")
-                                ->orWhere('dni', 'ilike', "%{$this->search}%")
+                            DatabaseDialect::ilike($su, 'name', "%{$this->search}%")
+                                ->orWhere(fn ($su2) => DatabaseDialect::ilike($su2, 'lastname', "%{$this->search}%"))
+                                ->orWhere(fn ($su2) => DatabaseDialect::ilike($su2, 'dni', "%{$this->search}%"))
                         )
                 )
             )

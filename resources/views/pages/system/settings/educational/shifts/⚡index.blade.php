@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Setting\EducationalSettings\Shift;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -25,7 +26,7 @@ new #[Title('Jornadas')] class extends Component {
         return Shift::query()
             ->withCount('nivels')
             ->when($this->search, fn ($q) =>
-                $q->where('shift_name', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'shift_name', "%{$this->search}%")
             )
             ->latest()
             ->paginate($this->perPage);

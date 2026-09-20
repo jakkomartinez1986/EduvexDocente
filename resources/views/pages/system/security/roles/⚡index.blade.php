@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Security\Authorizations\Role;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -43,8 +44,10 @@ new #[Title('Roles')] class extends Component {
         return Role::query()
             ->withCount(['permissions'])
             ->when($this->search, fn ($q) =>
-                $q->where('name', 'ilike', "%{$this->search}%")
-                    ->orWhere('description', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'name', "%{$this->search}%")
+                    ->where(function ($q2) {
+                        DatabaseDialect::orIlike($q2, 'description', "%{$this->search}%");
+                    })
             )
             ->latest()
             ->paginate($this->perPage);

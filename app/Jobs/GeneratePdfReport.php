@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Services\Reports\GradebookPdfService;
 use App\Services\Reports\PdfReportRenderer;
 use App\Services\ReportStorageService;
 use Illuminate\Bus\Queueable;
@@ -54,6 +55,10 @@ class GeneratePdfReport implements ShouldBeUniqueUntilProcessing, ShouldQueue
     public function uniqueId(): string
     {
         $key = $this->entityId ?? md5($this->context !== [] ? serialize($this->context) : uniqid('', true));
+
+        if (in_array($this->type, PdfReportRenderer::GRADEBOOK_TYPES, true)) {
+            $key .= ':'.app(GradebookPdfService::class)->versionSignature($this->type, $this->context);
+        }
 
         return $this->type.':'.$key;
     }

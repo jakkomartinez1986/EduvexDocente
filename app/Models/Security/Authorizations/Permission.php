@@ -2,6 +2,7 @@
 
 namespace App\Models\Security\Authorizations;
 
+use App\Support\Database\DatabaseDialect;
 use Spatie\Permission\Models\Permission as SpatiePermission;
 
 /**
@@ -23,8 +24,11 @@ class Permission extends SpatiePermission
 
     public static function search($query)
     {
-        return empty($query) ? static::query()
-            : static::where('name', 'ilike', '%'.strtoupper($query).'%');
+        if (empty($query)) {
+            return static::query();
+        }
+
+        return DatabaseDialect::ilike(static::query(), 'name', '%'.strtoupper($query).'%');
     }
 
     public static function allmodules()

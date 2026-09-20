@@ -2,6 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\Academic\GradeBook\Cualitatives\CareerGuidance\CareerGuidance;
+use App\Models\Academic\GradeBook\Cualitatives\ClassroomSupport\IntegralClassroomSupport;
+use App\Models\Academic\GradeBook\Cualitatives\ReadingPromotion\ReadingPromotion;
+use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
+use App\Models\Academic\GradeBook\Summaries\Subjects\ActivityGrade;
+use App\Models\Academic\GradeBook\Summaries\Subjects\AssessmentBlock;
+use App\Models\Academic\GradeBook\Summaries\Subjects\StudentExam;
+use App\Models\Academic\GradeBook\Summaries\Subjects\StudentProject;
+use App\Models\Academic\GradeBook\Summaries\Supplementary\SupplementaryExam;
 use App\Models\Security\Authorizations\Permission as AppPermission;
 use App\Models\Security\Authorizations\Role as AppRole;
 use App\Models\Setting\EducationalSettings\Area;
@@ -21,7 +30,9 @@ use App\Observers\AcademicYearCacheObserver;
 use App\Observers\AttendanceObserver;
 use App\Observers\ChannelConfigurationCacheObserver;
 use App\Observers\ClassScheduleCacheObserver;
+use App\Observers\GradebookTombstoneObserver;
 use App\Observers\NotificationCacheObserver;
+use App\Observers\PdfReportCacheObserver;
 use App\Observers\PermissionCacheObserver;
 use App\Observers\SchoolCacheObserver;
 use App\Observers\StaticCatalogCacheObserver;
@@ -77,6 +88,20 @@ class AppServiceProvider extends ServiceProvider
         Classroom::observe(StaticCatalogCacheObserver::class);
 
         ClassSchedule::observe(ClassScheduleCacheObserver::class);
+
+        ActivityGrade::observe(PdfReportCacheObserver::class);
+        Activity::observe(PdfReportCacheObserver::class);
+        AssessmentBlock::observe(PdfReportCacheObserver::class);
+        ActivityGrade::observe(GradebookTombstoneObserver::class);
+        Activity::observe(GradebookTombstoneObserver::class);
+        AssessmentBlock::observe(GradebookTombstoneObserver::class);
+        StudentExam::observe(PdfReportCacheObserver::class);
+        StudentProject::observe(PdfReportCacheObserver::class);
+        SupplementaryExam::observe(PdfReportCacheObserver::class);
+        CareerGuidance::observe(PdfReportCacheObserver::class);
+        IntegralClassroomSupport::observe(PdfReportCacheObserver::class);
+        ReadingPromotion::observe(PdfReportCacheObserver::class);
+        Attendance::observe(PdfReportCacheObserver::class);
     }
 
     /**

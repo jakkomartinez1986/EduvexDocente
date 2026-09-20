@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -26,8 +27,8 @@ new #[Title('Niveles')] class extends Component {
             ->join('shifts', 'nivels.shift_id', '=', 'shifts.id')
             ->select('nivels.*', 'shifts.shift_name')
             ->when($this->search, fn ($q) =>
-                $q->where('nivels.nivel_name', 'ilike', "%{$this->search}%")
-                  ->orWhere('shifts.shift_name', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'nivels.nivel_name', "%{$this->search}%")
+                  ->orWhere(fn ($q2) => DatabaseDialect::ilike($q2, 'shifts.shift_name', "%{$this->search}%"))
             )
             ->latest()
             ->paginate($this->perPage);

@@ -2,6 +2,7 @@
 
 namespace App\Models\Security\Authorizations;
 
+use App\Support\Database\DatabaseDialect;
 use Spatie\Permission\Models\Role as SpatieRole;
 
 class Role extends SpatieRole
@@ -10,8 +11,11 @@ class Role extends SpatieRole
 
     public static function search($query)
     {
-        return empty($query) ? static::query()
-            : static::where('name', 'ilike', '%'.strtoupper($query).'%');
+        if (empty($query)) {
+            return static::query();
+        }
+
+        return DatabaseDialect::ilike(static::query(), 'name', '%'.strtoupper($query).'%');
     }
 
     public function defaultRolePhotoUrl()

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\Setting\YearSettings\ScolarYear;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -26,7 +27,7 @@ new #[Title('Periodos Academicos')] class extends Component {
         return AcademicPeriod::query()
             ->with('year')
             ->when($this->search, fn ($q) =>
-                $q->where('trimester_name', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'trimester_name', "%{$this->search}%")
             )
             ->latest()
             ->paginate($this->perPage);

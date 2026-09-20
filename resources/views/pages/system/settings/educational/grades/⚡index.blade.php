@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Setting\EducationalSettings\Grade;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -25,7 +26,7 @@ new #[Title('Grados')] class extends Component {
         return Grade::query()
             ->with('nivel')
             ->when($this->search, fn ($q) =>
-                $q->where('grade_name', 'ilike', "%{$this->search}%")
+                DatabaseDialect::ilike($q, 'grade_name', "%{$this->search}%")
             )
             ->latest()
             ->paginate($this->perPage);

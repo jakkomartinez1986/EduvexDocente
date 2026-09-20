@@ -24,7 +24,7 @@ return new class extends Migration
             $table->foreignId('year_id')->constrained('scolar_years')->cascadeOnDelete();
             $table->foreignId('trimester_id')->nullable()->constrained('academic_periods')->nullOnDelete();
             $table->text('message');
-            $table->jsonb('motives')->nullable();
+            $table->json('motives')->nullable();
             $table->text('observation')->nullable();
             $table->date('appointment_date')->nullable();
             $table->time('appointment_time')->nullable();

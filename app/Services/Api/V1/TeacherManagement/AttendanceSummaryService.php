@@ -65,7 +65,7 @@ final class AttendanceSummaryService
             ->whereIn('class_schedule_id', $scheduleIds)
             ->when($dateFrom, fn ($query, $value) => $query->whereDate('date', '>=', $value))
             ->when($dateTo, fn ($query, $value) => $query->whereDate('date', '<=', $value))
-            ->get(['student_id', 'status']);
+            ->get(['student_id', 'status', 'novedad', 'novedad_type']);
 
         $students = $this->students($yearId, $schedules->pluck('grade_id')->unique()->values());
 
@@ -235,6 +235,11 @@ final class AttendanceSummaryService
         $unjustified = $records->where('status', 'I')->count();
         $justified = $records->where('status', 'J')->count();
         $abandonment = $records->whereIn('status', self::ABANDONMENT_STATUSES)->count();
+        $novedad = $records
+            ->filter(fn (Attendance $record): bool => $record->status === 'N'
+                || $record->novedad !== null
+                || $record->novedad_type !== null)
+            ->count();
 
         $explicit = $late + $unjustified + $justified + $abandonment;
         $present = max(0, $totalClasses - $explicit);
@@ -249,6 +254,7 @@ final class AttendanceSummaryService
             'unjustified_count' => $unjustified,
             'justified_count' => $justified,
             'abandonment_count' => $abandonment,
+            'novedad_count' => $novedad,
             'attendance_rate' => $totalClasses > 0 ? round($present / $totalClasses * 100, 2) : 0.0,
         ];
     }
@@ -268,6 +274,7 @@ final class AttendanceSummaryService
             $totals['unjustified_count'] += (int) $row['unjustified_count'];
             $totals['justified_count'] += (int) $row['justified_count'];
             $totals['abandonment_count'] += (int) $row['abandonment_count'];
+            $totals['novedad_count'] += (int) $row['novedad_count'];
         }
 
         return $totals;
@@ -285,6 +292,7 @@ final class AttendanceSummaryService
             'unjustified_count' => 0,
             'justified_count' => 0,
             'abandonment_count' => 0,
+            'novedad_count' => 0,
         ];
     }
 }

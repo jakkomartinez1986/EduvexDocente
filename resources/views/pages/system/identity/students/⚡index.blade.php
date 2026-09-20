@@ -3,6 +3,7 @@
 use App\Models\Identity\Users\Student;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Services\AcademicYearService;
+use App\Support\Database\DatabaseDialect;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -67,51 +68,194 @@ new #[Title('Estudiantes')] class extends Component {
         return $this->isTutor || $this->isDocente || $this->isAdmin;
     }
 
+    // public function getRecordsProperty()
+    // {
+    //     $yearId = app(AcademicYearService::class)->getActiveYearId();
+    //     $query = Student::query()->with(['user', 'enrollments.grade.nivel.shift']);
+
+    //     if ($this->isTutor) {
+    //         $teacher = auth()->user()->teacher;
+    //         if ($teacher) {
+    //             $gradeIds = $teacher->classSchedules()
+    //                 ->where('year_id', $yearId)
+    //                 ->pluck('grade_id')
+    //                 ->unique();
+
+    //             $studentIds = StudentEnrollment::where('year_id', $yearId)
+    //                 ->where('status', 'active')
+    //                 ->whereIn('grade_id', $gradeIds)
+    //                 ->pluck('student_id');
+
+    //             $query->whereIn('students.id', $studentIds);
+    //         }
+    //     }
+
+    //     $sortColumn = match($this->sortField) {
+    //         'id' => 'students.id',
+    //         'lastname' => 'users.lastname',
+    //         'name' => 'users.name',
+    //         'dni' => 'users.dni',
+    //         default => 'students.id',
+    //     };
+        
+    //     return $query
+    //         ->select('students.*')
+    //         ->leftJoin('users', 'students.user_id', '=', 'users.id')
+    //         ->when($this->search, fn ($q) =>
+    //             DatabaseDialect::ilike($q, 'student_code', "%{$this->search}%")
+    //                 ->orWhere(fn ($q2) => DatabaseDialect::ilike($q2, 'users.name', "%{$this->search}%"))
+    //                 ->orWhere(fn ($q2) => DatabaseDialect::ilike($q2, 'users.lastname', "%{$this->search}%"))
+    //                 ->orWhere('users.dni', 'like', "%{$this->search}%")
+    //         )
+    //         ->orderBy($sortColumn, $this->sortDirection)
+    //         ->orderByRaw(DatabaseDialect::nullsLastRaw("(SELECT g.grade_name FROM student_enrollments se JOIN grades g ON se.grade_id = g.id WHERE se.student_id = students.id AND se.year_id = ? AND se.status = 'active' LIMIT 1)", 'asc'), [$yearId])
+    //         ->orderByRaw(DatabaseDialect::nullsLastRaw("(SELECT g.section FROM student_enrollments se JOIN grades g ON se.grade_id = g.id WHERE se.student_id = students.id AND se.year_id = ? AND se.status = 'active' LIMIT 1)", 'asc'), [$yearId])
+    //         ->paginate($this->perPage);
+    // }
     public function getRecordsProperty()
     {
-        $yearId = app(AcademicYearService::class)->getActiveYearId();
-        $query = Student::query()->with(['user', 'enrollments.grade.nivel.shift']);
+        $yearId = app(AcademicYearService::class)
+            ->getActiveYearId();
 
-        if ($this->isTutor) {
+        $search = trim($this->search);
+
+        $perPage = min(
+            max((int) $this->perPage, 5),
+            50
+        );
+
+        $query = Student::query()
+            ->select('students.*')
+            ->leftJoin(
+                'users',
+                'students.user_id',
+                '=',
+                'users.id'
+            )
+            ->with([
+                'user',
+
+                // Una sola matrícula activa del año actual
+                'enrollments' => function ($query) use ($yearId) {
+                    $query
+                        ->where('year_id', $yearId)
+                        ->where('status', 'active')
+                        ->with('grade.nivel.shift')
+                        ->orderByDesc('id');
+                },
+            ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | DOCENTE / TUTOR
+        |--------------------------------------------------------------------------
+        */
+
+        if ($this->isDocente || $this->isTutor) {
             $teacher = auth()->user()->teacher;
-            if ($teacher) {
-                $gradeIds = $teacher->classSchedules()
+
+            if (!$teacher) {
+                $query->whereIn('students.id', []);
+            } else {
+                $gradeIds = $teacher
+                    ->classSchedules()
                     ->where('year_id', $yearId)
                     ->pluck('grade_id')
-                    ->unique();
+                    ->filter()
+                    ->unique()
+                    ->values();
 
-                $studentIds = StudentEnrollment::where('year_id', $yearId)
-                    ->where('status', 'active')
-                    ->whereIn('grade_id', $gradeIds)
-                    ->pluck('student_id');
-
-                $query->whereIn('students.id', $studentIds);
+                if ($gradeIds->isEmpty()) {
+                    $query->whereIn('students.id', []);
+                } else {
+                    $query->whereExists(function ($subQuery) use (
+                        $yearId,
+                        $gradeIds
+                    ) {
+                        $subQuery
+                            ->select('student_enrollments.student_id')
+                            ->from('student_enrollments')
+                            ->whereColumn(
+                                'student_enrollments.student_id',
+                                'students.id'
+                            )
+                            ->where(
+                                'student_enrollments.year_id',
+                                $yearId
+                            )
+                            ->where(
+                                'student_enrollments.status',
+                                'active'
+                            )
+                            ->whereIn(
+                                'student_enrollments.grade_id',
+                                $gradeIds->all()
+                            );
+                    });
+                }
             }
         }
 
-        $sortColumn = match($this->sortField) {
-            'id' => 'students.id',
+        /*
+        |--------------------------------------------------------------------------
+        | BÚSQUEDA
+        |--------------------------------------------------------------------------
+        */
+
+        if ($search !== '') {
+            $pattern = "%{$search}%";
+
+            $query->where(function ($searchQuery) use ($pattern) {
+                DatabaseDialect::ilike(
+                    $searchQuery,
+                    'students.student_code',
+                    $pattern
+                );
+
+                $searchQuery
+                    ->orWhere(function ($query) use ($pattern) {
+                        DatabaseDialect::ilike(
+                            $query,
+                            'users.name',
+                            $pattern
+                        );
+                    })
+                    ->orWhere(function ($query) use ($pattern) {
+                        DatabaseDialect::ilike(
+                            $query,
+                            'users.lastname',
+                            $pattern
+                        );
+                    })
+                    ->orWhere(
+                        'users.dni',
+                        'like',
+                        $pattern
+                    );
+            });
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | ORDENAMIENTO
+        |--------------------------------------------------------------------------
+        */
+
+        $sortColumn = match ($this->sortField) {
             'lastname' => 'users.lastname',
             'name' => 'users.name',
             'dni' => 'users.dni',
             default => 'students.id',
         };
-        
-        return $query
-            ->select('students.*')
-            ->leftJoin('users', 'students.user_id', '=', 'users.id')
-            ->when($this->search, fn ($q) =>
-                $q->where('student_code', 'ilike', "%{$this->search}%")
-                    ->orWhere('users.name', 'ilike', "%{$this->search}%")
-                    ->orWhere('users.lastname', 'ilike', "%{$this->search}%")
-                    ->orWhere('users.dni', 'like', "%{$this->search}%")
-            )
-            ->orderBy($sortColumn, $this->sortDirection)
-            ->orderByRaw("(SELECT g.grade_name FROM student_enrollments se JOIN grades g ON se.grade_id = g.id WHERE se.student_id = students.id AND se.year_id = ? AND se.status = 'active' LIMIT 1) NULLS LAST", [$yearId])
-            ->orderByRaw("(SELECT g.section FROM student_enrollments se JOIN grades g ON se.grade_id = g.id WHERE se.student_id = students.id AND se.year_id = ? AND se.status = 'active' LIMIT 1) NULLS LAST", [$yearId])
-            ->paginate($this->perPage);
-    }
 
+        $sortDirection = $this->sortDirection === 'asc'
+            ? 'asc'
+            : 'desc';
+
+        return $query
+            ->orderBy($sortColumn, $sortDirection)
+            ->paginate($perPage);
+    }
     public function toggleStatus(Student $student): void
     {
         $user = $student->user;
