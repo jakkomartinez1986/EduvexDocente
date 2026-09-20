@@ -17,6 +17,7 @@ use App\Http\Resources\Api\V1\Academic\ActivityResource;
 use App\Http\Resources\Api\V1\Academic\AssessmentBlockResource;
 use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
 use App\Models\Academic\GradeBook\Summaries\Subjects\ActivityRecovery;
+use App\Models\Academic\GradeBook\Summaries\Subjects\AssessmentBlock;
 use App\Models\Identity\Users\Teacher;
 use App\Services\Api\V1\Academic\GradeRegistrationService;
 use App\Support\Api\ApiResponse;
@@ -71,6 +72,20 @@ final class GradesController extends Controller
         return ApiResponse::success(
             data: ['updated' => $updated],
         );
+    }
+
+    public function destroyBlock(Request $request, AssessmentBlock $block): JsonResponse
+    {
+        $this->gradeRegistrationService->deleteBlock($this->teacher($request), $block);
+
+        return ApiResponse::success(data: ['deleted' => true]);
+    }
+
+    public function destroyActivity(Request $request, Activity $activity): JsonResponse
+    {
+        $this->gradeRegistrationService->deleteActivity($this->teacher($request), $activity);
+
+        return ApiResponse::success(data: ['deleted' => true]);
     }
 
     public function storeExams(StoreSummativeGradesRequest $request): JsonResponse

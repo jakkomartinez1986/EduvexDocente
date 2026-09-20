@@ -23,8 +23,6 @@ final class PdfReportCache
 {
     private const TTL_SECONDS = 900;
 
-    private const VERSION_TTL_SECONDS = 86400;
-
     /**
      * La clave del PDF combina el tipo, los parámetros y las versiones de las
      * dimensiones que pueden invalidarlo.
@@ -61,14 +59,21 @@ final class PdfReportCache
     }
 
     /**
-     * Invalida el caché de reportes agregando 1 a la versión del bucket dado.
+     * Invalida el caché de reportes sumando 1 a la versión del bucket dado.
+     *
+     * El contador de versiones nunca expira y además se ancla al timestamp:
+     * si el driver evicta la clave (cache:clear, TTL de driver, etc.) la
+     * próxima invalidación re-sembra un valor SIEMPRE mayor que cualquier
+     * versión usada antes. Así el nombre de archivo nunca se repite con uno
+     * que todavía viva en el Object Storage y el flujo async no re-sirve un
+     * PDF obsoleto (ready() → URL firmada).
      */
     public function invalidate(string $bucket): void
     {
         $versionKey = $this->versionKey($bucket);
-        $current = (int) Cache::get($versionKey, 1);
+        $current = max((int) Cache::get($versionKey, 1), now()->getTimestamp());
 
-        Cache::put($versionKey, $current + 1, now()->addSeconds(self::VERSION_TTL_SECONDS));
+        Cache::put($versionKey, $current + 1);
     }
 
     public function invalidateForTeacher(int $teacherId): void

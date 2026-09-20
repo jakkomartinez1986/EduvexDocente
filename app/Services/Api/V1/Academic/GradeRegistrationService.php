@@ -19,6 +19,7 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Services\Academic\PdfReportCache;
 use App\Services\AcademicYearService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -120,6 +121,12 @@ final class GradeRegistrationService
                     'recorded_by' => $teacher->user_id,
                 ],
             );
+        }
+
+        $this->pdfCache->invalidateForSubjectGrade((int) $block->subject_id, (int) $block->grade_id);
+        $this->pdfCache->invalidateForTeacher((int) $teacher->id);
+        foreach ($grades as $item) {
+            $this->pdfCache->invalidateForStudent((int) $item['student_id']);
         }
 
         return count($grades);
@@ -231,10 +238,141 @@ final class GradeRegistrationService
     }
 
     /**
+     * Elimina (soft delete) un bloque propio. Las actividades y sus notas se
+     * eliminan en cascada vía GradebookTombstoneObserver.
+     */
+    public function deleteBlock(Teacher $teacher, AssessmentBlock $block): void
+    {
+        $this->ownBlock($teacher, $block->id);
+
+        $block->delete();
+    }
+
+    /**
+     * Elimina (soft delete) una actividad propia. Sus notas se eliminan en
+     * cascada vía GradebookTombstoneObserver.
+     */
+    public function deleteActivity(Teacher $teacher, Activity $activity): void
+    {
+        $this->ownActivity($teacher, $activity->id);
+
+        $activity->delete();
+    }
+
+    /**
+     * Eliminación offline (push) de un bloque propio por su `id` de servidor.
+     * Si el bloque ya no existe (borrado/consumido) responde no-op aceptado
+     * para no bloquear el outbox del cliente; si existe pero es de otro
+     * docente, la operación se rechaza.
+     *
+     * @return array<string, mixed>
+     */
+    public function deleteBlockOffline(Teacher $teacher, int $blockId): array
+    {
+        $block = $this->resolveBlockOrNull($teacher, $blockId);
+
+        if ($block === null) {
+            return $this->deletedEcho(null);
+        }
+
+        $this->deleteBlock($teacher, $block);
+
+        return $this->deletedEcho($block->id);
+    }
+
+    /**
+     * Eliminación offline (push) de una actividad propia por su `id` de
+     * servidor. No-op aceptado cuando la actividad ya no existe.
+     *
+     * @return array<string, mixed>
+     */
+    public function deleteActivityOffline(Teacher $teacher, int $activityId): array
+    {
+        $activity = $this->resolveActivityOrNull($teacher, $activityId);
+
+        if ($activity === null) {
+            return $this->deletedEcho(null);
+        }
+
+        $this->deleteActivity($teacher, $activity);
+
+        return $this->deletedEcho($activity->id);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function deletedEcho(?int $id): array
+    {
+        return [
+            'id' => $id,
+            'deleted' => true,
+            ...($id === null ? ['noop' => true] : []),
+        ];
+    }
+
+    /**
+     * Resuelve un bloque propio por id; null cuando la fila no existe o ya
+     * está borrada, lanza NotFound cuando es de otro docente.
+     */
+    private function resolveBlockOrNull(Teacher $teacher, int $blockId): ?AssessmentBlock
+    {
+        $block = AssessmentBlock::find($blockId);
+
+        if ($block === null) {
+            return null;
+        }
+
+        if ($block->teacher_id !== $teacher->id) {
+            throw new NotFoundHttpException('No se encontró el bloque de evaluación.');
+        }
+
+        return $block;
+    }
+
+    /**
+     * Resuelve una actividad propia por id; null cuando la fila no existe o
+     * ya está borrada, lanza NotFound cuando es de otro docente.
+     */
+    private function resolveActivityOrNull(Teacher $teacher, int $activityId): ?Activity
+    {
+        $activity = Activity::with('assessmentBlock')->find($activityId);
+
+        if ($activity === null) {
+            return null;
+        }
+
+        if (! $activity->assessmentBlock || $activity->assessmentBlock->teacher_id !== $teacher->id) {
+            throw new NotFoundHttpException('No se encontró la actividad.');
+        }
+
+        return $activity;
+    }
+
+    /**
+     * Registro idempotente de recuperación de actividad: si el payload trae
+     * client_uid y ya existe una fila con ese uid (aun borrada), devuelve la
+     * existente sin duplicar el intento.
+     *
      * @param  array<string, mixed>  $validated
      */
     public function registerRecovery(Teacher $teacher, Activity $activity, array $validated): ActivityRecovery
     {
+        $clientUid = $validated['client_uid'] ?? null;
+
+        if ($clientUid === null || $clientUid === '') {
+            $clientUid = (string) Str::uuid();
+        }
+
+        $existing = ActivityRecovery::query()
+            ->withTrashed()
+            ->where('client_uid', $clientUid)
+            ->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
         $block = $this->ownActivity($teacher, $activity->id)->assessmentBlock;
 
         $studentId = (int) $validated['student_id'];
@@ -270,6 +408,7 @@ final class GradeRegistrationService
 
         return ActivityRecovery::create([
             'activity_id' => $activity->id,
+            'client_uid' => $clientUid,
             'student_id' => $studentId,
             'year_id' => $block->year_id,
             'recorded_by' => $teacher->user_id,
@@ -280,6 +419,30 @@ final class GradeRegistrationService
             'final_grade' => $final,
             'is_applied' => false,
         ]);
+    }
+
+    /**
+     * Registro offline (push) de recuperación de actividad devolviendo el echo
+     * que el cliente necesita para marcar la operación como aplicada.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function registerRecoveryOffline(Teacher $teacher, array $payload): array
+    {
+        $activity = $this->ownActivity($teacher, (int) $payload['activity_id']);
+
+        $recovery = $this->registerRecovery($teacher, $activity, $payload);
+
+        return [
+            'id' => $recovery->id,
+            'client_uid' => $recovery->client_uid,
+            'activity_id' => $recovery->activity_id,
+            'student_id' => $recovery->student_id,
+            'attempt_number' => $recovery->attempt_number,
+            'final_grade' => $recovery->final_grade !== null ? round((float) $recovery->final_grade, 2) : null,
+            'is_applied' => (bool) $recovery->is_applied,
+        ];
     }
 
     public function applyRecovery(Teacher $teacher, ActivityRecovery $recovery): void
@@ -293,9 +456,7 @@ final class GradeRegistrationService
         }
 
         if ($recovery->is_applied) {
-            throw ValidationException::withMessages([
-                'recovery' => 'Esta recuperación ya fue aplicada.',
-            ]);
+            return;
         }
 
         $period = AcademicPeriod::find($block->trimester_id);
@@ -318,6 +479,12 @@ final class GradeRegistrationService
                 'recorded_by' => $teacher->user_id,
             ],
         );
+
+        if ($block !== null) {
+            $this->pdfCache->invalidateForSubjectGrade((int) $block->subject_id, (int) $block->grade_id);
+            $this->pdfCache->invalidateForTeacher((int) $teacher->id);
+            $this->pdfCache->invalidateForStudent((int) $recovery->student_id);
+        }
 
         HomeworkPending::query()
             ->where('activity_id', $recovery->activity_id)

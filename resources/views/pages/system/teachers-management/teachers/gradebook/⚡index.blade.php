@@ -19,7 +19,10 @@ use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\Setting\YearSettings\GradingScheme;
 use App\Models\StudentManagement\Academics\HomeworkPending;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
+use App\Jobs\RecalculateCourseAverages;
+use App\Services\Academic\PdfReportCache;
 use App\Services\AcademicYearService;
+use App\Services\TeacherManagement\GradebookCache;
 use Flux\Flux;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -518,6 +521,22 @@ new #[Title('Libro de Calificaciones')] class extends Component {
         $this->showBlockModal = true;
     }
 
+    /**
+     * Invalida los agregados del gradebook (GradebookCache) de la clase y
+     * período indicados y encola el recálculo idempotente para calentar el
+     * cache, replicando el patrón de SaveGradeAction.
+     */
+    protected function invalidateGradebookAggregates(int $yearId, int $subjectId, int $gradeId, int $trimesterId): void
+    {
+        $teacherId = (int) (auth()->user()->teacher?->id ?? 0);
+        if ($teacherId === 0) {
+            return;
+        }
+
+        app(GradebookCache::class)->forget($yearId, $subjectId, $gradeId, $teacherId, $trimesterId);
+        RecalculateCourseAverages::dispatch($yearId, $subjectId, $gradeId, $teacherId, $trimesterId);
+    }
+
     public function saveBlock(): void
     {
         if (!$this->isGradingOpen()) {
@@ -550,6 +569,9 @@ new #[Title('Libro de Calificaciones')] class extends Component {
             Flux::toast(variant: 'danger', text: __('Error al guardar el bloque: ') . $e->getMessage());
             return;
         }
+        $this->invalidateGradebookAggregates(
+            (int) $data['year_id'], (int) $data['subject_id'], (int) $data['grade_id'], (int) $data['trimester_id'],
+        );
         $this->showBlockModal = false;
         $this->resetBlockForm();
         $this->loadAssessmentBlocks();
@@ -561,7 +583,13 @@ new #[Title('Libro de Calificaciones')] class extends Component {
             Flux::toast(variant: 'danger', text: __('No se pueden eliminar bloques. El período de calificación está cerrado.'));
             return;
         }
-        AssessmentBlock::findOrFail($blockId)->delete();
+        $block = AssessmentBlock::findOrFail($blockId);
+        $yearId = (int) $block->year_id;
+        $subjectId = (int) $block->subject_id;
+        $gradeId = (int) $block->grade_id;
+        $trimesterId = (int) $block->trimester_id;
+        $block->delete();
+        $this->invalidateGradebookAggregates($yearId, $subjectId, $gradeId, $trimesterId);
         $this->loadAssessmentBlocks();
         Flux::toast(variant: 'success', text: __('Bloque eliminado correctamente.'));
     }
@@ -634,6 +662,12 @@ new #[Title('Libro de Calificaciones')] class extends Component {
             Flux::toast(variant: 'danger', text: __('Error al guardar la actividad: ') . $e->getMessage());
             return;
         }
+        $block = AssessmentBlock::find($this->activityBlockId);
+        if ($block) {
+            $this->invalidateGradebookAggregates(
+                (int) $block->year_id, (int) $block->subject_id, (int) $block->grade_id, (int) $block->trimester_id,
+            );
+        }
         $this->showActivityModal = false;
         $this->resetActivityForm();
         $this->loadAssessmentBlocks();
@@ -645,7 +679,14 @@ new #[Title('Libro de Calificaciones')] class extends Component {
             Flux::toast(variant: 'danger', text: __('No se pueden eliminar actividades. El período de calificación está cerrado.'));
             return;
         }
-        Activity::findOrFail($activityId)->delete();
+        $activity = Activity::with('assessmentBlock')->findOrFail($activityId);
+        $block = $activity->assessmentBlock;
+        $activity->delete();
+        if ($block) {
+            $this->invalidateGradebookAggregates(
+                (int) $block->year_id, (int) $block->subject_id, (int) $block->grade_id, (int) $block->trimester_id,
+            );
+        }
         $this->loadAssessmentBlocks();
         Flux::toast(variant: 'success', text: __('Actividad eliminada correctamente.'));
     }
@@ -680,6 +721,10 @@ new #[Title('Libro de Calificaciones')] class extends Component {
         $activity = Activity::with('assessmentBlock')->find($activityId);
         if ($activity && $activity->assessmentBlock) {
             $block = $activity->assessmentBlock;
+            $pdfCache = app(PdfReportCache::class);
+            $pdfCache->invalidateForSubjectGrade((int) $block->subject_id, (int) $block->grade_id);
+            $pdfCache->invalidateForTeacher((int) $block->teacher_id);
+            $pdfCache->invalidateForStudent((int) $studentId);
             $enrolledIds = \App\Models\Management\Enrollments\StudentEnrollment::where('grade_id', $block->grade_id)
                 ->where('year_id', $block->year_id)->pluck('student_id')->toArray();
             $allGrades = ActivityGrade::where('activity_id', $activityId)
@@ -702,6 +747,9 @@ new #[Title('Libro de Calificaciones')] class extends Component {
                         ->whereNull('notified_at')->update(['status' => 'submitted']);
                 }
             }
+            $this->invalidateGradebookAggregates(
+                (int) $block->year_id, (int) $block->subject_id, (int) $block->grade_id, (int) $block->trimester_id,
+            );
         }
         $this->loadAssessmentBlocks();
     }
@@ -721,6 +769,13 @@ new #[Title('Libro de Calificaciones')] class extends Component {
              'trimester_id' => $this->selectedTrimesterId, 'student_id' => $studentId, 'year_id' => $this->yearId],
             ['grade' => $grade, 'recorded_by' => auth()->id()]
         );
+        $pdfCache = app(PdfReportCache::class);
+        $pdfCache->invalidateForSubjectGrade((int) $this->selectedSubjectId, (int) $this->selectedGradeId);
+        $pdfCache->invalidateForTeacher((int) auth()->user()->teacher?->id);
+        $pdfCache->invalidateForStudent((int) $studentId);
+        $this->invalidateGradebookAggregates(
+            (int) $this->yearId, (int) $this->selectedSubjectId, (int) $this->selectedGradeId, (int) $this->selectedTrimesterId,
+        );
         $this->loadExamAndProject();
     }
 
@@ -738,6 +793,13 @@ new #[Title('Libro de Calificaciones')] class extends Component {
             ['subject_id' => $this->selectedSubjectId, 'grade_id' => $this->selectedGradeId,
              'trimester_id' => $this->selectedTrimesterId, 'student_id' => $studentId, 'year_id' => $this->yearId],
             ['grade' => $grade, 'recorded_by' => auth()->id()]
+        );
+        $pdfCache = app(PdfReportCache::class);
+        $pdfCache->invalidateForSubjectGrade((int) $this->selectedSubjectId, (int) $this->selectedGradeId);
+        $pdfCache->invalidateForTeacher((int) auth()->user()->teacher?->id);
+        $pdfCache->invalidateForStudent((int) $studentId);
+        $this->invalidateGradebookAggregates(
+            (int) $this->yearId, (int) $this->selectedSubjectId, (int) $this->selectedGradeId, (int) $this->selectedTrimesterId,
         );
         $this->loadExamAndProject();
     }
@@ -759,6 +821,10 @@ new #[Title('Libro de Calificaciones')] class extends Component {
                 ['grade' => $grade, 'recorded_by' => auth()->id()]
             );
         }
+        $pdfCache = app(PdfReportCache::class);
+        $pdfCache->invalidateForSubjectGrade((int) $this->selectedSubjectId, (int) $this->selectedGradeId);
+        $pdfCache->invalidateForTeacher((int) auth()->user()->teacher?->id);
+        $pdfCache->invalidateForStudent((int) $studentId);
         $this->loadSupletorios();
     }
 

@@ -17,6 +17,8 @@ final class AttendanceIndexRequest extends FormRequest
             'year_id' => ['nullable', 'integer', 'exists:scolar_years,id'],
             'date' => ['nullable', 'date'],
             'schedule_id' => ['nullable', 'integer', 'exists:class_schedules,id'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'offset' => ['nullable', 'integer', 'min:0'],
         ];
     }
 }

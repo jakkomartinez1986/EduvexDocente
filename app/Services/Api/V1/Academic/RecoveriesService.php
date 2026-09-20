@@ -17,10 +17,12 @@ use App\Models\Setting\EducationalSettings\Subject;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\User;
+use App\Services\Academic\PdfReportCache;
 use App\Services\AcademicYearService;
 use Closure;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -37,7 +39,11 @@ final class RecoveriesService
 
     public const EXAM_MAX_SCORE = 20.0;
 
-    public function __construct(private readonly AcademicYearService $academicYearService) {}
+    public function __construct(
+        private readonly AcademicYearService $academicYearService,
+        private readonly PdfReportCache $pdfCache,
+        private readonly GradeRegistrationService $gradeRegistrationService,
+    ) {}
 
     /**
      * Estudiantes con nota baja (< aprobación) o con recuperaciones previas,
@@ -289,6 +295,21 @@ final class RecoveriesService
      */
     public function registerExamRecovery(Teacher $teacher, array $validated): ExamRecovery
     {
+        $clientUid = $validated['client_uid'] ?? null;
+
+        if ($clientUid === null || $clientUid === '') {
+            $clientUid = (string) Str::uuid();
+        }
+
+        $existing = ExamRecovery::query()
+            ->withTrashed()
+            ->where('client_uid', $clientUid)
+            ->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
         $yearId = $this->resolveYearId($validated);
 
         $this->scheduleFor($teacher, $yearId, (int) $validated['subject_id'], (int) $validated['grade_id']);
@@ -335,6 +356,7 @@ final class RecoveriesService
 
         return ExamRecovery::create([
             'student_id' => $studentId,
+            'client_uid' => $clientUid,
             'subject_id' => (int) $validated['subject_id'],
             'grade_id' => (int) $validated['grade_id'],
             'trimester_id' => (int) $validated['trimester_id'],
@@ -358,9 +380,7 @@ final class RecoveriesService
         $this->ownExamRecoveryOrFail($teacher, $recovery);
 
         if ($recovery->is_applied) {
-            throw ValidationException::withMessages([
-                'recovery' => 'Esta recuperación ya fue aplicada.',
-            ]);
+            return;
         }
 
         $period = AcademicPeriod::find((int) $recovery->trimester_id);
@@ -386,6 +406,197 @@ final class RecoveriesService
                 'recorded_by' => $teacher->user_id,
             ],
         );
+
+        $this->pdfCache->invalidateForSubjectGrade((int) $recovery->subject_id, (int) $recovery->grade_id);
+        $this->pdfCache->invalidateForTeacher((int) $teacher->id);
+        $this->pdfCache->invalidateForStudent((int) $recovery->student_id);
+    }
+
+    /**
+     * Registro offline (push) de recuperación del examen devolviendo el echo
+     * que el cliente necesita para marcar la operación como aplicada.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function registerExamRecoveryOffline(Teacher $teacher, array $payload): array
+    {
+        $recovery = $this->registerExamRecovery($teacher, $payload);
+
+        return [
+            'id' => $recovery->id,
+            'client_uid' => $recovery->client_uid,
+            'subject_id' => $recovery->subject_id,
+            'grade_id' => $recovery->grade_id,
+            'trimester_id' => $recovery->trimester_id,
+            'year_id' => $recovery->year_id,
+            'student_id' => $recovery->student_id,
+            'attempt_number' => $recovery->attempt_number,
+            'final_grade' => $recovery->final_grade !== null ? round((float) $recovery->final_grade, 2) : null,
+            'is_applied' => (bool) $recovery->is_applied,
+        ];
+    }
+
+    /**
+     * Aplica offline (push) una recuperación por recovery_id o client_uid.
+     * No-op aceptado cuando la fila ya no existe; applyRecovery/applyExamRecovery
+     * son idempotentes (no-op si ya aplicadas).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function applyActivityRecoveryOffline(Teacher $teacher, array $payload): array
+    {
+        $recovery = $this->resolveRecoveryOrNull($teacher, 'activity', $payload);
+
+        if (! $recovery instanceof ActivityRecovery) {
+            return $this->noopRecoveryEcho($payload);
+        }
+
+        $this->gradeRegistrationService->applyRecovery($teacher, $recovery);
+
+        $recovery->refresh();
+
+        return [
+            'id' => $recovery->id,
+            'client_uid' => $recovery->client_uid,
+            'is_applied' => (bool) $recovery->is_applied,
+            'applied_at' => $recovery->applied_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function applyExamRecoveryOffline(Teacher $teacher, array $payload): array
+    {
+        $recovery = $this->resolveRecoveryOrNull($teacher, 'exam', $payload);
+
+        if (! $recovery instanceof ExamRecovery) {
+            return $this->noopRecoveryEcho($payload);
+        }
+
+        $this->applyExamRecovery($teacher, $recovery);
+
+        $recovery->refresh();
+
+        return [
+            'id' => $recovery->id,
+            'client_uid' => $recovery->client_uid,
+            'is_applied' => (bool) $recovery->is_applied,
+            'applied_at' => $recovery->applied_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function destroyActivityRecoveryOffline(Teacher $teacher, array $payload): array
+    {
+        $recovery = $this->resolveRecoveryOrNull($teacher, 'activity', $payload);
+
+        if (! $recovery instanceof ActivityRecovery) {
+            return $this->deletedRecoveryEcho($payload);
+        }
+
+        $this->destroyActivityRecovery($teacher, $recovery);
+
+        return $this->deletedRecoveryEcho($payload, $recovery->id, $recovery->client_uid);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function destroyExamRecoveryOffline(Teacher $teacher, array $payload): array
+    {
+        $recovery = $this->resolveRecoveryOrNull($teacher, 'exam', $payload);
+
+        if (! $recovery instanceof ExamRecovery) {
+            return $this->deletedRecoveryEcho($payload);
+        }
+
+        $this->destroyExamRecovery($teacher, $recovery);
+
+        return $this->deletedRecoveryEcho($payload, $recovery->id, $recovery->client_uid);
+    }
+
+    /**
+     * Resuelve una recuperación (actividad o examen) por recovery_id O
+     * client_uid. Devuelve null cuando la fila no existe (operación ya
+     * consumida) y lanza NotFound para filas de otro docente.
+     *
+     * @param  'activity'|'exam'  $type
+     * @param  array<string, mixed>  $payload
+     */
+    private function resolveRecoveryOrNull(Teacher $teacher, string $type, array $payload): ActivityRecovery|ExamRecovery|null
+    {
+        $recoveryId = isset($payload['recovery_id']) && $payload['recovery_id'] !== null
+            ? (int) $payload['recovery_id']
+            : null;
+        $clientUid = $payload['client_uid'] ?? null;
+
+        $model = $type === 'activity' ? ActivityRecovery::class : ExamRecovery::class;
+        $recovery = null;
+
+        if ($recoveryId !== null) {
+            $recovery = $model::query()->find($recoveryId);
+        } elseif ($clientUid !== null) {
+            $recovery = $model::query()->where('client_uid', $clientUid)->first();
+        } else {
+            throw ValidationException::withMessages([
+                'recovery_id' => 'La operación requiere recovery_id o client_uid.',
+            ]);
+        }
+
+        if ($recovery === null) {
+            return null;
+        }
+
+        if ($recovery instanceof ActivityRecovery) {
+            $recovery->load('activity.assessmentBlock');
+
+            $block = $recovery->activity?->assessmentBlock;
+
+            if (! $block || $block->teacher_id !== $teacher->id) {
+                throw new NotFoundHttpException('No se encontró la recuperación.');
+            }
+        } else {
+            $this->ownExamRecoveryOrFail($teacher, $recovery);
+        }
+
+        return $recovery;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function noopRecoveryEcho(array $payload): array
+    {
+        return [
+            'id' => null,
+            'client_uid' => $payload['client_uid'] ?? null,
+            'is_applied' => true,
+            'applied_at' => now()->toISOString(),
+            'noop' => true,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function deletedRecoveryEcho(array $payload, ?int $id = null, ?string $clientUid = null): array
+    {
+        return [
+            'id' => $id,
+            'client_uid' => $clientUid ?? $payload['client_uid'] ?? null,
+            'deleted' => true,
+            ...($id === null ? ['noop' => true] : []),
+        ];
     }
 
     /**

@@ -2,9 +2,12 @@
 
 use App\Jobs\GeneratePdfReport;
 use App\Jobs\SendReportNotification;
+use App\Services\Academic\PdfReportCache;
+use App\Services\Reports\GradebookPdfService;
 use App\Services\Reports\PdfReportRenderer;
 use App\Services\ReportStorageService;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 
 it('genera, persiste el reporte y encola su notificación con la URL firmada', function (): void {
     Bus::fake();
@@ -75,4 +78,25 @@ it('lanza para un tipo de reporte no soportado', function (): void {
 
     expect(fn () => $job->handle($renderer, $storage))
         ->toThrow(RuntimeException::class, 'Tipo de reporte no soportado: desconocido');
+});
+
+it('versiona uniqueId con la firma de buckets del gradebook (capa 3)', function (): void {
+    Cache::flush();
+    $cache = app(PdfReportCache::class);
+    $ctx = ['teacher_id' => 7, 'subject_id' => 3, 'grade_id' => 5, 'year_id' => 1, 'trimester_id' => 2];
+
+    $before = (new GeneratePdfReport(GradebookPdfService::FORMATIVE, null, $ctx))->uniqueId();
+
+    expect((new GeneratePdfReport(GradebookPdfService::FORMATIVE, null, $ctx))->uniqueId())
+        ->toBe($before);
+
+    $cache->invalidateForSubjectGrade(3, 5);
+
+    expect((new GeneratePdfReport(GradebookPdfService::FORMATIVE, null, $ctx))->uniqueId())
+        ->not->toBe($before);
+});
+
+it('no versiona uniqueId para tipos que no dependen de buckets del gradebook', function (): void {
+    expect((new GeneratePdfReport('incident_notification', 42))->uniqueId())
+        ->toBe('incident_notification:42');
 });

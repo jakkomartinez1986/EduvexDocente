@@ -6,6 +6,7 @@ namespace App\Services;
 
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\UnableToRetrieveMetadata;
 
 /**
  * Persistencia y entrega de reportes generados (PDF/Excel) sobre el disco
@@ -39,6 +40,20 @@ class ReportStorageService
     public function exists(string $path): bool
     {
         return $this->disk()->exists($path);
+    }
+
+    /**
+     * Timestamp Unix de la última modificación del reporte, o null cuando el
+     * disco no puede exponer metadatos (red de seguridad de frescura del
+     * flujo async: ready() regenera archivos más viejos que un TTL).
+     */
+    public function lastModified(string $path): ?int
+    {
+        try {
+            return $this->disk()->lastModified($path);
+        } catch (UnableToRetrieveMetadata) {
+            return null;
+        }
     }
 
     /**

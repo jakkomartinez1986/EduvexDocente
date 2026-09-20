@@ -10,11 +10,14 @@ use App\Models\Setting\YearSettings\CalendarDay;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\TeacherManagement\Attendances\ClassObservation;
+use App\Services\Academic\PdfReportCache;
 use App\Support\Database\BulkWrite;
 
 final class AttendanceService
 {
     public const MODAL_PAGE_SIZE = 8;
+
+    public function __construct(private readonly PdfReportCache $pdfCache) {}
 
     public function loadStudentsForAttendance(int $scheduleId, int $yearId): array
     {
@@ -248,6 +251,8 @@ final class AttendanceService
                     ]);
             });
         }
+
+        $this->invalidateAttendanceClass($scheduleId, array_keys($statuses));
     }
 
     public function saveAttendanceCreate(
@@ -362,6 +367,33 @@ final class AttendanceService
                         'year_id' => $row['year_id'],
                     ]);
             });
+        }
+
+        $this->invalidateAttendanceClass($scheduleId, array_keys($statuses));
+    }
+
+    /**
+     * Las escrituras de asistencia usan BulkWrite (no disparan eventos
+     * Eloquent): la invalidación de reportes PDF debe ser explícita.
+     *
+     * @param  array<int, string|int>  $studentIds
+     */
+    private function invalidateAttendanceClass(int $scheduleId, array $studentIds): void
+    {
+        $schedule = ClassSchedule::find($scheduleId);
+
+        if (! $schedule) {
+            return;
+        }
+
+        $this->pdfCache->invalidateForSubjectGrade((int) $schedule->subject_id, (int) $schedule->grade_id);
+
+        if ($schedule->teacher_id !== null) {
+            $this->pdfCache->invalidateForTeacher((int) $schedule->teacher_id);
+        }
+
+        foreach ($studentIds as $studentId) {
+            $this->pdfCache->invalidateForStudent((int) $studentId);
         }
     }
 
