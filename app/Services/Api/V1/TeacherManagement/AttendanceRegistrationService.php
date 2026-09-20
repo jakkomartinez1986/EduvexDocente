@@ -12,6 +12,7 @@ use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\TeacherManagement\Attendances\ClassObservation;
 use App\Models\User;
+use App\Services\Academic\PdfReportCache;
 use App\Support\Database\BulkWrite;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
@@ -27,6 +28,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
  */
 final class AttendanceRegistrationService
 {
+    public function __construct(private readonly PdfReportCache $pdfCache) {}
+
     /**
      * Vista previa para el registro: horario, observación existente y
      * estado actual de cada estudiante en la fecha dada.
@@ -89,6 +92,8 @@ final class AttendanceRegistrationService
             $calendarDay = CalendarDay::query()->whereDate('date', $date)->first();
 
             $classObservation = $validated['observation'] ?? null;
+            $classNovedad = $validated['novedad'] ?? null;
+            $classNovedadType = $validated['novedad_type'] ?? null;
 
             $observation = ClassObservation::query()
                 ->where('class_schedule_id', $schedule->id)
@@ -103,6 +108,12 @@ final class AttendanceRegistrationService
                     ? (string) $classObservation
                     : 'Tema de Clase.',
                 'class_observation' => $classObservation,
+                'novedad' => $classNovedad !== null && trim((string) $classNovedad) !== ''
+                    ? (string) $classNovedad
+                    : null,
+                'novedad_type' => $classNovedadType !== null && trim((string) $classNovedadType) !== ''
+                    ? (string) $classNovedadType
+                    : null,
             ];
 
             if ($observation !== null) {
@@ -125,6 +136,9 @@ final class AttendanceRegistrationService
 
             $statuses = (array) $validated['statuses'];
             $observations = (array) ($validated['observations'] ?? []);
+            $novedades = (array) ($validated['novedades'] ?? []);
+            $novedadTypes = (array) ($validated['novedad_types'] ?? []);
+            $clientUuids = (array) ($validated['client_uuids'] ?? []);
 
             // Una sola lectura de las filas activas del día (en vez de un
             // SELECT por estudiante) y escrituras agrupadas (H-07): soft
@@ -147,10 +161,13 @@ final class AttendanceRegistrationService
 
             foreach ($studentIds as $studentId) {
                 $studentId = (int) $studentId;
-                $status = trim((string) ($statuses[(string) $studentId] ?? 'P'));
+                $key = (string) $studentId;
+                $status = trim((string) ($statuses[$key] ?? 'P'));
+                $novedad = trim((string) ($novedades[$key] ?? '')) ?: null;
+                $novedadType = trim((string) ($novedadTypes[$key] ?? '')) ?: null;
+                $clientUuid = trim((string) ($clientUuids[$key] ?? '')) ?: null;
                 $attendance = $existingByStudent->get($studentId);
-
-                if ($status === 'P' || $status === '') {
+                if (($status === 'P' || $status === '') && $novedad === null && $novedadType === null) {
                     if ($attendance !== null) {
                         $toDelete[] = $attendance;
                     }
@@ -158,12 +175,23 @@ final class AttendanceRegistrationService
                     continue;
                 }
 
+                // P + novedad se persiste como 'N' (presente con novedad);
+                // cualquier otro estado conserva su semántica y lleva la
+                // novedad como dato ortogonal.
+                if ($status === 'P' || $status === '') {
+                    $status = 'N';
+                }
+
                 $attendanceValues = [
                     'class_observation_id' => $observation->id,
                     'calendarday_id' => $calendarDay?->id,
                     'year_id' => $schedule->year_id,
                     'status' => $status,
-                    'observation' => trim((string) ($observations[(string) $studentId] ?? '')) ?: null,
+                    'observation' => trim((string) ($observations[$key] ?? '')) ?: null,
+                    'novedad' => $novedad,
+                    'novedad_type' => $novedadType,
+                    'client_uuid' => $clientUuid,
+                    'teacher_id' => $schedule->teacher_id,
                     'recorded_by' => $teacher->user_id,
                 ];
 
@@ -180,6 +208,7 @@ final class AttendanceRegistrationService
                     'student_id' => $studentId,
                     'date' => $date,
                     ...$attendanceValues,
+                    'recorded_at' => $now,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
@@ -194,12 +223,20 @@ final class AttendanceRegistrationService
                 $observationBy = [];
                 $classObservationIdBy = [];
                 $calendarDayIdBy = [];
+                $novedadBy = [];
+                $novedadTypeBy = [];
+                $clientUuidBy = [];
+                $teacherIdBy = [];
 
                 foreach ($changedMap as $studentId => $attendanceValues) {
                     $statusBy[$studentId] = $attendanceValues['status'];
                     $observationBy[$studentId] = $attendanceValues['observation'];
                     $classObservationIdBy[$studentId] = $attendanceValues['class_observation_id'];
                     $calendarDayIdBy[$studentId] = $attendanceValues['calendarday_id'];
+                    $novedadBy[$studentId] = $attendanceValues['novedad'];
+                    $novedadTypeBy[$studentId] = $attendanceValues['novedad_type'];
+                    $clientUuidBy[$studentId] = $attendanceValues['client_uuid'];
+                    $teacherIdBy[$studentId] = $attendanceValues['teacher_id'];
                 }
 
                 BulkWrite::caseUpdate(
@@ -212,8 +249,12 @@ final class AttendanceRegistrationService
                         'observation' => $observationBy,
                         'class_observation_id' => $classObservationIdBy,
                         'calendarday_id' => $calendarDayIdBy,
+                        'novedad' => $novedadBy,
+                        'novedad_type' => $novedadTypeBy,
+                        'client_uuid' => $clientUuidBy,
+                        'teacher_id' => $teacherIdBy,
                     ],
-                    ['recorded_by' => $teacher->user_id],
+                    ['recorded_by' => $teacher->user_id, 'recorded_at' => $now],
                 );
             }
 
@@ -230,9 +271,24 @@ final class AttendanceRegistrationService
                             'year_id' => $row['year_id'],
                             'status' => $row['status'],
                             'observation' => $row['observation'],
+                            'novedad' => $row['novedad'],
+                            'novedad_type' => $row['novedad_type'],
+                            'client_uuid' => $row['client_uuid'],
+                            'teacher_id' => $row['teacher_id'],
                             'recorded_by' => $row['recorded_by'],
+                            'recorded_at' => $row['recorded_at'],
                         ]);
                 });
+            }
+
+            // El registro usa BulkWrite (no dispara eventos Eloquent salvo los
+            // soft deletes de la línea 189): invalidar reportes PDF aquí para
+            // el horario completo.
+            $this->pdfCache->invalidateForSubjectGrade((int) $schedule->subject_id, (int) $schedule->grade_id);
+            $this->pdfCache->invalidateForTeacher($teacher->id);
+
+            foreach ($studentIds as $studentId) {
+                $this->pdfCache->invalidateForStudent((int) $studentId);
             }
 
             return $this->detail($teacher, $validated);
@@ -240,10 +296,6 @@ final class AttendanceRegistrationService
     }
 
     /**
-     * Determina si una fila existente difiere de los valores que se escriben,
-     * normalizando ids bigint (string en PDO pgsql) y valores nulos para no
-     * re-escribir filas sin cambios.
-     *
      * @param  array<string, mixed>  $values
      */
     private function attendanceDiffers(Attendance $attendance, array $values): bool
@@ -253,7 +305,11 @@ final class AttendanceRegistrationService
             || self::valueChanged($attendance->class_observation_id, $values['class_observation_id'])
             || self::valueChanged($attendance->calendarday_id, $values['calendarday_id'])
             || self::valueChanged($attendance->recorded_by, $values['recorded_by'])
-            || self::valueChanged($attendance->year_id, $values['year_id']);
+            || self::valueChanged($attendance->year_id, $values['year_id'])
+            || self::valueChanged($attendance->novedad, $values['novedad'])
+            || self::valueChanged($attendance->novedad_type, $values['novedad_type'])
+            || self::valueChanged($attendance->client_uuid, $values['client_uuid'])
+            || self::valueChanged($attendance->teacher_id, $values['teacher_id']);
     }
 
     private static function valueChanged(mixed $current, mixed $incoming): bool
@@ -330,6 +386,10 @@ final class AttendanceRegistrationService
                 'status' => $attendance ? trim((string) $attendance->status) : 'P',
                 'observation' => $attendance?->observation,
                 'arrival_time' => $attendance?->arrival_time?->format('H:i'),
+                'novedad' => $attendance?->novedad,
+                'novedad_type' => $attendance?->novedad_type,
+                'client_uuid' => $attendance?->client_uuid,
+                'teacher_id' => $attendance?->teacher_id,
                 'has_record' => $attendance !== null,
             ];
         })->values()->all();
@@ -384,12 +444,14 @@ final class AttendanceRegistrationService
         $recorded = collect($students)->filter(fn (array $student): bool => $student['has_record'])->count();
         $absent = collect($students)->filter(fn (array $student): bool => in_array($student['status'], ['I', 'AI', 'AA'], true))->count();
         $late = collect($students)->filter(fn (array $student): bool => $student['status'] === 'A')->count();
+        $novedad = collect($students)->filter(fn (array $student): bool => $student['status'] === 'N')->count();
 
         return [
             'total' => $total,
             'recorded' => $recorded,
             'absent' => $absent,
             'late' => $late,
+            'novedad' => $novedad,
             'present' => max(0, $total - $absent - $late),
         ];
     }

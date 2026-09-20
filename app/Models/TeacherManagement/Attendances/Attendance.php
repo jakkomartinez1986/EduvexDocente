@@ -19,28 +19,34 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int|null $class_observation_id
  * @property int|null $class_schedule_id
- * @property int $calendarday_id
+ * @property int|null $calendarday_id
  * @property int|null $year_id
  * @property int|null $tutor_id
+ * @property int|null $teacher_id
  * @property int $student_id
  * @property string $date
+ * @property string|null $client_uuid
  * @property string|null $status
  * @property Carbon|null $arrival_time
  * @property string|null $justification
  * @property string|null $justification_file_path
+ * @property string|null $novedad
+ * @property string|null $novedad_type
  * @property string|null $observation
  * @property int $recorded_by
  * @property array|null $notification_data
  * @property Carbon|null $notification_sent_at
+ * @property Carbon|null $recorded_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  */
 #[Fillable([
     'class_observation_id', 'class_schedule_id', 'calendarday_id', 'year_id',
-    'tutor_id', 'student_id', 'date', 'status', 'arrival_time',
-    'justification', 'justification_file_path', 'observation',
-    'recorded_by', 'notification_data', 'notification_sent_at',
+    'tutor_id', 'teacher_id', 'student_id', 'date', 'client_uuid', 'status',
+    'arrival_time', 'justification', 'justification_file_path', 'novedad',
+    'novedad_type', 'observation', 'recorded_by', 'notification_data',
+    'notification_sent_at', 'recorded_at',
 ])]
 class Attendance extends Model
 {
@@ -54,12 +60,14 @@ class Attendance extends Model
             'calendarday_id' => 'integer',
             'year_id' => 'integer',
             'tutor_id' => 'integer',
+            'teacher_id' => 'integer',
             'student_id' => 'integer',
             'date' => 'date',
             'arrival_time' => 'datetime:H:i',
             'recorded_by' => 'integer',
             'notification_data' => 'array',
             'notification_sent_at' => 'datetime',
+            'recorded_at' => 'datetime',
         ];
     }
 
@@ -86,6 +94,11 @@ class Attendance extends Model
     public function tutor(): BelongsTo
     {
         return $this->belongsTo(Teacher::class, 'tutor_id');
+    }
+
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(Teacher::class, 'teacher_id');
     }
 
     public function student(): BelongsTo

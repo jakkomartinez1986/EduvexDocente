@@ -16,6 +16,7 @@ use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\Setting\YearSettings\CalendarDay;
 use App\Models\Setting\YearSettings\ScolarYear;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
+use App\Models\TeacherManagement\Attendances\ClassObservation;
 use App\Models\User;
 use App\Services\AcademicYearService;
 use App\Services\SchoolConfigService;
@@ -39,6 +40,7 @@ final class ConfigurationService
         ['code' => 'A', 'label' => 'Atraso', 'category' => 'late'],
         ['code' => 'I', 'label' => 'Falta injustificada', 'category' => 'unjustified'],
         ['code' => 'J', 'label' => 'Falta justificada', 'category' => 'justified'],
+        ['code' => 'N', 'label' => 'Presente con novedad', 'category' => 'novedad'],
         ['code' => 'AI', 'label' => 'Abandono institucional', 'category' => 'abandonment'],
         ['code' => 'AA', 'label' => 'Abandono de aula', 'category' => 'abandonment'],
     ];
@@ -133,6 +135,7 @@ final class ConfigurationService
             'name' => $school->name_school,
             'location' => $school->location,
             'logo_url' => $school->logo_path,
+            'report_logo_url' => $school->report_logo_path,
             'timezone' => Config::get('app.timezone'),
         ];
     }
@@ -298,6 +301,7 @@ final class ConfigurationService
     {
         return [
             'statuses' => self::ATTENDANCE_STATUSES,
+            'novedad_types' => ClassObservation::NOVEDAD_TYPES,
         ];
     }
 

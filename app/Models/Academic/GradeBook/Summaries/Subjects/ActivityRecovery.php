@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $activity_id
+ * @property string|null $client_uid
  * @property int $student_id
  * @property int|null $year_id
  * @property int|null $recorded_by
@@ -30,7 +31,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $deleted_at
  */
 #[Fillable([
-    'activity_id', 'student_id', 'year_id', 'recorded_by',
+    'activity_id', 'client_uid', 'student_id', 'year_id', 'recorded_by',
     'attempt_number', 'original_grade', 'recovery_grade',
     'update_method', 'final_grade', 'is_applied', 'applied_at',
 ])]

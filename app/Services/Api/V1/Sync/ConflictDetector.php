@@ -50,6 +50,20 @@ final class ConflictDetector
             return $this->detectAttendanceOutcome($teacher, $payload, $baseUpdatedAt);
         }
 
+        // Recuperaciones: operaciones de máquina de estado (register/apply/
+        // delete) donde la base del cliente no compite con estado servidor;
+        // los replays se absorben por idempotencia, no por versión.
+        if ($entity === 'activity_recovery' || $entity === 'exam_recovery') {
+            return null;
+        }
+
+        // Bloques y actividades solo admiten `delete` (D-03): transición de
+        // estado unidireccional, idempotente vía no-op; el conflicto de
+        // `base_updated_at` no aplica.
+        if ($entity === 'assessment_block' || $entity === 'activity') {
+            return null;
+        }
+
         return $this->detectGradesOutcome($teacher, $entity, $payload, $baseUpdatedAt);
     }
 

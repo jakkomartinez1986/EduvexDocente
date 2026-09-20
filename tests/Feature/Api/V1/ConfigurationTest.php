@@ -21,6 +21,7 @@ it('devuelve la configuración completa de arranque con su versión', function (
     $response->assertHeader('ETag', $version);
 
     expect($response->json('data.institution.name'))->toStartWith('Unidad Educativa ');
+    expect(array_key_exists('report_logo_url', $response->json('data.institution')))->toBeTrue();
     expect($response->json('data.academic_period.year_name'))->toBe('2026');
     expect($response->json('data.teacher.is_teacher'))->toBeTrue();
     expect($response->json('data.teacher.profile.id'))->toBe($context['teacher']->id);

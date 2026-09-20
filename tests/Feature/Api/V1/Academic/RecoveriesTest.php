@@ -16,6 +16,9 @@ use App\Models\Setting\YearSettings\ScolarYear;
 use App\Models\StudentManagement\Academics\HomeworkPending;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\User;
+use App\Services\Academic\PdfReportCache;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 function recoveriesContext(): array
 {
@@ -448,6 +451,25 @@ it('registra una recuperación de examen calculando final y número de intento',
     expect(ExamRecovery::query()->count())->toBe(2);
 });
 
+it('asigna un client_uid automático al registrar recuperaciones de examen', function (): void {
+    $context = recoveriesContext();
+    [$studentA] = $context['students'];
+    seedExamGrade($studentA, $context, 6.0);
+
+    $payload = [
+        'subject_id' => $context['subject']->id,
+        'grade_id' => $context['grade']->id,
+        'trimester_id' => $context['trimester']->id,
+        'student_id' => $studentA->id,
+        'recovery_grade' => 8,
+    ];
+
+    $this->postJson('/api/v1/recoveries/exams', $payload, bearerTokenFor($context['teacher']->user))
+        ->assertStatus(201);
+
+    expect(Str::isUuid(ExamRecovery::query()->value('client_uid')))->toBeTrue();
+});
+
 it('continúa la numeración de intentos tras eliminar recuperaciones', function (): void {
     $context = recoveriesContext();
     [$studentA] = $context['students'];
@@ -543,9 +565,15 @@ it('aplica la recuperación del examen y sobrescribe la nota', function (): void
         ->where('subject_id', $context['subject']->id)
         ->value('grade'))->toBe(6.5);
 
-    // Aplicar dos veces debe fallar.
+    // Aplicar dos veces es idempotente: no-op sin re-aplicar.
     $this->postJson("/api/v1/recoveries/exams/{$recovery->id}/apply", [], $headers)
-        ->assertStatus(422);
+        ->assertOk()
+        ->assertJsonPath('data.exam_recovery.is_applied', true);
+
+    expect(StudentExam::query()
+        ->where('student_id', $studentA->id)
+        ->where('subject_id', $context['subject']->id)
+        ->value('grade'))->toBe(6.5);
 });
 
 it('bloquea aplicar recuperaciones cuando la ventana de calificación está cerrada', function (): void {
@@ -733,4 +761,74 @@ it('al aplicar una recuperación de actividad marca tareas pendientes como entre
 
     expect($notified->refresh()->status)->toBe('not_submitted');
     expect($fresh->refresh()->status)->toBe('submitted');
+});
+
+it('aplicar una recuperación de examen invalida el caché de PDFs', function (): void {
+    Cache::flush();
+    $context = recoveriesContext();
+    [$studentA] = $context['students'];
+
+    seedExamGrade($studentA, $context, 4.0);
+    $recovery = seedExamRecovery($studentA, $context, ['final_grade' => 6.5]);
+
+    $cache = app(PdfReportCache::class);
+    $subjectId = (int) $context['subject']->id;
+    $gradeId = (int) $context['grade']->id;
+    $teacherId = (int) $context['teacher']->id;
+    $studentId = (int) $studentA->id;
+
+    $beforeSubjectGrade = $cache->version("subject-grade:{$subjectId}:{$gradeId}");
+    $beforeTeacher = $cache->version("teacher:{$teacherId}");
+    $beforeStudent = $cache->version("student:{$studentId}");
+
+    /** @var User $user */
+    $user = $context['teacher']->user;
+
+    $this->postJson("/api/v1/recoveries/exams/{$recovery->id}/apply", [], bearerTokenFor($user))
+        ->assertOk();
+
+    expect((int) $cache->version("subject-grade:{$subjectId}:{$gradeId}"))->toBeGreaterThan((int) $beforeSubjectGrade)
+        ->and((int) $cache->version("teacher:{$teacherId}"))->toBeGreaterThan((int) $beforeTeacher)
+        ->and((int) $cache->version("student:{$studentId}"))->toBeGreaterThan((int) $beforeStudent);
+});
+
+it('aplicar una recuperación de actividad invalida el caché de PDFs', function (): void {
+    Cache::flush();
+    $context = recoveriesContext();
+    [$studentA] = $context['students'];
+
+    seedActivityGrade($studentA, $context['activity'], 4.0, $context['teacher']->user_id);
+
+    $recovery = ActivityRecovery::create([
+        'activity_id' => $context['activity']->id,
+        'student_id' => $studentA->id,
+        'year_id' => $context['year']->id,
+        'recorded_by' => $context['teacher']->user_id,
+        'attempt_number' => 1,
+        'original_grade' => 4.0,
+        'recovery_grade' => 8.0,
+        'update_method' => 'average',
+        'final_grade' => 6.0,
+        'is_applied' => false,
+    ]);
+
+    $cache = app(PdfReportCache::class);
+    $subjectId = (int) $context['subject']->id;
+    $gradeId = (int) $context['grade']->id;
+    $teacherId = (int) $context['teacher']->id;
+    $studentId = (int) $studentA->id;
+
+    $beforeSubjectGrade = $cache->version("subject-grade:{$subjectId}:{$gradeId}");
+    $beforeTeacher = $cache->version("teacher:{$teacherId}");
+    $beforeStudent = $cache->version("student:{$studentId}");
+
+    /** @var User $user */
+    $user = $context['teacher']->user;
+
+    $this->postJson("/api/v1/grades/recoveries/{$recovery->id}/apply", [], bearerTokenFor($user))
+        ->assertOk();
+
+    expect((int) $cache->version("subject-grade:{$subjectId}:{$gradeId}"))->toBeGreaterThan((int) $beforeSubjectGrade)
+        ->and((int) $cache->version("teacher:{$teacherId}"))->toBeGreaterThan((int) $beforeTeacher)
+        ->and((int) $cache->version("student:{$studentId}"))->toBeGreaterThan((int) $beforeStudent);
 });
