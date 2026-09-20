@@ -444,9 +444,7 @@ final class AttendanceRegistrationService
         $recorded = collect($students)->filter(fn (array $student): bool => $student['has_record'])->count();
         $absent = collect($students)->filter(fn (array $student): bool => in_array($student['status'], ['I', 'AI', 'AA'], true))->count();
         $late = collect($students)->filter(fn (array $student): bool => $student['status'] === 'A')->count();
-        $novedad = collect($students)
-            ->filter(fn (array $student): bool => $student['status'] === 'N' || $student['novedad'] !== null || $student['novedad_type'] !== null)
-            ->count();
+        $novedad = collect($students)->filter(fn (array $student): bool => $student['status'] === 'N')->count();
 
         return [
             'total' => $total,

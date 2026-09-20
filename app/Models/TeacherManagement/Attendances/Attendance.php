@@ -19,7 +19,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int|null $class_observation_id
  * @property int|null $class_schedule_id
- * @property int $calendarday_id
+ * @property int|null $calendarday_id
  * @property int|null $year_id
  * @property int|null $tutor_id
  * @property int|null $teacher_id

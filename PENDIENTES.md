@@ -2,7 +2,7 @@
 
 Registro vivo de trabajo pendiente para próximas sesiones. Actualizar al cierre de cada sesión (mover a "completado" lo terminado, añadir lo descubierto).
 
-Última actualización: 2026-09-16.
+Última actualización: 2026-09-20.
 
 ---
 
@@ -15,7 +15,10 @@ Registro vivo de trabajo pendiente para próximas sesiones. Actualizar al cierre
 - **Elimin/Gradebook + tombstones de sync**: `DELETE /grades/blocks/{block}` y `DELETE /grades/activities/{activity}`; observer `GradebookTombstoneObserver` (cascada soft: bloque→actividades→notas) con tombstones `assessment_block`/`activity`/`activity_grade`; pull las entrega con `whereIn`.
 - **Recuperaciones idempotentes**: `client_uid` (uuid, unique) en `activity_recoveries`/`exam_recoveries`; register deduplicado con `withTrashed()`, apply/delete no-op idempotentes; habilitadas en push sync (`activity_recovery`, `exam_recovery`: register/apply/delete) con validación y ecos no-op.
 - **Logos en sync**: `report_logo_url` en `institution()` y `logos` (data-URIs) en el offline package.
-- Suite completa verde: 469 tests / 1718 assertions, Pint aplicado. Reglas durables actualizadas en `.ai/rules/sync.md` y `.ai/rules/observers.md`.
+- **Descarga de asistencias paginada**: `GET /teachermanagement/attendances` acepta `limit` (1..1000) y `offset`; con `limit` responde `pagination {limit, offset, has_more}` (limit+1 para detectar has_more, sin COUNT). Sin `limit` el contrato previo queda intacto (`pagination: null`).
+- **Novedad excluyente en resúmenes**: `data.summary.novedad` (registro) y `novedad_count` (summary por período) cuentan SOLO filas con estado `N` (presente con novedad). Un ausente con `novedad`/`novedad_type` se cuenta como falta (`I`/`J`/`AI`/`AA`) y la novedad queda como dato descriptivo (P+novedad ya se persiste como `N`). Tests: `AttendanceTest`.
+- **Docblock Attendance**: `calendarday_id` nullable (`int|null`).
+- Suite completa verde: 477 tests / 1760 assertions, Pint aplicado.
 - Pedido en curso requerido/suspender: (vacío).
 
 ## Pendientes del scope recién terminado (bajo esfuerzo)
@@ -23,6 +26,26 @@ Registro vivo de trabajo pendiente para próximas sesiones. Actualizar al cierre
 - (Los 3 ítems previos — código muerto, provisión de client_uid, tombstones/delete web — quedaron cerrados el 2026-09-16; ver "Recién completado".)
 
 Pendiente operativo restante de aquel scope: **validar el flujo real del cliente** (que el móvil envíe `client_uid` por acción en REGISTER de recuperaciones) con datos reales en la siguiente sesión.
+
+## Observaciones (sin bloquear) — revisión API attendances (2026-09-20)
+
+Rastreo de las observaciones levantadas en la revisión funcional de la API de asistencias. Estado actual del plan:
+
+- **[APLICADA] Paginar/limitar la descarga**: `GET /teachermanagement/attendances` ahora acepta `limit` (1..1000, default sin limit = comportamiento previo) y `offset`; con `limit` responde `pagination {limit, offset, has_more}` (detectado con `limit + 1`, sin COUNT extra). Ver `AttendanceDownloadService::paged()`.
+- **[APLICADA] Aclarar el conteo de novedad en el summary**: `summary.novedad` (registro) y `novedad_count` (resumen por período) cuentan solo filas `status === 'N'` (presente con novedad); un ausente con `novedad`/`novedad_type` se cuenta como falta y no infla `novedad`. Ver `AttendanceRegistrationService::summary()` y `AttendanceSummaryService::studentRow()`.
+- **[APLICADA] Docblock `calendarday_id`**: `int|null` (columna nullable). Ver `Attendance`.
+- **[SIN CAMBIO — intencional] `recorded_at` no comparado en `attendanceDiffers()`**: se excluye a propósito para que un cambio de solo timestamp no rompa la idempotencia del sync/upsert.
+- **[PENDIENTE DE ALCANCE — ver hallazgos offline]**: descarga sin paginación de tombstones/watermarks por entidad (ya en "Pipeline heredado") y pull incremental que no incluye sumativas ni recuperaciones (G-1, ver sección "Revisión offline del docente").
+
+Tests que fijan lo aplicado: `AttendanceTest` (paginación con `has_more`, novedad excluyente en registro y en resumen por período).
+
+## Revisión offline del docente (2026-09-20) — hallazgos reportados
+
+Repaso de las APIs que el cliente docente usa para trabajar sin conexión: **asistencia, gradebook, recuperaciones, horarios, configuración escolar y calendario ya son descargables/sincronizables** (bootstrap, configuration, schedules, gradebook/download, recoveries/*, attendances/*, sync pull/push). Dependencias del flujo: `attendance.read`, `grades.read`, `schedule.read`, `configuration.read`, `sync.pull`, `sync.push`. Brechas detectadas (validar alcance antes de ejecutar):
+
+- **Pull incremental no cubre sumativas ni recuperaciones (G-1)**: `sync/pull` entrega solo `attendance` (asistencias) y `gradebook` (notas de actividad + tombstones de bloques/actividades). Exámenes/proyectos/suplatorios y recuperaciones (`exam_recovery`/`activity_recovery`) creados por otro dispositivo o por la web NO vuelven al cliente por pull; hay que re-descargar `gradebook/download` o `recoveries/*`. Candidato a ampliar el pull (requiere esquema de entidad/watermark).
+- **Lista de estudiantes por horario (roster) (G-3)**: no hay roster plano por horario; se deriva de `GET /attendances/register?schedule_id&date` (por fecha) o de los grades por bloque. Para tomar asistencia de varios días offline convendría un roster por `schedule_id` (API nueva, requiere aprobación).
+- **Snapshot pull**: paginación de tombstones + watermarks por entidad (ya listado en "Pipeline heredado").
 
 ## Pipeline heredado de sesiones previas (VALIDAR antes de ejecutar)
 

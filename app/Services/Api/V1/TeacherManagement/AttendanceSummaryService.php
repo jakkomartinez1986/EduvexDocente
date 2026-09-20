@@ -235,11 +235,7 @@ final class AttendanceSummaryService
         $unjustified = $records->where('status', 'I')->count();
         $justified = $records->where('status', 'J')->count();
         $abandonment = $records->whereIn('status', self::ABANDONMENT_STATUSES)->count();
-        $novedad = $records
-            ->filter(fn (Attendance $record): bool => $record->status === 'N'
-                || $record->novedad !== null
-                || $record->novedad_type !== null)
-            ->count();
+        $novedad = $records->where('status', 'N')->count();
 
         $explicit = $late + $unjustified + $justified + $abandonment;
         $present = max(0, $totalClasses - $explicit);

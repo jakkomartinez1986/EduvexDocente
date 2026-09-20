@@ -320,11 +320,53 @@ it('descarga asistencias y observaciones ya registradas del docente', function (
     $response->assertOk()
         ->assertJsonPath('success', true)
         ->assertJsonCount(1, 'data.observations')
-        ->assertJsonCount(1, 'data.attendances');
+        ->assertJsonCount(1, 'data.attendances')
+        ->assertJsonPath('data.pagination', null);
 
     expect($response->json('data.attendances.0.status'))->toBe('AI');
     expect($response->json('data.attendances.0.student_id'))->toBe($studentA->id);
     expect($response->json('data.observations.0.classtopic'))->toBe('Tema descargable');
+});
+
+it('pagina la descarga con limit/offset y marca has_more', function (): void {
+    $context = attendanceContext();
+    [$studentA, $studentB] = $context['students'];
+    $headers = bearerTokenFor($context['teacher']->user);
+    $today = now()->toDateString();
+
+    $this->putJson('/api/v1/teachermanagement/attendances/register', [
+        'schedule_id' => $context['schedule']->id,
+        'date' => $today,
+        'classtopic' => 'Tema',
+        'statuses' => [(string) $studentA->id => 'A', (string) $studentB->id => 'I'],
+    ], $headers)->assertOk();
+
+    $first = $this->getJson('/api/v1/teachermanagement/attendances?'.http_build_query([
+        'schedule_id' => $context['schedule']->id,
+        'limit' => 1,
+    ]), $headers);
+
+    $first->assertOk()
+        ->assertJsonCount(1, 'data.attendances')
+        ->assertJsonCount(1, 'data.observations')
+        ->assertJsonPath('data.pagination.limit', 1)
+        ->assertJsonPath('data.pagination.has_more', true);
+
+    $second = $this->getJson('/api/v1/teachermanagement/attendances?'.http_build_query([
+        'schedule_id' => $context['schedule']->id,
+        'limit' => 1,
+        'offset' => 1,
+    ]), $headers);
+
+    $second->assertOk()
+        ->assertJsonCount(1, 'data.attendances')
+        ->assertJsonCount(0, 'data.observations')
+        ->assertJsonPath('data.pagination.has_more', false);
+
+    $firstIds = collect($first->json('data.attendances'))->pluck('student_id');
+    $secondIds = collect($second->json('data.attendances'))->pluck('student_id');
+
+    expect($firstIds->intersect($secondIds))->toBeEmpty();
 });
 
 it('resume asistencias por período derivando presentes de clases impartidas', function (): void {
@@ -367,6 +409,35 @@ it('resume asistencias por período derivando presentes de clases impartidas', f
     $totals = $response->json('data.totals');
     expect($totals['total_classes'])->toBe(6); // 2 clases × 3 estudiantes
     expect($totals['late_count'])->toBe(2);
+});
+
+it('el resumen por período cuenta la novedad solo como presente con novedad', function (): void {
+    $context = attendanceContext();
+    [$studentA, $studentB] = $context['students'];
+    $headers = bearerTokenFor($context['teacher']->user);
+    $today = now()->toDateString();
+
+    $this->putJson('/api/v1/teachermanagement/attendances/register', [
+        'schedule_id' => $context['schedule']->id,
+        'date' => $today,
+        'classtopic' => 'Tema',
+        'statuses' => [(string) $studentA->id => 'I', (string) $studentB->id => 'N'],
+        'novedades' => [(string) $studentA->id => 'Emergencia', (string) $studentB->id => 'Reintegro'],
+    ], $headers)->assertOk();
+
+    $response = $this->getJson('/api/v1/teachermanagement/attendances/summary?'.http_build_query([
+        'trimester_id' => $context['trimester']->id,
+    ]), $headers);
+
+    $response->assertOk()
+        ->assertJsonCount(3, 'data.students');
+
+    $rows = collect($response->json('data.students'))->keyBy('student_id');
+
+    expect($rows->get($studentA->id)['unjustified_count'])->toBe(1);
+    expect($rows->get($studentA->id)['novedad_count'])->toBe(0);
+    expect($rows->get($studentB->id)['novedad_count'])->toBe(1);
+    expect($response->json('data.totals.novedad_count'))->toBe(1);
 });
 
 it('persiste el presente con novedad (N) junto a novedad, tipo, client_uuid, teacher_id y recorded_at', function (): void {
@@ -428,6 +499,28 @@ it('convierte P con novedad en N al persistir', function (): void {
     expect($row)->not->toBeNull();
     expect($row->status)->toBe('N');
     expect($row->novedad)->toBe('Certificado médico');
+});
+
+it('cuenta la novedad como excluyente: ausente con novedad no suma en novedad', function (): void {
+    $context = attendanceContext();
+    [$studentA] = $context['students'];
+    $headers = bearerTokenFor($context['teacher']->user);
+    $today = now()->toDateString();
+
+    $response = $this->putJson('/api/v1/teachermanagement/attendances/register', [
+        'schedule_id' => $context['schedule']->id,
+        'date' => $today,
+        'classtopic' => 'Tema',
+        'statuses' => [(string) $studentA->id => 'I'],
+        'novedades' => [(string) $studentA->id => 'Falta por emergencia'],
+    ], $headers)->assertOk();
+
+    // I + novedad se cuenta como falta injustificada; la novedad es dato
+    // descriptivo y no infla el bucket de presentes con novedad.
+    expect($response->json('data.summary'))->toMatchArray([
+        'absent' => 1,
+        'novedad' => 0,
+    ]);
 });
 
 it('rechaza novedad_type fuera del catálogo de novedades', function (): void {
