@@ -11,7 +11,9 @@ use App\Models\Identity\Users\Teacher;
 use App\Models\Sync\SyncTombstone;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
+use App\Models\TeacherManagement\Attendances\ClassObservation;
 use App\Services\Api\V1\Academic\GradeRegistrationService;
+use App\Services\Api\V1\Academic\RecoveriesService;
 use App\Services\Api\V1\TeacherManagement\AttendanceRegistrationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -34,16 +36,23 @@ use Throwable;
 final class SyncService
 {
     /**
-     * Catálogo MVP de entidades aceptadas (D-03: crear/editar actividades o
-     * bloques desde sync queda prohibido).
+     * Catálogo MVP de entidades aceptadas. Cada entidad lista las acciones
+     * soportadas; una combinación fuera de aquí se rechaza sin aplicar.
+     * Los bloques y las actividades siguen prohibidos para crear/editar desde
+     * sync (D-03): solo admiten `delete`, y se resuelven por el `id` del
+     * servidor (no tienen client_uid).
      *
-     * @var array<string, string>
+     * @var array<string, array<int, string>>
      */
     private const SUPPORTED_OPERATIONS = [
-        'attendance_day' => 'replace_day',
-        'activity_grade' => 'upsert_batch',
-        'summative_grades' => 'upsert_batch',
-        'supplementary_grades' => 'upsert_batch',
+        'attendance_day' => ['replace_day'],
+        'activity_grade' => ['upsert_batch'],
+        'summative_grades' => ['upsert_batch'],
+        'supplementary_grades' => ['upsert_batch'],
+        'activity_recovery' => ['register', 'apply', 'delete'],
+        'exam_recovery' => ['register', 'apply', 'delete'],
+        'assessment_block' => ['delete'],
+        'activity' => ['delete'],
     ];
 
     /**
@@ -55,6 +64,7 @@ final class SyncService
     public function __construct(
         private readonly AttendanceRegistrationService $attendanceRegistrationService,
         private readonly GradeRegistrationService $gradeRegistrationService,
+        private readonly RecoveriesService $recoveriesService,
         private readonly ConflictDetector $conflictDetector,
     ) {}
 
@@ -186,13 +196,13 @@ final class SyncService
         $force = (bool) ($operation['force'] ?? false);
 
         try {
-            if ((self::SUPPORTED_OPERATIONS[$entity] ?? null) !== $action) {
+            if (! in_array($action, self::SUPPORTED_OPERATIONS[$entity] ?? [], true)) {
                 throw ValidationException::withMessages([
                     'entity' => "Operación no soportada: {$entity}/{$action}.",
                 ]);
             }
 
-            $payload = $this->validatePayload($entity, (array) ($operation['payload'] ?? []));
+            $payload = $this->validatePayload($entity, $action, (array) ($operation['payload'] ?? []));
 
             // Detección §7.6 contra el estado PREVIO del servidor.
             $detection = $this->conflictDetector->detect($teacher, $entity, $payload);
@@ -222,7 +232,7 @@ final class SyncService
                 ]);
             }
 
-            $echo = $this->applyOperation($teacher, $entity, $payload);
+            $echo = $this->applyOperation($teacher, $entity, $action, $payload);
 
             return [
                 'operation_id' => $operationId,
@@ -272,11 +282,11 @@ final class SyncService
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
-    private function applyOperation(Teacher $teacher, string $entity, array $payload): array
+    private function applyOperation(Teacher $teacher, string $entity, string $action, array $payload): array
     {
         unset($payload['base_updated_at']);
 
-        return DB::transaction(function () use ($teacher, $entity, $payload): array {
+        return DB::transaction(function () use ($teacher, $entity, $action, $payload): array {
             if ($entity === 'attendance_day') {
                 $detail = $this->attendanceRegistrationService->register($teacher, $payload);
 
@@ -301,6 +311,30 @@ final class SyncService
                 )];
             }
 
+            if ($entity === 'activity_recovery') {
+                return match ($action) {
+                    'register' => $this->gradeRegistrationService->registerRecoveryOffline($teacher, $payload),
+                    'apply' => $this->recoveriesService->applyActivityRecoveryOffline($teacher, $payload),
+                    default => $this->recoveriesService->destroyActivityRecoveryOffline($teacher, $payload),
+                };
+            }
+
+            if ($entity === 'exam_recovery') {
+                return match ($action) {
+                    'register' => $this->recoveriesService->registerExamRecoveryOffline($teacher, $payload),
+                    'apply' => $this->recoveriesService->applyExamRecoveryOffline($teacher, $payload),
+                    default => $this->recoveriesService->destroyExamRecoveryOffline($teacher, $payload),
+                };
+            }
+
+            if ($entity === 'assessment_block') {
+                return $this->gradeRegistrationService->deleteBlockOffline($teacher, (int) $payload['block_id']);
+            }
+
+            if ($entity === 'activity') {
+                return $this->gradeRegistrationService->deleteActivityOffline($teacher, (int) $payload['activity_id']);
+            }
+
             return ['updated' => $this->gradeRegistrationService->storeSupplementary($teacher, $payload)];
         });
     }
@@ -312,7 +346,7 @@ final class SyncService
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
-    private function validatePayload(string $entity, array $payload): array
+    private function validatePayload(string $entity, string $action, array $payload): array
     {
         $rules = match ($entity) {
             'attendance_day' => [
@@ -320,10 +354,18 @@ final class SyncService
                 'date' => ['required', 'date'],
                 'classtopic' => ['required', 'string', 'max:255'],
                 'observation' => ['nullable', 'string', 'max:1000'],
+                'novedad' => ['nullable', 'string', 'max:1000'],
+                'novedad_type' => ['nullable', 'string', 'in:'.implode(',', ClassObservation::NOVEDAD_TYPES)],
                 'statuses' => ['required', 'array', 'min:1'],
-                'statuses.*' => ['required', 'string', 'in:P,A,I,J,AI,AA'],
+                'statuses.*' => ['required', 'string', 'in:P,A,I,J,AI,AA,N'],
                 'observations' => ['nullable', 'array'],
                 'observations.*' => ['nullable', 'string', 'max:1000'],
+                'novedades' => ['nullable', 'array'],
+                'novedades.*' => ['nullable', 'string', 'max:1000'],
+                'novedad_types' => ['nullable', 'array'],
+                'novedad_types.*' => ['nullable', 'string', 'in:'.implode(',', ClassObservation::NOVEDAD_TYPES)],
+                'client_uuids' => ['nullable', 'array'],
+                'client_uuids.*' => ['nullable', 'uuid'],
             ],
             'activity_grade' => [
                 'activity_id' => ['required', 'integer', 'exists:activities,id'],
@@ -331,6 +373,10 @@ final class SyncService
                 'grades.*.student_id' => ['required', 'integer', 'distinct'],
                 'grades.*.grade' => ['nullable', 'numeric', 'min:0', 'max:10'],
             ],
+            'activity_recovery' => $this->activityRecoveryRules($action),
+            'exam_recovery' => $this->examRecoveryRules($action),
+            'assessment_block' => $this->gradebookIdentityRules('block_id'),
+            'activity' => $this->gradebookIdentityRules('activity_id'),
             'summative_grades' => [
                 'type' => ['required', 'string', 'in:exam,project'],
                 'year_id' => ['nullable', 'integer', 'exists:scolar_years,id'],
@@ -354,6 +400,74 @@ final class SyncService
         $rules['base_updated_at'] = ['sometimes', 'nullable', 'date'];
 
         return Validator::make($payload, $rules)->validate();
+    }
+
+    /**
+     * Reglas de recuperaciones de actividad por acción.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function activityRecoveryRules(string $action): array
+    {
+        return match ($action) {
+            'register' => [
+                'activity_id' => ['required', 'integer', 'exists:activities,id'],
+                'student_id' => ['required', 'integer'],
+                'recovery_grade' => ['required', 'numeric', 'min:0', 'max:10'],
+                'update_method' => ['nullable', 'string', 'in:average,highest'],
+                'client_uid' => ['required', 'uuid'],
+            ],
+            default => $this->recoveryIdentityRules(),
+        };
+    }
+
+    /**
+     * Reglas de recuperaciones de examen por acción.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function examRecoveryRules(string $action): array
+    {
+        return match ($action) {
+            'register' => [
+                'subject_id' => ['required', 'integer', 'exists:subjects,id'],
+                'grade_id' => ['required', 'integer', 'exists:grades,id'],
+                'trimester_id' => ['required', 'integer', 'exists:academic_periods,id'],
+                'year_id' => ['nullable', 'integer', 'exists:scolar_years,id'],
+                'student_id' => ['required', 'integer'],
+                'recovery_grade' => ['required', 'numeric', 'min:0', 'max:20'],
+                'update_method' => ['nullable', 'string', 'in:average,highest'],
+                'client_uid' => ['required', 'uuid'],
+            ],
+            default => $this->recoveryIdentityRules(),
+        };
+    }
+
+    /**
+     * Identidad de la recuperación para apply/delete: recovery_id o client_uid.
+     *
+     * @return array<string, array<int, string>>
+     */
+    private function recoveryIdentityRules(): array
+    {
+        return [
+            'recovery_id' => ['required_without:client_uid', 'nullable', 'integer'],
+            'client_uid' => ['required_without:recovery_id', 'nullable', 'uuid'],
+        ];
+    }
+
+    /**
+     * Identidad de bloque/actividad para delete: el `id` asignado por el
+     * servidor (los bloques/actividades no tienen client_uid en este MVP).
+     * No se valida `exists` a propósito: el replay de un delete ya consumido
+     * debe resolverse como no-op idempotente en applyOperation, no como
+     * rejected de validación.
+     *
+     * @return array<string, array<int, string>>
+     */
+    private function gradebookIdentityRules(string $field): array
+    {
+        return [$field => ['required', 'integer']];
     }
 
     /**
@@ -384,9 +498,14 @@ final class SyncService
                 'schedule_id' => $attendance->class_schedule_id,
                 'student_id' => $attendance->student_id,
                 'date' => Carbon::parse((string) $attendance->date)->toDateString(),
+                'client_uuid' => $attendance->client_uuid,
                 'status' => $attendance->status,
                 'observation' => $attendance->observation,
                 'arrival_time' => $attendance->arrival_time?->format('H:i'),
+                'novedad' => $attendance->novedad,
+                'novedad_type' => $attendance->novedad_type,
+                'teacher_id' => $attendance->teacher_id,
+                'recorded_at' => $attendance->recorded_at?->toISOString(),
                 'updated_at' => $attendance->updated_at?->toISOString(),
             ])
             ->all();
@@ -432,19 +551,25 @@ final class SyncService
         return [
             [
                 'upserts' => $upserts,
-                'tombstones' => $this->tombstones($teacher, 'activity_grade', $since, $boundary),
+                'tombstones' => $this->tombstones(
+                    $teacher,
+                    ['activity_grade', 'activity', 'assessment_block'],
+                    $since,
+                    $boundary,
+                ),
             ],
             $hasMore,
         ];
     }
 
     /**
+     * @param  string|array<int, string>  $entities
      * @return array<int, array<string, int|string>>
      */
-    private function tombstones(Teacher $teacher, string $entity, Carbon $since, Carbon $boundary): array
+    private function tombstones(Teacher $teacher, string|array $entities, Carbon $since, Carbon $boundary): array
     {
         return SyncTombstone::query()
-            ->where('entity', $entity)
+            ->whereIn('entity', (array) $entities)
             ->where('owner_user_id', $teacher->user_id)
             ->whereBetween('deleted_at', [$since, $boundary])
             ->orderBy('deleted_at')

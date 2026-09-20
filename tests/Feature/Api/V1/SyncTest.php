@@ -485,7 +485,7 @@ it('permite el exito parcial dentro del mismo lote', function (): void {
     expect($results[1]['errors'])->toHaveKey('grades');
 });
 
-it('rechaza entidades prohibidas para sync MVP (D-03)', function (): void {
+it('rechaza crear bloques/actividades desde sync MVP (D-03)', function (): void {
     $context = syncGradebookContext();
 
     $this->postJson('/api/v1/sync/push', pushPayload('activity', 'create', [

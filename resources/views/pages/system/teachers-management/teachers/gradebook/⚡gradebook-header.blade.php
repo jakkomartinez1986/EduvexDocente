@@ -27,7 +27,7 @@
             <flux:select wire:model.live="selectedGradeId" wire:key="grade-select-{{ $selectedSubjectId ?? 'none' }}">
                 <option value="0" @selected(!$selectedGradeId)>{{ __('Seleccione un grado') }}</option>
                 @foreach($grades as $grade)
-                    <option value="{{ $grade['id'] }}" @selected((int) $selectedGradeId === (int) $grade['id'])>{{ $grade['grade_name'] }} {{ $grade['section'] ?? '' }}</option>
+                    <option value="{{ $grade['id'] }}" @selected((int) $selectedGradeId === (int) $grade['id'])>{{ $grade['grade_name'] }} - {{ $grade->nivel->shift['shift_name'] ?? '' }}</option>
                 @endforeach
             </flux:select>
         </div>
