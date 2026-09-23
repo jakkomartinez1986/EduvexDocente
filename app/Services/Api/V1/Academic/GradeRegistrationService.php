@@ -56,6 +56,7 @@ final class GradeRegistrationService
             'internal_percentage' => $validated['internal_percentage'] ?? null,
             'order' => (int) ($validated['order'] ?? 0),
             'is_active' => (bool) ($validated['is_active'] ?? true),
+            'client_uid' => $validated['client_uid'] ?? null,
         ]);
     }
 
@@ -73,6 +74,7 @@ final class GradeRegistrationService
             'date' => $validated['date'] ?? null,
             'max_score' => (float) $validated['max_score'],
             'status' => (bool) ($validated['status'] ?? true),
+            'client_uid' => $validated['client_uid'] ?? null,
         ]);
     }
 
@@ -300,6 +302,57 @@ final class GradeRegistrationService
     }
 
     /**
+     * Creación offline (push) de un bloque idempotente por `client_uid`:
+     * si la fila ya existe (aun borrada) devuelve la existente con el echo
+     * que el cliente necesita para marcar la operación como aplicada.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function storeBlockOffline(Teacher $teacher, array $payload): array
+    {
+        $clientUid = $this->resolveClientUid($payload);
+
+        $existing = AssessmentBlock::query()
+            ->withTrashed()
+            ->where('client_uid', $clientUid)
+            ->first();
+
+        if ($existing !== null) {
+            return $this->storedBlockEcho($existing);
+        }
+
+        $block = $this->storeBlock($teacher, [...$payload, 'client_uid' => $clientUid]);
+
+        return $this->storedBlockEcho($block);
+    }
+
+    /**
+     * Creación offline (push) de una actividad idempotente por `client_uid`,
+     * colgando de un bloque propio ya existente (`assessment_block_id`).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function storeActivityOffline(Teacher $teacher, array $payload): array
+    {
+        $clientUid = $this->resolveClientUid($payload);
+
+        $existing = Activity::query()
+            ->withTrashed()
+            ->where('client_uid', $clientUid)
+            ->first();
+
+        if ($existing !== null) {
+            return $this->storedActivityEcho($existing);
+        }
+
+        $activity = $this->storeActivity($teacher, [...$payload, 'client_uid' => $clientUid]);
+
+        return $this->storedActivityEcho($activity);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function deletedEcho(?int $id): array
@@ -308,6 +361,41 @@ final class GradeRegistrationService
             'id' => $id,
             'deleted' => true,
             ...($id === null ? ['noop' => true] : []),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function resolveClientUid(array $payload): string
+    {
+        $clientUid = $payload['client_uid'] ?? null;
+
+        return ($clientUid === null || $clientUid === '') ? (string) Str::uuid() : (string) $clientUid;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function storedBlockEcho(AssessmentBlock $block): array
+    {
+        return [
+            'id' => $block->id,
+            'client_uid' => $block->client_uid,
+            ...($block->trashed() ? ['noop' => true] : []),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function storedActivityEcho(Activity $activity): array
+    {
+        return [
+            'id' => $activity->id,
+            'client_uid' => $activity->client_uid,
+            'assessment_block_id' => $activity->assessment_block_id,
+            ...($activity->trashed() ? ['noop' => true] : []),
         ];
     }
 
