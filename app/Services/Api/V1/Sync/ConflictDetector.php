@@ -57,9 +57,9 @@ final class ConflictDetector
             return null;
         }
 
-        // Bloques y actividades solo admiten `delete` (D-03): transición de
-        // estado unidireccional, idempotente vía no-op; el conflicto de
-        // `base_updated_at` no aplica.
+        // Bloques y actividades: máquina de estado idempotente vía `client_uid`
+        // (create con dedupe) o no-op (delete con replay); el conflicto de
+        // `base_updated_at` no aplica, como en recoveries.
         if ($entity === 'assessment_block' || $entity === 'activity') {
             return null;
         }
