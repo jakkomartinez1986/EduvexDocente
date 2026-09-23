@@ -23,7 +23,7 @@ it('resume cada lote del push en sync.push.batch', function (): void {
     $context = syncContext();
     [$a, $b] = $context['students'];
 
-    // Lote mixto: 1 accepted + 1 rejected (entidad prohibida D-03).
+    // Lote mixto: 1 accepted + 1 rejected (acción no soportada para activity).
     $this->postJson('/api/v1/sync/push', [
         'device_id' => ($deviceId = (string) Str::uuid()),
         'operations' => [

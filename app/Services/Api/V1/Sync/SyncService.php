@@ -38,9 +38,10 @@ final class SyncService
     /**
      * Catálogo MVP de entidades aceptadas. Cada entidad lista las acciones
      * soportadas; una combinación fuera de aquí se rechaza sin aplicar.
-     * Los bloques y las actividades siguen prohibidos para crear/editar desde
-     * sync (D-03): solo admiten `delete`, y se resuelven por el `id` del
-     * servidor (no tienen client_uid).
+     * Los bloques y las actividades se resuelven por el `id` del servidor
+     * para `delete` (no-op idempotente ante replays) y por `client_uid`
+     * para `create` (idempotente, auto-generado cuando el cliente no lo
+     * envía); editar estructura sigue fuera del alcance offline.
      *
      * @var array<string, array<int, string>>
      */
@@ -51,8 +52,8 @@ final class SyncService
         'supplementary_grades' => ['upsert_batch'],
         'activity_recovery' => ['register', 'apply', 'delete'],
         'exam_recovery' => ['register', 'apply', 'delete'],
-        'assessment_block' => ['delete'],
-        'activity' => ['delete'],
+        'assessment_block' => ['create', 'delete'],
+        'activity' => ['create', 'delete'],
     ];
 
     /**
@@ -328,11 +329,15 @@ final class SyncService
             }
 
             if ($entity === 'assessment_block') {
-                return $this->gradeRegistrationService->deleteBlockOffline($teacher, (int) $payload['block_id']);
+                return $action === 'create'
+                    ? $this->gradeRegistrationService->storeBlockOffline($teacher, $payload)
+                    : $this->gradeRegistrationService->deleteBlockOffline($teacher, (int) $payload['block_id']);
             }
 
             if ($entity === 'activity') {
-                return $this->gradeRegistrationService->deleteActivityOffline($teacher, (int) $payload['activity_id']);
+                return $action === 'create'
+                    ? $this->gradeRegistrationService->storeActivityOffline($teacher, $payload)
+                    : $this->gradeRegistrationService->deleteActivityOffline($teacher, (int) $payload['activity_id']);
             }
 
             return ['updated' => $this->gradeRegistrationService->storeSupplementary($teacher, $payload)];
@@ -375,8 +380,8 @@ final class SyncService
             ],
             'activity_recovery' => $this->activityRecoveryRules($action),
             'exam_recovery' => $this->examRecoveryRules($action),
-            'assessment_block' => $this->gradebookIdentityRules('block_id'),
-            'activity' => $this->gradebookIdentityRules('activity_id'),
+            'assessment_block' => $action === 'create' ? $this->assessmentBlockCreateRules() : $this->gradebookIdentityRules('block_id'),
+            'activity' => $action === 'create' ? $this->activityCreateRules() : $this->gradebookIdentityRules('activity_id'),
             'summative_grades' => [
                 'type' => ['required', 'string', 'in:exam,project'],
                 'year_id' => ['nullable', 'integer', 'exists:scolar_years,id'],
@@ -457,11 +462,54 @@ final class SyncService
     }
 
     /**
+     * Reglas de creación offline de un bloque: mismas del endpoint REST
+     * equivalente (StoreAssessmentBlockRequest) + `client_uid` opcional;
+     * cuando no llega `client_uid` el servidor lo auto-genera.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function assessmentBlockCreateRules(): array
+    {
+        return [
+            'year_id' => ['nullable', 'integer', 'exists:scolar_years,id'],
+            'subject_id' => ['required', 'integer', 'exists:subjects,id'],
+            'grade_id' => ['required', 'integer', 'exists:grades,id'],
+            'trimester_id' => ['required', 'integer', 'exists:academic_periods,id'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'internal_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'order' => ['nullable', 'integer', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
+            'client_uid' => ['nullable', 'uuid'],
+        ];
+    }
+
+    /**
+     * Reglas de creación offline de una actividad: mismas del endpoint REST
+     * equivalente (StoreActivityRequest) + `client_uid` opcional. El bloque
+     * padre debe existir en el servidor (`assessment_block_id`), por lo que
+     * el cliente aplica primero el echo del create del bloque.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function activityCreateRules(): array
+    {
+        return [
+            'assessment_block_id' => ['required', 'integer', 'exists:assessment_blocks,id'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'date' => ['nullable', 'date'],
+            'max_score' => ['required', 'numeric', 'min:0.01', 'max:999.99'],
+            'status' => ['nullable', 'boolean'],
+            'client_uid' => ['nullable', 'uuid'],
+        ];
+    }
+
+    /**
      * Identidad de bloque/actividad para delete: el `id` asignado por el
-     * servidor (los bloques/actividades no tienen client_uid en este MVP).
-     * No se valida `exists` a propósito: el replay de un delete ya consumido
-     * debe resolverse como no-op idempotente en applyOperation, no como
-     * rejected de validación.
+     * servidor. No se valida `exists` a propósito: el replay de un delete ya
+     * consumido debe resolverse como no-op idempotente en applyOperation, no
+     * como rejected de validación.
      *
      * @return array<string, array<int, string>>
      */
