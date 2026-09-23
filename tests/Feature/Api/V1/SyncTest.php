@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Academic\GradeBook\Summaries\Subjects\Activity;
 use App\Models\Academic\GradeBook\Summaries\Subjects\ActivityGrade;
 use App\Models\Sync\SyncTombstone;
 use App\Models\TeacherManagement\Attendances\Attendance;
@@ -485,14 +486,21 @@ it('permite el exito parcial dentro del mismo lote', function (): void {
     expect($results[1]['errors'])->toHaveKey('grades');
 });
 
-it('rechaza crear bloques/actividades desde sync MVP (D-03)', function (): void {
+it('acepta el create de actividades offline con echo de id y client_uid', function (): void {
     $context = syncGradebookContext();
+    $clientUid = (string) Str::uuid();
 
     $this->postJson('/api/v1/sync/push', pushPayload('activity', 'create', [
+        'client_uid' => $clientUid,
+        'assessment_block_id' => $context['block']->id,
         'name' => 'Nueva actividad offline',
+        'max_score' => 10,
     ]), bearerTokenFor($context['teacher']->user))
         ->assertOk()
-        ->assertJsonPath('data.results.0.status', 'rejected');
+        ->assertJsonPath('data.results.0.status', 'accepted')
+        ->assertJsonPath('data.results.0.echo.client_uid', $clientUid);
+
+    expect(Activity::query()->where('client_uid', $clientUid)->exists())->toBeTrue();
 });
 
 it('valida el lote: maximo 200 operaciones', function (): void {

@@ -27,13 +27,14 @@ use Illuminate\Support\Carbon;
  * @property int $order
  * @property float|null $internal_percentage
  * @property bool $is_active
+ * @property string|null $client_uid
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  */
 #[Fillable([
     'subject_id', 'grade_id', 'trimester_id', 'year_id', 'teacher_id',
-    'name', 'description', 'order', 'internal_percentage', 'is_active',
+    'name', 'description', 'order', 'internal_percentage', 'is_active', 'client_uid',
 ])]
 class AssessmentBlock extends Model
 {

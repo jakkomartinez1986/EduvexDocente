@@ -19,13 +19,14 @@ use Illuminate\Support\Carbon;
  * @property string|null $date
  * @property float $max_score
  * @property bool $status
+ * @property string|null $client_uid
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  */
 #[Fillable([
     'assessment_block_id', 'name', 'topic', 'description', 'date',
-    'max_score', 'status',
+    'max_score', 'status', 'client_uid',
 ])]
 class Activity extends Model
 {
