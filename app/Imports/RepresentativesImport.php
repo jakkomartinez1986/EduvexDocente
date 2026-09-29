@@ -2,6 +2,7 @@
 
 namespace App\Imports;
 
+use App\Imports\Concerns\TracksDnisInFile;
 use App\Models\Identity\Users\Representative;
 use App\Models\Identity\Users\Student;
 use App\Models\User;
@@ -14,6 +15,8 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 class RepresentativesImport implements ToCollection, WithHeadingRow
 {
+    use TracksDnisInFile;
+
     protected bool $previewOnly;
 
     protected array $rows = [];
@@ -37,7 +40,9 @@ class RepresentativesImport implements ToCollection, WithHeadingRow
     {
         $this->totalRows = $rows->count();
 
-        foreach ($rows as $row) {
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 2;
+
             $studentDni = (string) ($row['dni_estudiante'] ?? $row['DNI_ESTUDIANTE'] ?? $row['student_dni'] ?? '');
             $student = null;
             if ($studentDni !== '') {
@@ -97,6 +102,9 @@ class RepresentativesImport implements ToCollection, WithHeadingRow
                 if ($validator->fails()) {
                     $rowData['errors'] = $validator->errors()->first();
                     $this->errorRows++;
+                } elseif ($duplicate = $this->duplicateDniInFile($rowData['dni'], $rowNumber)) {
+                    $rowData['errors'] = $duplicate;
+                    $this->errorRows++;
                 } elseif (! $student) {
                     $rowData['errors'] = 'Estudiante no encontrado con DNI: '.$studentDni;
                     $this->errorRows++;
@@ -118,24 +126,17 @@ class RepresentativesImport implements ToCollection, WithHeadingRow
                     $existingUser->update([
                         'name' => $rowData['name'],
                         'lastname' => $rowData['lastname'],
-                        // 'email' => $rowData['email'],
                         'phone' => $rowData['phone'] ?: null,
                         'cellphone' => $rowData['cellphone'] ?: null,
                         'address' => $rowData['address'] ?: null,
                     ]);
                     $user = $existingUser;
                 } else {
-                    $provisionalEmail = $rowData['email'];
-                    if (empty($provisionalEmail)) {
-                        $firstName = strtolower(trim(explode(' ', $rowData['name'])[0]));
-                        $lastName = strtolower(trim(explode(' ', $rowData['lastname'])[0]));
-                        $provisionalEmail = $firstName.'.'.$lastName.'.'.mb_strtolower($representstiveCode).'@educaplusrepresentante.edu.ec';
-                    }
                     $user = User::create([
                         'name' => $rowData['name'],
                         'lastname' => $rowData['lastname'],
                         'dni' => $rowData['dni'],
-                        'email' => $rowData['email'],
+                        'email' => $rowData['email'] ?: $this->provisionalEmail($rowData, $representstiveCode),
                         'phone' => $rowData['phone'] ?: null,
                         'cellphone' => $rowData['cellphone'] ?: null,
                         'address' => $rowData['address'] ?: null,
@@ -168,6 +169,21 @@ class RepresentativesImport implements ToCollection, WithHeadingRow
                 }
             }
         }
+    }
+
+    /**
+     * El email es opcional en la plantilla, pero users.email es NOT NULL y
+     * único: sin un correo de reserva la importación reventaba al insertar.
+     * Mismo patrón que StudentsImport.
+     *
+     * @param  array<string, mixed>  $rowData
+     */
+    private function provisionalEmail(array $rowData, string $code): string
+    {
+        $firstName = strtolower(trim(explode(' ', (string) $rowData['name'])[0]));
+        $lastName = strtolower(trim(explode(' ', (string) $rowData['lastname'])[0]));
+
+        return $firstName.'.'.$lastName.'.'.mb_strtolower($code).'@educaplusrepresentante.edu.ec';
     }
 
     public function getRows(): array

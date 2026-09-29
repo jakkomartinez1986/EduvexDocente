@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Web\System\Identity\TemplateDownloadController;
 use App\Http\Controllers\Web\System\Teacher\CarnetController;
+use App\Services\Identity\ExcelTemplateService;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->prefix('system/identity')->name('system.identity.')->group(function () {
@@ -46,29 +48,8 @@ Route::middleware(['auth', 'verified'])->prefix('system/identity')->name('system
     Route::livewire('representatives/{id}', 'pages::system.identity.representatives.show')->name('representatives.show');
     Route::livewire('representatives/{id}/edit', 'pages::system.identity.representatives.edit')->name('representatives.edit');
 
-    // Descarga de plantillas Excel
-    Route::get('templates/{type}/download', function (string $type) {
-        $templates = [
-            'estudiantes' => ['file' => 'plantilla_estudiantes.xlsx', 'name' => 'plantilla_estudiantes'],
-            'docentes' => ['file' => 'plantilla_docentes.xlsx', 'name' => 'plantilla_docentes'],
-            'representantes' => ['file' => 'plantilla_representantes.xlsx', 'name' => 'plantilla_representantes'],
-        ];
-
-        if (! isset($templates[$type])) {
-            abort(404);
-        }
-
-        $template = $templates[$type];
-        $path = storage_path('app/templates/'.$template['file']);
-
-        if (! file_exists($path)) {
-            abort(404);
-        }
-
-        return response()->download($path, $template['name'].'_'.date('Y-m-d').'.xlsx', [
-            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
-            'Pragma' => 'no-cache',
-            'Expires' => '0',
-        ]);
-    })->name('templates.download');
+    // Descarga de plantillas Excel (se generan en storage/app/templates si faltan)
+    Route::get('templates/{type}/download', TemplateDownloadController::class)
+        ->whereIn('type', array_keys(ExcelTemplateService::TYPES))
+        ->name('templates.download');
 });
