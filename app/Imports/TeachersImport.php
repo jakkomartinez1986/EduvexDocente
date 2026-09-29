@@ -2,6 +2,7 @@
 
 namespace App\Imports;
 
+use App\Imports\Concerns\TracksDnisInFile;
 use App\Models\Identity\Users\Teacher;
 use App\Models\User;
 use App\Rules\EcuadorianPhone;
@@ -15,6 +16,8 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class TeachersImport implements ToCollection, WithHeadingRow
 {
+    use TracksDnisInFile;
+
     protected bool $previewOnly;
 
     protected array $rows = [];
@@ -66,7 +69,9 @@ class TeachersImport implements ToCollection, WithHeadingRow
     {
         $this->totalRows = $rows->count();
 
-        foreach ($rows as $row) {
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 2;
+
             $rowData = [
                 'name' => $row['nombres'] ?? $row['nombre'] ?? $row['name'] ?? null,
                 'lastname' => $row['apellidos'] ?? $row['apellido'] ?? $row['lastname'] ?? null,
@@ -114,6 +119,9 @@ class TeachersImport implements ToCollection, WithHeadingRow
 
                 if ($validator->fails()) {
                     $rowData['errors'] = $validator->errors()->first();
+                    $this->errorRows++;
+                } elseif ($duplicate = $this->duplicateDniInFile($rowData['dni'], $rowNumber)) {
+                    $rowData['errors'] = $duplicate;
                     $this->errorRows++;
                 } else {
                     $this->validRows++;

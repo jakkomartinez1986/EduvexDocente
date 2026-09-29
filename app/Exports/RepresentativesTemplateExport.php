@@ -12,8 +12,8 @@ class RepresentativesTemplateExport implements FromArray, WithHeadings, WithStyl
     public function array(): array
     {
         return [
-            ['MARY SAAD', 'BOUKMAN SANZ', '050000001', 'mark@ejemplo.com', '0900000001', '0962858401', 'PARROQUIA TOACASO CALLE MANA', '1700000001', 'MADRE', 'ENFERMERA', '032123456'],
-            ['ERIK JAVIER', 'SANZ BOUKMAN', '050000002', 'erik@ejemplo.com', '0900000002', '0900000002', 'SAQUISILI CALLE CHIBORAZO', '1700000002', 'PADRE', 'ENFERMERO', '032123457'],
+            ['MARY SAAD', 'BOUKMAN SANZ', '1710000017', 'maria.representante@ejemplo.com', '0900000001', '0962858401', 'PARROQUIA TOACASO CALLE MANA', '0500000112', 'MADRE', 'ENFERMERA', '0321234567'],
+            ['ERIK JAVIER', 'SANZ BOUKMAN', '1710000025', 'erik.representante@ejemplo.com', '0900000002', '0900000002', 'SAQUISILI CALLE CHIMBORAZO', '0500000120', 'PADRE', 'ENFERMERO', '0321234568'],
         ];
     }
 
