@@ -2,6 +2,7 @@
 
 use App\Models\Security\Authorizations\Role;
 use App\Models\User;
+use App\Services\Identity\SuperAdminService;
 use Flux\Flux;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -79,6 +80,8 @@ new #[Title('Editar Usuario')] class extends Component {
     {
         $this->validate();
 
+        $isSuperAdmin = $this->user->hasRole(SuperAdminService::ROLE_NAME);
+
         $this->user->update([
             'name' => $this->name,
             'lastname' => $this->lastname,
@@ -87,7 +90,7 @@ new #[Title('Editar Usuario')] class extends Component {
             'cellphone' => $this->cellphone,
             'address' => $this->address,
             'email' => $this->email,
-            'status' => $this->status,
+            'status' => $isSuperAdmin ? 1 : $this->status,
         ]);
 
         $excludedRoles = ['SUPER-ADMIN', 'DOCENTE', 'TUTOR', 'REPRESENTANTE', 'ESTUDIANTE'];
@@ -95,6 +98,19 @@ new #[Title('Editar Usuario')] class extends Component {
             ->whereNotIn('name', $excludedRoles)
             ->pluck('id')
             ->toArray();
+
+        if ($isSuperAdmin) {
+            // El super administrador conserva siempre su rol: perderlo dejaria
+            // el sistema sin administrador y reabriria el registro publico.
+            $superAdminRoleId = Role::where('name', SuperAdminService::ROLE_NAME)->value('id');
+
+            if ($superAdminRoleId !== null) {
+                $roleIds[] = $superAdminRoleId;
+            }
+
+            $roleIds = array_values(array_unique($roleIds));
+        }
+
         $this->user->syncRoles($roleIds);
 
         Flux::toast(variant: 'success', text: __('Usuario actualizado correctamente.'));
@@ -164,6 +180,11 @@ new #[Title('Editar Usuario')] class extends Component {
                     <flux:radio value="1">{{ __('Activo') }}</flux:radio>
                     <flux:radio value="0">{{ __('Inactivo') }}</flux:radio>
                 </flux:radio.group>
+                @if ($this->user && $this->user->hasRole(SuperAdminService::ROLE_NAME))
+                    <flux:description class="text-zinc-500">
+                        {{ __('La cuenta del super administrador no se puede desactivar.') }}
+                    </flux:description>
+                @endif
             </flux:field>
         </div>
 
