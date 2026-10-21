@@ -2,12 +2,14 @@
 
 namespace App\Imports;
 
+use App\Imports\Concerns\TracksDnisInFile;
 use App\Models\Identity\Users\Student;
 use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\User;
 use App\Rules\EcuadorianPhone;
 use App\Rules\FlexibleDni;
 use App\Services\AcademicYearService;
+use App\Services\Identity\UserPasswordResetService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
@@ -17,6 +19,8 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class StudentsImport implements ToCollection, WithHeadingRow
 {
+    use TracksDnisInFile;
+
     protected bool $previewOnly;
 
     protected array $rows = [];
@@ -78,7 +82,9 @@ class StudentsImport implements ToCollection, WithHeadingRow
     {
         $this->totalRows = $rows->count();
 
-        foreach ($rows as $row) {
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 2;
+
             $rowData = [
                 'name' => $row['nombres'] ?? $row['nombre'] ?? $row['name'] ?? null,
                 'lastname' => $row['apellidos'] ?? $row['apellido'] ?? $row['lastname'] ?? null,
@@ -126,6 +132,9 @@ class StudentsImport implements ToCollection, WithHeadingRow
                 if ($validator->fails()) {
                     $rowData['errors'] = $validator->errors()->first();
                     $this->errorRows++;
+                } elseif ($duplicate = $this->duplicateDniInFile($rowData['dni'], $rowNumber)) {
+                    $rowData['errors'] = $duplicate;
+                    $this->errorRows++;
                 } else {
                     $rowData['status'] = $existingUser ? 'actualizar' : 'nuevo';
                     $this->validRows++;
@@ -165,7 +174,7 @@ class StudentsImport implements ToCollection, WithHeadingRow
                         'phone' => $rowData['phone'] ?: null,
                         'cellphone' => $rowData['cellphone'] ?: null,
                         'address' => $rowData['address'] ?: null,
-                        'password' => $rowData['dni'].'passsword',
+                        'password' => UserPasswordResetService::defaultPasswordFor($rowData['dni']),
                         'status' => 1,
                         'must_change_password' => true,
                     ]);

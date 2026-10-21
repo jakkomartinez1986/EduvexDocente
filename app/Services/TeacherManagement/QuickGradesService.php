@@ -10,6 +10,7 @@ use App\Models\Identity\Users\Student;
 use App\Models\Setting\YearSettings\AcademicPeriod;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Support\Database\BulkWrite;
+use Illuminate\Database\Eloquent\Builder;
 
 final class QuickGradesService
 {
@@ -31,67 +32,116 @@ final class QuickGradesService
         ])->toArray();
     }
 
-    public function loadActivities(int $scheduleId, int $yearId): array
+    /**
+     * Carga TODOS los bloques de evaluación del aula (con sus actividades) para
+     * que el docente pueda registrar notas en cualquier bloque y no solo en el
+     * primero. Antes solo devolvía el bloque inicial (`->first()`), por lo que
+     * las actividades de los bloques nuevos nunca aparecían en el menú rápido.
+     *
+     * @return array<int, array{id:int, name:string, order:int, activities:array<int, array{id:int, name:string, date:?string, max_score:?float}>}>
+     */
+    public function loadBlocks(int $scheduleId, int $yearId): array
     {
         $schedule = ClassSchedule::with('subject', 'grade', 'trimester')->findOrFail($scheduleId);
 
-        $trimesterId = $schedule->trimester_id;
-        if (! $trimesterId) {
-            $activePeriod = AcademicPeriod::where('year_id', $yearId)
-                ->where('status', 1)
-                ->where('is_supletorio', false)
-                ->where('start_date', '<=', now())
-                ->where('end_date', '>=', now())
-                ->first();
-            $trimesterId = $activePeriod?->id;
+        $trimesterId = $this->resolveTrimesterId($schedule, $yearId);
+
+        $blocks = $this->queryBlocks($schedule, $yearId, $trimesterId)->get();
+
+        if ($blocks->isEmpty() && ! $trimesterId) {
+            $blocks = $this->queryBlocks($schedule, $yearId, null)->get();
         }
 
-        $blockQuery = AssessmentBlock::where('year_id', $yearId)
-            ->where('subject_id', $schedule->subject_id)
-            ->where('grade_id', $schedule->grade_id)
-            ->with('activities');
-
-        if ($trimesterId) {
-            $blockQuery->where('trimester_id', $trimesterId);
-        }
-
-        $block = $blockQuery->first();
-
-        if (! $block && ! $trimesterId) {
-            $block = AssessmentBlock::where('year_id', $yearId)
-                ->where('subject_id', $schedule->subject_id)
-                ->where('grade_id', $schedule->grade_id)
-                ->with('activities')
-                ->orderBy('created_at', 'desc')
-                ->first();
-        }
-
-        if (! $block) {
-            return [];
-        }
-
-        $allActivities = $block->activities->sortByDesc('created_at')->values()->all();
-
-        return array_map(fn ($a) => [
-            'id' => $a->id,
-            'name' => $a->name,
-            'date' => $a->date,
-            'score' => $a->score,
-        ], $allActivities);
+        return $blocks->map(fn (AssessmentBlock $block) => [
+            'id' => $block->id,
+            'name' => $block->name,
+            'order' => $block->order,
+            'activities' => $block->activities
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(fn ($activity) => [
+                    'id' => $activity->id,
+                    'name' => $activity->name,
+                    'date' => $activity->date?->toDateString(),
+                    'max_score' => $activity->max_score,
+                ])->all(),
+        ])->values()->all();
     }
 
+    /**
+     * Bloque por defecto: el primero que tenga actividades; si ninguno tiene,
+     * el primero de la lista.
+     *
+     * @param  array<int, array<string, mixed>>  $blocks
+     * @return array<string, mixed>|null
+     */
+    public function getDefaultBlock(array $blocks): ?array
+    {
+        if ($blocks === []) {
+            return null;
+        }
+
+        $collection = collect($blocks);
+
+        return $collection->first(fn ($block) => ($block['activities'] ?? []) !== [])
+            ?? $collection->first();
+    }
+
+    /**
+     * Actividad por defecto de un bloque: la de la fecha de hoy si existe,
+     * caso contrario la más reciente.
+     *
+     * @param  array<int, array<string, mixed>>  $activities
+     * @return array<string, mixed>|null
+     */
     public function getDefaultActivity(array $activities): ?array
     {
-        if (empty($activities)) {
+        if ($activities === []) {
             return null;
         }
 
         $collection = collect($activities);
+        $today = now()->toDateString();
 
-        $todayActivity = $collection->firstWhere('date', now()->toDateString())
-            ?? $collection->sortByDesc('created_at')->first();
+        return $collection->first(fn ($activity) => ($activity['date'] ?? null) === $today)
+            ?? $collection->first();
+    }
 
-        return $todayActivity;
+    /**
+     * @return Builder<AssessmentBlock>
+     */
+    private function queryBlocks(ClassSchedule $schedule, int $yearId, ?int $trimesterId): Builder
+    {
+        $query = AssessmentBlock::where('year_id', $yearId)
+            ->where('subject_id', $schedule->subject_id)
+            ->where('grade_id', $schedule->grade_id)
+            ->where(function ($q) use ($schedule) {
+                $q->where('teacher_id', $schedule->teacher_id)
+                    ->orWhereNull('teacher_id');
+            })
+            ->with('activities');
+
+        if ($trimesterId) {
+            $query->where('trimester_id', $trimesterId);
+        }
+
+        return $query->orderBy('order')->orderBy('created_at');
+    }
+
+    private function resolveTrimesterId(ClassSchedule $schedule, int $yearId): ?int
+    {
+        if ($schedule->trimester_id) {
+            return $schedule->trimester_id;
+        }
+
+        $activePeriod = AcademicPeriod::where('year_id', $yearId)
+            ->where('status', 1)
+            ->where('is_supletorio', false)
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->first();
+
+        return $activePeriod?->id;
     }
 
     public function loadGradesForActivity(int $activityId, array $students): array
