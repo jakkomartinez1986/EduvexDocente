@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Rules\EcuadorianPhone;
 use App\Rules\FlexibleDni;
 use App\Services\AcademicYearService;
+use App\Services\Identity\UserPasswordResetService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
@@ -173,7 +174,7 @@ class StudentsImport implements ToCollection, WithHeadingRow
                         'phone' => $rowData['phone'] ?: null,
                         'cellphone' => $rowData['cellphone'] ?: null,
                         'address' => $rowData['address'] ?: null,
-                        'password' => $rowData['dni'].'passsword',
+                        'password' => UserPasswordResetService::defaultPasswordFor($rowData['dni']),
                         'status' => 1,
                         'must_change_password' => true,
                     ]);

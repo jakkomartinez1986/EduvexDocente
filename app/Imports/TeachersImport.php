@@ -7,6 +7,7 @@ use App\Models\Identity\Users\Teacher;
 use App\Models\User;
 use App\Rules\EcuadorianPhone;
 use App\Rules\FlexibleDni;
+use App\Services\Identity\UserPasswordResetService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
@@ -156,7 +157,7 @@ class TeachersImport implements ToCollection, WithHeadingRow
                         'phone' => $rowData['phone'] ?: null,
                         'cellphone' => $rowData['cellphone'] ?: null,
                         'address' => $rowData['address'] ?: null,
-                        'password' => $rowData['dni'].'passsword',
+                        'password' => UserPasswordResetService::defaultPasswordFor($rowData['dni']),
                         'status' => 1,
                         'must_change_password' => true,
                     ]);
