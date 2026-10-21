@@ -10,7 +10,12 @@
                     </div>
                     <div>
                         <h3 class="font-semibold text-zinc-800 dark:text-zinc-100">{{ __('Registrar Calificaciones') }}</h3>
-                        <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $this->quickGradesActivityName }} · {{ count($this->quickGradesStudents) }} {{ __('estudiantes') }}</p>
+                        <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                            @if($this->quickGradesBlockName)
+                                <span class="font-medium text-zinc-600 dark:text-zinc-300">{{ $this->quickGradesBlockName }}</span> ·
+                            @endif
+                            {{ $this->quickGradesActivityName }} · {{ count($this->quickGradesStudents) }} {{ __('estudiantes') }}
+                        </p>
                     </div>
                 </div>
                 <button wire:click="closeQuickGradesModal" class="w-8 h-8 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition">
@@ -29,7 +34,7 @@
             @else
                 <div class="flex flex-1 min-h-0">
                     {{-- Sidebar: Control Panel --}}
-                    <div class="w-44 border-r border-zinc-200 dark:border-zinc-700 flex flex-col bg-zinc-50 dark:bg-zinc-800/50">
+                    <div class="w-52 shrink-0 border-r border-zinc-200 dark:border-zinc-700 flex flex-col overflow-y-auto bg-zinc-50 dark:bg-zinc-800/50">
                         {{-- Summary --}}
                         <div class="px-3 py-3 border-b border-zinc-200 dark:border-zinc-700">
                             <span class="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block mb-2">{{ __('Resumen') }}</span>
@@ -45,6 +50,28 @@
                                 <div class="bg-emerald-500 h-1.5 rounded-full transition-all" style="width: {{ $total > 0 ? ($graded / $total * 100) : 0 }}%"></div>
                             </div>
                         </div>
+
+                        {{-- Block Selector --}}
+                        @if(count($this->quickGradesBlocks) > 0)
+                            <div class="px-3 py-3 border-b border-zinc-200 dark:border-zinc-700">
+                                <span class="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block mb-2">{{ __('Bloque') }}</span>
+                                <div class="space-y-1 max-h-24 overflow-y-auto">
+                                    @foreach($this->quickGradesBlocks as $block)
+                                        <button wire:click="selectQuickGradesBlock({{ $block['id'] }})"
+                                            class="w-full text-left px-2 py-1.5 rounded text-[11px] transition truncate
+                                                   {{ $this->quickGradesSelectedBlockId === $block['id']
+                                                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold'
+                                                      : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700' }}"
+                                            title="{{ $block['name'] }}">
+                                            <span class="truncate block">{{ $block['name'] }}</span>
+                                            <span class="text-[9px] text-zinc-400 block">
+                                                {{ count($block['activities'] ?? []) }} {{ __('actividades') }}
+                                            </span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
 
                         {{-- Activity Selector --}}
                         @if(count($this->quickGradesActivities) > 0)
@@ -104,10 +131,13 @@
                     <div class="flex-1 flex flex-col min-h-0">
                         {{-- Content Header --}}
                         <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                            <span class="text-xs text-zinc-400">
+                            <span class="text-xs text-zinc-400 truncate">
+                                @if($this->quickGradesBlockName)
+                                    <span class="font-medium text-zinc-600 dark:text-zinc-300">{{ $this->quickGradesBlockName }}</span> ·
+                                @endif
                                 {{ $this->quickGradesActivityName }}
                             </span>
-                            <span class="text-[11px] text-zinc-400">
+                            <span class="text-[11px] text-zinc-400 shrink-0">
                                 {{ __('Mostrando') }} {{ $this->quickGradesPage * 8 + 1 }}–{{ min(($this->quickGradesPage + 1) * 8, count($this->quickGradesStudents)) }}
                             </span>
                         </div>
