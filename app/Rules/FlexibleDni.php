@@ -5,8 +5,16 @@ namespace App\Rules;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
+/**
+ * Cédula de identidad tolerante solo en el prefijo: los extranjeros usan
+ * "E" seguido de dígitos y no llevan dígito verificador, así que se aceptan
+ * tal cual. Cualquier otro valor debe ser una cédula ecuatoriana completa
+ * de 10 dígitos con provincia y módulo 10 válidos.
+ */
 class FlexibleDni implements ValidationRule
 {
+    private const FOREIGNER_PATTERN = '/^E\d{1,19}$/i';
+
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         $dni = trim((string) $value);
@@ -23,11 +31,23 @@ class FlexibleDni implements ValidationRule
             return;
         }
 
-        $numericOnly = preg_replace('/[^0-9]/', '', $dni);
-
-        if (strlen($numericOnly) === 10 && $numericOnly === $dni) {
-            $this->validateCedula($numericOnly, $attribute, $fail);
+        if (preg_match(self::FOREIGNER_PATTERN, $dni)) {
+            return;
         }
+
+        if (! ctype_digit($dni)) {
+            $fail(__('El :attribute debe tener 10 dígitos, o iniciar con E si es una cédula de extranjero.'));
+
+            return;
+        }
+
+        if (strlen($dni) !== 10) {
+            $fail(__('El :attribute debe tener 10 dígitos; una cédula de '.strlen($dni).' dígitos está incompleta.'));
+
+            return;
+        }
+
+        $this->validateCedula($dni, $attribute, $fail);
     }
 
     protected function validateCedula(string $cedula, string $attribute, Closure $fail): void

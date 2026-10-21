@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Services\Identity\UserPasswordResetService;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -48,6 +49,53 @@ new #[Title('Usuarios')] class extends Component {
         if ($user) {
             $this->toggleStatus($user);
         }
+    }
+
+    public function confirmResetPassword(int $id): void
+    {
+        if (! $this->canResetPasswords()) {
+            Flux::toast(variant: 'danger', text: __('No tienes permisos para resetear contraseñas.'));
+
+            return;
+        }
+
+        $user = User::find($id);
+        if (! $user) {
+            return;
+        }
+
+        $this->dispatch('showConfirm',
+            message: "Se reseteará la contraseña de {$user->fullname} a su valor inicial (cedula + passsword) y deberá cambiarla al ingresar. Continuar?",
+            eventName: 'execute-reset-password',
+            eventParams: ['id' => $id]
+        )->to('confirm-action');
+    }
+
+    #[On('execute-reset-password')]
+    public function executeResetPassword(array $params): void
+    {
+        if (! $this->canResetPasswords()) {
+            Flux::toast(variant: 'danger', text: __('No tienes permisos para resetear contraseñas.'));
+
+            return;
+        }
+
+        $user = User::find($params['id']);
+        if (! $user) {
+            return;
+        }
+
+        $password = app(UserPasswordResetService::class)->resetToDefault($user);
+
+        Flux::toast(
+            variant: 'success',
+            text: "Contraseña de {$user->fullname} reseteada. Contraseña temporal: {$password}"
+        );
+    }
+
+    protected function canResetPasswords(): bool
+    {
+        return auth()->user()?->hasAnyRole(['ADMIN', 'SUPER-ADMIN']) ?? false;
     }
 
     public function getRecordsProperty()
@@ -169,6 +217,7 @@ new #[Title('Usuarios')] class extends Component {
                                     <flux:menu>
                                         <flux:menu.item href="{{ route('system.identity.users.show', $user->id) }}" wire:navigate icon="eye">{{ __('Ver') }}</flux:menu.item>
                                         <flux:menu.item href="{{ route('system.identity.users.edit', $user->id) }}" wire:navigate icon="pencil">{{ __('Editar') }}</flux:menu.item>
+                                        <flux:menu.item wire:click="confirmResetPassword({{ $user->id }})" icon="key" variant="danger">{{ __('Resetear contraseña') }}</flux:menu.item>
                                     </flux:menu>
                                 </flux:dropdown>
                             </td>

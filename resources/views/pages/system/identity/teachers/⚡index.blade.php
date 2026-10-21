@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Identity\Users\Teacher;
+use App\Services\Identity\UserPasswordResetService;
 use Flux\Flux;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
@@ -50,6 +51,53 @@ new #[Title('Docentes')] class extends Component {
         if ($teacher) {
             $this->toggleStatus($teacher);
         }
+    }
+
+    public function confirmResetPassword(int $id): void
+    {
+        if (! $this->canResetPasswords()) {
+            Flux::toast(variant: 'danger', text: __('No tienes permisos para resetear contraseñas.'));
+
+            return;
+        }
+
+        $teacher = Teacher::with('user')->find($id);
+        if (! $teacher?->user) {
+            return;
+        }
+
+        $this->dispatch('showConfirm',
+            message: "Se reseteará la contraseña de {$teacher->user->fullname} a su valor inicial (cedula + passsword) y deberá cambiarla al ingresar. Continuar?",
+            eventName: 'execute-reset-password',
+            eventParams: ['id' => $id]
+        )->to('confirm-action');
+    }
+
+    #[On('execute-reset-password')]
+    public function executeResetPassword(array $params): void
+    {
+        if (! $this->canResetPasswords()) {
+            Flux::toast(variant: 'danger', text: __('No tienes permisos para resetear contraseñas.'));
+
+            return;
+        }
+
+        $teacher = Teacher::with('user')->find($params['id']);
+        if (! $teacher?->user) {
+            return;
+        }
+
+        $password = app(UserPasswordResetService::class)->resetToDefault($teacher->user);
+
+        Flux::toast(
+            variant: 'success',
+            text: "Contraseña de {$teacher->user->fullname} reseteada. Contraseña temporal: {$password}"
+        );
+    }
+
+    protected function canResetPasswords(): bool
+    {
+        return auth()->user()?->hasAnyRole(['ADMIN', 'SUPER-ADMIN']) ?? false;
     }
 
     public function getRecordsProperty()
@@ -166,6 +214,7 @@ new #[Title('Docentes')] class extends Component {
                                     <flux:menu>
                                         <flux:menu.item href="{{ route('system.identity.teachers.show', $teacher->id) }}" wire:navigate icon="eye">{{ __('Ver') }}</flux:menu.item>
                                         <flux:menu.item href="{{ route('system.identity.teachers.edit', $teacher->id) }}" wire:navigate icon="pencil">{{ __('Editar') }}</flux:menu.item>
+                                        <flux:menu.item wire:click="confirmResetPassword({{ $teacher->id }})" icon="key" variant="danger">{{ __('Resetear contraseña') }}</flux:menu.item>
                                     </flux:menu>
                                 </flux:dropdown>
                             </td>
