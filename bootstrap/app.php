@@ -3,6 +3,7 @@
 use App\Exceptions\Api\PasswordChangeRequiredException;
 use App\Exceptions\Api\TokenAbilityMissingException;
 use App\Http\Middleware\EnsurePasswordRotated;
+use App\Http\Middleware\EnsureRegistrationIsOpen;
 use App\Http\Middleware\EnsureTokenAbility;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Jobs\CleanupExpiredTokens;
@@ -57,12 +58,19 @@ return Application::configure(basePath: dirname(__DIR__))
             'user.active' => EnsureUserIsActive::class,
             'token.ability' => EnsureTokenAbility::class,
             'password.rotated' => EnsurePasswordRotated::class,
-            // 'representante' => \App\Http\Middleware\EnsureUserIsRepresentative::class,
+            // 'representative' => \App\Http\Middleware\EnsureUserIsRepresentative::class,
         ]);
 
         $middleware->group('auth', [
             Authenticate::class,
             'user.active',
+        ]);
+
+        // Cierra el registro publico cuando ya existe un super administrador.
+        // Se aplica al grupo 'web' (el que usa Fortify) y solo intercepta las
+        // rutas de registro.
+        $middleware->web(append: [
+            EnsureRegistrationIsOpen::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

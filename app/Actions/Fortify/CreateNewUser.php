@@ -4,8 +4,8 @@ namespace App\Actions\Fortify;
 
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
-use App\Models\Security\Authorizations\Role;
 use App\Models\User;
+use App\Services\Identity\SuperAdminService;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
@@ -41,16 +41,13 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $input['password'],
             'must_change_password' => false,
         ]);
-        if ($input['dni'] === '0502987548') {
-            $user->markEmailAsVerified();
-            $user->status = 1;
-            $user->save();
-            $superAdmin = Role::firstOrCreate(
-                ['name' => 'SUPER-ADMIN', 'guard_name' => 'web'],
-                ['description' => 'Super administrator with unrestricted access'],
-            );
 
-            $user->assignRole($superAdmin);
+        // El rol SUPER-ADMIN se otorga como maximo una vez y solo a la cedula
+        // configurada en SUPER_ADMIN_DNI (fuera del repositorio).
+        $superAdmin = app(SuperAdminService::class);
+
+        if (! $superAdmin->exists() && $superAdmin->isSuperAdminDni($input['dni'])) {
+            $superAdmin->promote($user);
         }
 
         return $user;
