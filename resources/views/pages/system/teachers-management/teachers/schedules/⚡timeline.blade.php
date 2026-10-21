@@ -54,6 +54,9 @@ new #[Title('Horario del Docente')] class extends Component {
     public int $quickGradesPage = 0;
     public array $quickGradesActivities = [];
     public ?int $quickGradesSelectedActivity = null;
+    public array $quickGradesBlocks = [];
+    public ?int $quickGradesSelectedBlockId = null;
+    public string $quickGradesBlockName = '';
 
     protected function listeners(): array
     {
@@ -396,31 +399,38 @@ new #[Title('Horario del Docente')] class extends Component {
             $this->yearId,
         );
 
-        $this->quickGradesActivities = app(QuickGradesService::class)->loadActivities(
+        $this->quickGradesBlocks = app(QuickGradesService::class)->loadBlocks(
             $scheduleId,
             $this->yearId,
         );
 
+        $defaultBlock = app(QuickGradesService::class)->getDefaultBlock($this->quickGradesBlocks);
+
+        $this->quickGradesSelectedBlockId = $defaultBlock['id'] ?? null;
+        $this->quickGradesBlockName = $defaultBlock['name'] ?? '';
+        $this->quickGradesActivities = $defaultBlock['activities'] ?? [];
+
         $defaultActivity = app(QuickGradesService::class)->getDefaultActivity($this->quickGradesActivities);
 
-        if ($defaultActivity) {
-            $this->quickGradesSelectedActivity = $defaultActivity['id'];
-            $this->quickGradesActivityId = $defaultActivity['id'];
-            $this->quickGradesActivityName = $defaultActivity['name'];
-            $this->quickGradesValues = app(QuickGradesService::class)->loadGradesForActivity(
-                $defaultActivity['id'],
-                $this->quickGradesStudents,
-            );
-        } else {
-            $this->quickGradesSelectedActivity = null;
-            $this->quickGradesActivityId = null;
-            $this->quickGradesActivityName = empty($this->quickGradesActivities) ? 'Sin bloque configurado' : 'Sin actividad';
-            $this->quickGradesValues = collect($this->quickGradesStudents)
-                ->mapWithKeys(fn ($s) => [$s['id'] => ''])
-                ->toArray();
-        }
+        $this->applyQuickGradesActivity($defaultActivity);
 
         $this->showQuickGradesModal = true;
+    }
+
+    public function selectQuickGradesBlock(int $blockId): void
+    {
+        $block = collect($this->quickGradesBlocks)->firstWhere('id', $blockId);
+        if (! $block) {
+            return;
+        }
+
+        $this->quickGradesSelectedBlockId = $block['id'];
+        $this->quickGradesBlockName = $block['name'];
+        $this->quickGradesActivities = $block['activities'] ?? [];
+
+        $defaultActivity = app(QuickGradesService::class)->getDefaultActivity($this->quickGradesActivities);
+
+        $this->applyQuickGradesActivity($defaultActivity);
     }
 
     public function selectQuickGradesActivity(int $activityId): void
@@ -430,7 +440,28 @@ new #[Title('Horario del Docente')] class extends Component {
             return;
         }
 
-        $this->quickGradesSelectedActivity = $activityId;
+        $this->applyQuickGradesActivity($activity);
+    }
+
+    /**
+     * Sincroniza el estado del modal con la actividad seleccionada.
+     *
+     * @param  array<string, mixed>|null  $activity
+     */
+    protected function applyQuickGradesActivity(?array $activity): void
+    {
+        if (! $activity) {
+            $this->quickGradesSelectedActivity = null;
+            $this->quickGradesActivityId = null;
+            $this->quickGradesActivityName = $this->quickGradesBlocks === [] ? 'Sin bloque configurado' : 'Sin actividad';
+            $this->quickGradesValues = collect($this->quickGradesStudents)
+                ->mapWithKeys(fn ($s) => [$s['id'] => ''])
+                ->toArray();
+
+            return;
+        }
+
+        $this->quickGradesSelectedActivity = $activity['id'];
         $this->quickGradesActivityId = $activity['id'];
         $this->quickGradesActivityName = $activity['name'];
         $this->quickGradesValues = app(QuickGradesService::class)->loadGradesForActivity(
@@ -450,6 +481,9 @@ new #[Title('Horario del Docente')] class extends Component {
         $this->quickGradesPage = 0;
         $this->quickGradesActivities = [];
         $this->quickGradesSelectedActivity = null;
+        $this->quickGradesBlocks = [];
+        $this->quickGradesSelectedBlockId = null;
+        $this->quickGradesBlockName = '';
     }
 
     public function getQuickGradesPaginatedStudents(): array

@@ -7,11 +7,19 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->prefix('system/identity')->name('system.identity.')->group(function () {
 
-    // Usuarios
-    Route::livewire('users', 'pages::system.identity.users.index')->name('users.index');
-    Route::livewire('users/create', 'pages::system.identity.users.create')->name('users.create');
-    Route::livewire('users/{id}', 'pages::system.identity.users.show')->name('users.show');
-    Route::livewire('users/{id}/edit', 'pages::system.identity.users.edit')->name('users.edit');
+    // Usuarios (solo admin/super-admin)
+    Route::livewire('users', 'pages::system.identity.users.index')
+        ->middleware('role:ADMIN|SUPER-ADMIN')
+        ->name('users.index');
+    Route::livewire('users/create', 'pages::system.identity.users.create')
+        ->middleware('role:ADMIN|SUPER-ADMIN')
+        ->name('users.create');
+    Route::livewire('users/{id}', 'pages::system.identity.users.show')
+        ->middleware('role:ADMIN|SUPER-ADMIN')
+        ->name('users.show');
+    Route::livewire('users/{id}/edit', 'pages::system.identity.users.edit')
+        ->middleware('role:ADMIN|SUPER-ADMIN')
+        ->name('users.edit');
 
     // Estudiantes (solo tutor/docente/admin puede crear/importar)
     Route::livewire('students', 'pages::system.identity.students.index')->name('students.index');
@@ -30,12 +38,22 @@ Route::middleware(['auth', 'verified'])->prefix('system/identity')->name('system
         ->middleware('role:DOCENTE|TUTOR')
         ->name('students.carnets.bulk-pdf');
 
-    // Docentes (solo admin puede importar)
-    Route::livewire('teachers', 'pages::system.identity.teachers.index')->name('teachers.index');
-    Route::livewire('teachers/create', 'pages::system.identity.teachers.create')->name('teachers.create');
-    Route::livewire('teachers/import', 'pages::system.identity.teachers.import')->name('teachers.import');
-    Route::livewire('teachers/{id}', 'pages::system.identity.teachers.show')->name('teachers.show');
-    Route::livewire('teachers/{id}/edit', 'pages::system.identity.teachers.edit')->name('teachers.edit');
+    // Docentes (solo admin/super-admin)
+    Route::livewire('teachers', 'pages::system.identity.teachers.index')
+        ->middleware('role:ADMIN|SUPER-ADMIN')
+        ->name('teachers.index');
+    Route::livewire('teachers/create', 'pages::system.identity.teachers.create')
+        ->middleware('role:ADMIN|SUPER-ADMIN')
+        ->name('teachers.create');
+    Route::livewire('teachers/import', 'pages::system.identity.teachers.import')
+        ->middleware('role:ADMIN|SUPER-ADMIN')
+        ->name('teachers.import');
+    Route::livewire('teachers/{id}', 'pages::system.identity.teachers.show')
+        ->middleware('role:ADMIN|SUPER-ADMIN')
+        ->name('teachers.show');
+    Route::livewire('teachers/{id}/edit', 'pages::system.identity.teachers.edit')
+        ->middleware('role:ADMIN|SUPER-ADMIN')
+        ->name('teachers.edit');
 
     // Representantes (solo tutor/docente/admin puede crear/importar)
     Route::livewire('representatives', 'pages::system.identity.representatives.index')->name('representatives.index');
