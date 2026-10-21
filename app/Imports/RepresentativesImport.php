@@ -8,6 +8,7 @@ use App\Models\Identity\Users\Student;
 use App\Models\User;
 use App\Rules\EcuadorianPhone;
 use App\Rules\FlexibleDni;
+use App\Services\Identity\UserPasswordResetService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -140,7 +141,7 @@ class RepresentativesImport implements ToCollection, WithHeadingRow
                         'phone' => $rowData['phone'] ?: null,
                         'cellphone' => $rowData['cellphone'] ?: null,
                         'address' => $rowData['address'] ?: null,
-                        'password' => $rowData['dni'].'passsword',
+                        'password' => UserPasswordResetService::defaultPasswordFor($rowData['dni']),
                         'status' => 1,
                         'must_change_password' => true,
                     ]);

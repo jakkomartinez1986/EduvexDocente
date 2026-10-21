@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Services\Identity\UserPasswordResetService;
+use Flux\Flux;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -19,6 +22,50 @@ new #[Title('Detalle de Usuario')] class extends Component {
             ->with(['roles'])
             ->findOrFail($this->userId);
     }
+
+    public function confirmResetPassword(): void
+    {
+        if (! $this->canResetPasswords()) {
+            Flux::toast(variant: 'danger', text: __('No tienes permisos para resetear contraseñas.'));
+
+            return;
+        }
+
+        $user = $this->user;
+
+        $this->dispatch('showConfirm',
+            message: "Se reseteará la contraseña de {$user->fullname} a su valor inicial (cedula + passsword) y deberá cambiarla al ingresar. Continuar?",
+            eventName: 'execute-reset-password',
+            eventParams: ['id' => $user->id]
+        )->to('confirm-action');
+    }
+
+    #[On('execute-reset-password')]
+    public function executeResetPassword(array $params): void
+    {
+        if (! $this->canResetPasswords()) {
+            Flux::toast(variant: 'danger', text: __('No tienes permisos para resetear contraseñas.'));
+
+            return;
+        }
+
+        $user = User::find($params['id']);
+        if (! $user) {
+            return;
+        }
+
+        $password = app(UserPasswordResetService::class)->resetToDefault($user);
+
+        Flux::toast(
+            variant: 'success',
+            text: "Contraseña de {$user->fullname} reseteada. Contraseña temporal: {$password}"
+        );
+    }
+
+    protected function canResetPasswords(): bool
+    {
+        return auth()->user()?->hasAnyRole(['ADMIN', 'SUPER-ADMIN']) ?? false;
+    }
 }; ?>
 
 <div>
@@ -28,6 +75,9 @@ new #[Title('Detalle de Usuario')] class extends Component {
             <flux:text variant="subtle" class="mt-1">{{ __('Informacion completa del usuario') }}</flux:text>
         </div>
         <div class="flex gap-2">
+            <flux:button wire:click="confirmResetPassword" variant="outline">
+                <flux:icon.key /> {{ __('Resetear contraseña') }}
+            </flux:button>
             <flux:button href="{{ route('system.identity.users.edit', $this->userId) }}" wire:navigate variant="primary">
                 <flux:icon.pencil /> {{ __('Editar') }}
             </flux:button>
@@ -136,4 +186,6 @@ new #[Title('Detalle de Usuario')] class extends Component {
             </div>
         </div>
     </div>
+
+    <livewire:confirm-action />
 </div>
