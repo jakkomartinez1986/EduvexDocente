@@ -3,6 +3,7 @@
 use App\Models\Security\Authorizations\Role;
 use App\Models\User;
 use App\Services\Identity\SuperAdminService;
+use App\Services\Identity\TeacherProfileService;
 use Flux\Flux;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -39,7 +40,7 @@ new #[Title('Editar Usuario')] class extends Component {
 
     public function getAvailableRolesProperty()
     {
-        $excludedRoles = ['SUPER-ADMIN', 'DOCENTE', 'TUTOR', 'REPRESENTANTE', 'ESTUDIANTE'];
+        $excludedRoles = $this->excludedRoles();
         $query = Role::orderBy('name');
 
         if ($this->user && $this->user->hasRole('SUPER-ADMIN')) {
@@ -47,6 +48,21 @@ new #[Title('Editar Usuario')] class extends Component {
         }
 
         return $query->whereNotIn('name', $excludedRoles)->get();
+    }
+
+    /**
+     * Roles que nunca se asignan desde este formulario.
+     *
+     * El rol DOCENTE si se puede asignar: al asignarlo se crea el perfil de
+     * docente correspondiente (ver TeacherProfileService). Los roles ligados a
+     * un perfil propio (TUTOR, REPRESENTANTE, ESTUDIANTE) siguen gestionandose
+     * desde su modulo y el SUPER-ADMIN se mantiene unico.
+     *
+     * @return array<int, string>
+     */
+    protected function excludedRoles(): array
+    {
+        return ['SUPER-ADMIN', 'TUTOR', 'REPRESENTANTE', 'ESTUDIANTE'];
     }
 
     protected function rules(): array
@@ -93,7 +109,7 @@ new #[Title('Editar Usuario')] class extends Component {
             'status' => $isSuperAdmin ? 1 : $this->status,
         ]);
 
-        $excludedRoles = ['SUPER-ADMIN', 'DOCENTE', 'TUTOR', 'REPRESENTANTE', 'ESTUDIANTE'];
+        $excludedRoles = $this->excludedRoles();
         $roleIds = Role::whereIn('id', $this->selectedRoles)
             ->whereNotIn('name', $excludedRoles)
             ->pluck('id')
@@ -112,6 +128,13 @@ new #[Title('Editar Usuario')] class extends Component {
         }
 
         $this->user->syncRoles($roleIds);
+
+        // El rol DOCENTE necesita su perfil en `teachers` (1-a-1 con users):
+        // sin el, el docente no aparece en el modulo de Docentes ni tiene
+        // navegacion ni horario. El perfil no se borra al quitar el rol.
+        if ($this->user->hasRole(TeacherProfileService::ROLE_NAME)) {
+            app(TeacherProfileService::class)->ensure($this->user);
+        }
 
         Flux::toast(variant: 'success', text: __('Usuario actualizado correctamente.'));
         $this->redirect(route('system.identity.users.index'), navigate: true);
@@ -204,6 +227,9 @@ new #[Title('Editar Usuario')] class extends Component {
                     @endforeach
                 </div>
                 @error('selectedRoles') <flux:description class="text-red-500 mt-2">{{ $message }}</flux:description> @enderror
+                <flux:description class="text-zinc-500 mt-2">
+                    {{ __('Al asignar el rol DOCENTE se crea automaticamente el perfil de docente del usuario.') }}
+                </flux:description>
             </flux:field>
         </div>
 
