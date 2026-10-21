@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use App\Services\Identity\SuperAdminService;
 use App\Services\Identity\UserPasswordResetService;
 use Flux\Flux;
 use Livewire\Attributes\On;
@@ -122,6 +123,12 @@ new #[Title('Usuarios')] class extends Component {
 
     public function toggleStatus(User $user): void
     {
+        if (app(SuperAdminService::class)->isSuperAdmin($user)) {
+            Flux::toast(variant: 'danger', text: __('La cuenta del super administrador no se puede desactivar.'));
+
+            return;
+        }
+
         $user->status = $user->status === 1 ? 0 : 1;
         $user->save();
 
