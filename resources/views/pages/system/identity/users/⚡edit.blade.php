@@ -44,7 +44,14 @@ new #[Title('Editar Usuario')] class extends Component {
         $query = Role::orderBy('name');
 
         if ($this->user && $this->user->hasRole('SUPER-ADMIN')) {
-            return $query->get();
+            $excludedRoles = [];
+        }
+
+        // El rol DOCENTE solo se ofrece a cuentas que ya tienen perfil de
+        // docente: sin perfil, el usuario quedaria con el rol pero sin
+        // modulo de Docentes, navegacion ni horario.
+        if (! $this->hasTeacherProfile()) {
+            $excludedRoles[] = TeacherProfileService::ROLE_NAME;
         }
 
         return $query->whereNotIn('name', $excludedRoles)->get();
@@ -53,16 +60,28 @@ new #[Title('Editar Usuario')] class extends Component {
     /**
      * Roles que nunca se asignan desde este formulario.
      *
-     * El rol DOCENTE si se puede asignar: al asignarlo se crea el perfil de
-     * docente correspondiente (ver TeacherProfileService). Los roles ligados a
-     * un perfil propio (TUTOR, REPRESENTANTE, ESTUDIANTE) siguen gestionandose
-     * desde su modulo y el SUPER-ADMIN se mantiene unico.
+     * Los roles ligados a un perfil propio (TUTOR, REPRESENTANTE,
+     * ESTUDIANTE) siguen gestionandose desde su modulo y el SUPER-ADMIN se
+     * mantiene unico. El DOCENTE se habilita solo cuando la cuenta ya tiene
+     * perfil de docente.
      *
      * @return array<int, string>
      */
     protected function excludedRoles(): array
     {
         return ['SUPER-ADMIN', 'TUTOR', 'REPRESENTANTE', 'ESTUDIANTE'];
+    }
+
+    /**
+     * Indica si la cuenta editada ya tiene perfil de docente.
+     */
+    protected function hasTeacherProfile(): bool
+    {
+        if (! $this->user) {
+            return false;
+        }
+
+        return app(TeacherProfileService::class)->hasProfile($this->user);
     }
 
     protected function rules(): array
@@ -110,6 +129,13 @@ new #[Title('Editar Usuario')] class extends Component {
         ]);
 
         $excludedRoles = $this->excludedRoles();
+
+        // Mismo criterio que en el formulario: el rol DOCENTE se guarda solo
+        // para cuentas con perfil de docente, aunque se inyecte su id.
+        if (! $this->hasTeacherProfile()) {
+            $excludedRoles[] = TeacherProfileService::ROLE_NAME;
+        }
+
         $roleIds = Role::whereIn('id', $this->selectedRoles)
             ->whereNotIn('name', $excludedRoles)
             ->pluck('id')
@@ -128,13 +154,6 @@ new #[Title('Editar Usuario')] class extends Component {
         }
 
         $this->user->syncRoles($roleIds);
-
-        // El rol DOCENTE necesita su perfil en `teachers` (1-a-1 con users):
-        // sin el, el docente no aparece en el modulo de Docentes ni tiene
-        // navegacion ni horario. El perfil no se borra al quitar el rol.
-        if ($this->user->hasRole(TeacherProfileService::ROLE_NAME)) {
-            app(TeacherProfileService::class)->ensure($this->user);
-        }
 
         Flux::toast(variant: 'success', text: __('Usuario actualizado correctamente.'));
         $this->redirect(route('system.identity.users.index'), navigate: true);
@@ -228,7 +247,7 @@ new #[Title('Editar Usuario')] class extends Component {
                 </div>
                 @error('selectedRoles') <flux:description class="text-red-500 mt-2">{{ $message }}</flux:description> @enderror
                 <flux:description class="text-zinc-500 mt-2">
-                    {{ __('Al asignar el rol DOCENTE se crea automaticamente el perfil de docente del usuario.') }}
+                    {{ __('El rol DOCENTE solo se muestra si el usuario ya tiene perfil de docente (importado o creado en el modulo de Docentes).') }}
                 </flux:description>
             </flux:field>
         </div>

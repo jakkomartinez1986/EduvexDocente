@@ -8,9 +8,11 @@ use Livewire\Livewire;
 /**
  * Asignacion del rol DOCENTE desde la actualizacion de usuario.
  *
- * El rol DOCENTE necesita su perfil en `teachers` (1-a-1 con `users`): sin el
- * el docente no aparece en el modulo de Docentes ni tiene navegacion ni
- * horario docente.
+ * El rol DOCENTE solo se ofrece y se guarda para cuentas que ya tienen
+ * perfil de docente (`teachers`, 1-a-1 con `users`): las importadas o las
+ * creadas en el modulo de Docentes. Una cuenta que se registro por si sola
+ * no tiene perfil, por lo que no ve la opcion y no puede quedarse con el
+ * rol a medio camino.
  */
 beforeEach(function (): void {
     foreach (['ADMIN', 'SUPER-ADMIN', 'DOCENTE', 'TUTOR', 'REPRESENTANTE', 'ESTUDIANTE'] as $name) {
@@ -34,58 +36,79 @@ function roleId(string $name): int
     return (int) Role::where('name', $name)->value('id');
 }
 
-it('ofrece el rol DOCENTE en la actualizacion de usuario', function (): void {
+it('ofrece el rol DOCENTE a un usuario que ya tiene perfil de docente', function (): void {
+    $admin = adminForTeacherRole();
+    $teacher = Teacher::factory()->create();
+
+    $component = Livewire::actingAs($admin)
+        ->test('pages::system.identity.users.edit', ['id' => $teacher->user_id]);
+
+    expect($component->get('availableRoles')->pluck('name')->all())->toContain('DOCENTE');
+});
+
+it('no ofrece el rol DOCENTE a un usuario sin perfil de docente', function (): void {
     $admin = adminForTeacherRole();
     $user = User::factory()->create();
 
-    Livewire::actingAs($admin)
-        ->test('pages::system.identity.users.edit', ['id' => $user->id])
-        ->assertSee('DOCENTE');
+    $component = Livewire::actingAs($admin)
+        ->test('pages::system.identity.users.edit', ['id' => $user->id]);
+
+    expect($component->get('availableRoles')->pluck('name')->all())->not->toContain('DOCENTE');
 });
 
 it('no ofrece los roles que dependen de otro modulo', function (): void {
     $admin = adminForTeacherRole();
-    $user = User::factory()->create();
+    $teacher = Teacher::factory()->create();
 
-    Livewire::actingAs($admin)
-        ->test('pages::system.identity.users.edit', ['id' => $user->id])
-        ->assertDontSee('TUTOR')
-        ->assertDontSee('REPRESENTANTE')
-        ->assertDontSee('ESTUDIANTE');
+    $component = Livewire::actingAs($admin)
+        ->test('pages::system.identity.users.edit', ['id' => $teacher->user_id]);
+
+    $names = $component->get('availableRoles')->pluck('name')->all();
+
+    expect($names)->not->toContain('TUTOR')
+        ->and($names)->not->toContain('REPRESENTANTE')
+        ->and($names)->not->toContain('ESTUDIANTE');
 });
 
-it('asigna el rol DOCENTE y crea el perfil de docente', function (): void {
-    $admin = adminForTeacherRole();
-    $user = User::factory()->create();
-
-    Livewire::actingAs($admin)
-        ->test('pages::system.identity.users.edit', ['id' => $user->id])
-        ->set('selectedRoles', [roleId('DOCENTE')])
-        ->call('update');
-
-    $user->refresh();
-
-    expect($user->hasRole('DOCENTE'))->toBeTrue()
-        ->and(Teacher::where('user_id', $user->id)->count())->toBe(1);
-
-    $teacher = Teacher::where('user_id', $user->id)->first();
-
-    expect($teacher->teacher_code)->toStartWith('DOC-')
-        ->and($teacher->hire_date)->not->toBeNull();
-});
-
-it('no duplica el perfil de docente cuando la cuenta ya es docente', function (): void {
+it('asigna el rol DOCENTE a un usuario con perfil de docente', function (): void {
     $admin = adminForTeacherRole();
     $teacher = Teacher::factory()->create();
     $user = $teacher->user;
 
+    expect($user->hasRole('DOCENTE'))->toBeFalse();
+
     Livewire::actingAs($admin)
         ->test('pages::system.identity.users.edit', ['id' => $user->id])
         ->set('selectedRoles', [roleId('DOCENTE')])
         ->call('update');
 
-    expect(Teacher::where('user_id', $user->id)->count())->toBe(1)
-        ->and(Teacher::find($teacher->id)?->teacher_code)->toBe($teacher->teacher_code);
+    expect($user->fresh()->hasRole('DOCENTE'))->toBeTrue()
+        ->and(Teacher::where('user_id', $user->id)->count())->toBe(1);
+});
+
+it('no asigna el rol DOCENTE a un usuario sin perfil de docente', function (): void {
+    $admin = adminForTeacherRole();
+    $user = User::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('pages::system.identity.users.edit', ['id' => $user->id])
+        ->set('selectedRoles', [roleId('DOCENTE')])
+        ->call('update');
+
+    expect($user->fresh()->hasRole('DOCENTE'))->toBeFalse()
+        ->and(Teacher::where('user_id', $user->id)->count())->toBe(0);
+});
+
+it('no crea el perfil de docente al asignar el rol', function (): void {
+    $admin = adminForTeacherRole();
+    $user = User::factory()->create();
+
+    Livewire::actingAs($admin)
+        ->test('pages::system.identity.users.edit', ['id' => $user->id])
+        ->set('selectedRoles', [roleId('DOCENTE')])
+        ->call('update');
+
+    expect(Teacher::where('user_id', $user->id)->count())->toBe(0);
 });
 
 it('conserva el rol DOCENTE de un docente existente al actualizarlo', function (): void {
@@ -116,23 +139,13 @@ it('no borra el perfil de docente al quitar el rol', function (): void {
         ->and(Teacher::where('user_id', $user->id)->count())->toBe(1);
 });
 
-it('genera codigos de docente distintos al asignar el rol a dos usuarios', function (): void {
+it('no ofrece el rol DOCENTE a un docente con perfil dado de baja', function (): void {
     $admin = adminForTeacherRole();
-    $first = User::factory()->create();
-    $second = User::factory()->create();
+    $teacher = Teacher::factory()->create();
+    $teacher->delete();
 
-    Livewire::actingAs($admin)
-        ->test('pages::system.identity.users.edit', ['id' => $first->id])
-        ->set('selectedRoles', [roleId('DOCENTE')])
-        ->call('update');
+    $component = Livewire::actingAs($admin)
+        ->test('pages::system.identity.users.edit', ['id' => $teacher->user_id]);
 
-    Livewire::actingAs($admin)
-        ->test('pages::system.identity.users.edit', ['id' => $second->id])
-        ->set('selectedRoles', [roleId('DOCENTE')])
-        ->call('update');
-
-    $codes = Teacher::whereIn('user_id', [$first->id, $second->id])->pluck('teacher_code');
-
-    expect($codes)->toHaveCount(2)
-        ->and($codes->unique())->toHaveCount(2);
+    expect($component->get('availableRoles')->pluck('name')->all())->not->toContain('DOCENTE');
 });
