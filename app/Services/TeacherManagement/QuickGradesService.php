@@ -20,10 +20,8 @@ final class QuickGradesService
     {
         $schedule = ClassSchedule::with('grade')->findOrFail($scheduleId);
 
-        $students = Student::whereHas('enrollments', function ($q) use ($schedule, $yearId) {
-            $q->where('grade_id', $schedule->grade_id)
-                ->where('year_id', $yearId);
-        })->with('user')->get();
+        $students = Student::activeEnrollment((int) $schedule->grade_id, $yearId)
+            ->with('user')->get();
 
         return $students->map(fn ($s) => [
             'id' => $s->id,

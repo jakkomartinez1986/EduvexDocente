@@ -80,7 +80,7 @@ final class RecoveriesService
             throw new NotFoundHttpException('El período no es válido para el libro de calificaciones.');
         }
 
-        $enrolledIds = $this->activeEnrolledStudentIds($yearId, $gradeId);
+        $enrolledIds = $this->enrolledStudentIds($yearId, $gradeId);
 
         [$grades, $recoveries] = match ($type) {
             'activity' => [
@@ -754,23 +754,9 @@ final class RecoveriesService
      */
     private function enrolledStudentIds(int $yearId, int $gradeId): Collection
     {
-        return StudentEnrollment::query()
+        return StudentEnrollment::active()
             ->where('year_id', $yearId)
             ->where('grade_id', $gradeId)
-            ->pluck('student_id')
-            ->unique()
-            ->values();
-    }
-
-    /**
-     * @return Collection<int, int>
-     */
-    private function activeEnrolledStudentIds(int $yearId, int $gradeId): Collection
-    {
-        return StudentEnrollment::query()
-            ->where('year_id', $yearId)
-            ->where('grade_id', $gradeId)
-            ->where('status', 'active')
             ->pluck('student_id')
             ->unique()
             ->values();

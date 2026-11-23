@@ -99,7 +99,7 @@ class GradebookPdfService
 
             if (isset($ctx['student_id'])) {
                 $student = Student::where('id', $ctx['student_id'])
-                    ->whereHas('enrollments', fn ($q) => $q->where('grade_id', $tutorSchedule->grade_id)->where('year_id', $yearId))
+                    ->whereHas('enrollments', fn ($q) => $q->active()->where('grade_id', $tutorSchedule->grade_id)->where('year_id', $yearId))
                     ->first();
 
                 abort_if(! $student, 404, __('Estudiante no encontrado en el grado del tutor.'));
@@ -403,7 +403,7 @@ class GradebookPdfService
 
         abort_if(! $schedule, 404, __('No se encontró el horario.'));
 
-        $students = Student::whereHas('enrollments', fn ($q) => $q->where('grade_id', $ctx['grade_id'])->where('year_id', $yearId))
+        $students = Student::whereHas('enrollments', fn ($q) => $q->active()->where('grade_id', $ctx['grade_id'])->where('year_id', $yearId))
             ->with('user')
             ->orderBy(User::select('lastname')->whereColumn('users.id', 'students.user_id'))
             ->get();
@@ -494,7 +494,7 @@ class GradebookPdfService
 
         abort_if(! $schedule, 404, __('No se encontró el horario.'));
 
-        $students = Student::whereHas('enrollments', fn ($q) => $q->where('grade_id', $ctx['grade_id'])->where('year_id', $yearId))
+        $students = Student::whereHas('enrollments', fn ($q) => $q->active()->where('grade_id', $ctx['grade_id'])->where('year_id', $yearId))
             ->with('user')
             ->orderBy(User::select('lastname')->whereColumn('users.id', 'students.user_id'))
             ->get();
@@ -591,7 +591,7 @@ class GradebookPdfService
         $gradeId = $tutorSchedule->grade_id;
 
         $student = Student::where('id', $ctx['student_id'])
-            ->whereHas('enrollments', fn ($q) => $q->where('grade_id', $gradeId)->where('year_id', $yearId))
+            ->whereHas('enrollments', fn ($q) => $q->active()->where('grade_id', $gradeId)->where('year_id', $yearId))
             ->with('user')
             ->first();
 
@@ -683,7 +683,7 @@ class GradebookPdfService
         $gradeId = $tutorSchedule->grade_id;
 
         $student = Student::where('id', $ctx['student_id'])
-            ->whereHas('enrollments', fn ($q) => $q->where('grade_id', $gradeId)->where('year_id', $yearId))
+            ->whereHas('enrollments', fn ($q) => $q->active()->where('grade_id', $gradeId)->where('year_id', $yearId))
             ->with('user')
             ->first();
 
@@ -765,7 +765,7 @@ class GradebookPdfService
         $gradeId = $tutorSchedule->grade_id;
 
         $student = Student::where('id', $ctx['student_id'])
-            ->whereHas('enrollments', fn ($q) => $q->where('grade_id', $gradeId)->where('year_id', $yearId))
+            ->whereHas('enrollments', fn ($q) => $q->active()->where('grade_id', $gradeId)->where('year_id', $yearId))
             ->with('user')
             ->first();
 
@@ -929,9 +929,9 @@ class GradebookPdfService
 
         $periodsToShow = $allPeriods->filter(fn ($p) => $p->id <= $selectedPeriod->id)->values();
 
-        $studentIds = StudentEnrollment::where('year_id', $yearId)
+        $studentIds = StudentEnrollment::active()
+            ->where('year_id', $yearId)
             ->where('grade_id', $gradeId)
-            ->where('status', 'active')
             ->pluck('student_id');
 
         $students = Student::whereIn('id', $studentIds)
@@ -1170,7 +1170,7 @@ class GradebookPdfService
         $gradeId = $tutorSchedule->grade_id;
 
         $student = Student::where('id', $ctx['student_id'])
-            ->whereHas('enrollments', fn ($q) => $q->where('grade_id', $gradeId)->where('year_id', $yearId))
+            ->whereHas('enrollments', fn ($q) => $q->active()->where('grade_id', $gradeId)->where('year_id', $yearId))
             ->with('user')
             ->first();
 
@@ -1312,7 +1312,7 @@ class GradebookPdfService
         $gradeId = $tutorSchedule->grade_id;
 
         $student = Student::where('id', $ctx['student_id'])
-            ->whereHas('enrollments', fn ($q) => $q->where('grade_id', $gradeId)->where('year_id', $yearId))
+            ->whereHas('enrollments', fn ($q) => $q->active()->where('grade_id', $gradeId)->where('year_id', $yearId))
             ->with('user')
             ->first();
 
@@ -1525,7 +1525,7 @@ class GradebookPdfService
         $student = null;
         if (isset($ctx['student_id'])) {
             $student = Student::where('id', $ctx['student_id'])
-                ->whereHas('enrollments', fn ($q) => $q->where('grade_id', $tutorSchedule->grade_id)->where('year_id', $yearId))
+                ->whereHas('enrollments', fn ($q) => $q->active()->where('grade_id', $tutorSchedule->grade_id)->where('year_id', $yearId))
                 ->with('user')
                 ->first();
 
@@ -1608,7 +1608,7 @@ class GradebookPdfService
         $period = AcademicPeriod::find($ctx['trimester_id'] ?? 0);
         abort_if(! $period || $period->is_supletorio, 404, __('No se encontró el trimestre.'));
 
-        $studentQuery = Student::whereHas('enrollments', fn ($q) => $q->where('grade_id', $ctx['grade_id'])->where('year_id', $yearId))
+        $studentQuery = Student::whereHas('enrollments', fn ($q) => $q->active()->where('grade_id', $ctx['grade_id'])->where('year_id', $yearId))
             ->with('user')
             ->orderBy(User::select('lastname')->whereColumn('users.id', 'students.user_id'))
             ->orderBy(User::select('name')->whereColumn('users.id', 'students.user_id'));

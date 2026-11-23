@@ -167,9 +167,9 @@ final class ClassScheduleService
 
     public function getStudentCountForGrade(int $gradeId, int $yearId): int
     {
-        return StudentEnrollment::where('grade_id', $gradeId)
+        return StudentEnrollment::active()
+            ->where('grade_id', $gradeId)
             ->where('year_id', $yearId)
-            ->where('status', 'active')
             ->count();
     }
 

@@ -21,6 +21,8 @@ use App\Models\TeacherManagement\Attendances\Attendance;
 use App\Models\TeacherManagement\Attendances\AttendanceSummary;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -124,6 +126,17 @@ class Student extends Model
     public function enrollments(): HasMany
     {
         return $this->hasMany(StudentEnrollment::class);
+    }
+
+    /**
+     * Estudiantes con matrícula vigente y cuenta activa en el curso/año dado.
+     */
+    #[Scope]
+    protected function activeEnrollment(Builder $query, int $gradeId, int $yearId): void
+    {
+        $query->whereHas('enrollments', fn (Builder $query): Builder => $query->active()
+            ->where('grade_id', $gradeId)
+            ->where('year_id', $yearId));
     }
 
     public function representatives(): HasMany

@@ -11,6 +11,7 @@ use App\Models\Academic\GradeBook\Summaries\Subjects\AssessmentBlock;
 use App\Models\Academic\GradeBook\Summaries\Subjects\StudentExam;
 use App\Models\Academic\GradeBook\Summaries\Subjects\StudentProject;
 use App\Models\Academic\GradeBook\Summaries\Supplementary\SupplementaryExam;
+use App\Models\Management\Enrollments\StudentEnrollment;
 use App\Models\Security\Authorizations\Permission as AppPermission;
 use App\Models\Security\Authorizations\Role as AppRole;
 use App\Models\Setting\EducationalSettings\Area;
@@ -26,7 +27,9 @@ use App\Models\Setting\YearSettings\ScolarYear;
 use App\Models\StudentManagement\Academics\AcademicNotification;
 use App\Models\TeacherManagement\Academics\ClassSchedule;
 use App\Models\TeacherManagement\Attendances\Attendance;
+use App\Models\User;
 use App\Observers\AcademicYearCacheObserver;
+use App\Observers\ActiveStudentStatusObserver;
 use App\Observers\AttendanceObserver;
 use App\Observers\ChannelConfigurationCacheObserver;
 use App\Observers\ClassScheduleCacheObserver;
@@ -67,6 +70,9 @@ class AppServiceProvider extends ServiceProvider
         $this->configureApiRateLimiters();
 
         Attendance::observe(AttendanceObserver::class);
+
+        StudentEnrollment::observe(ActiveStudentStatusObserver::class);
+        User::observe(ActiveStudentStatusObserver::class);
 
         Role::observe(PermissionCacheObserver::class);
         Permission::observe(PermissionCacheObserver::class);
