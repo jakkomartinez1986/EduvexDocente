@@ -1,0 +1,2713 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Method App\\Actions\\Fortify\\CreateNewUser\:\:addressRules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Actions/Fortify/CreateNewUser.php
+
+		-
+			message: '#^Method App\\Actions\\Fortify\\CreateNewUser\:\:cellphoneRules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Actions/Fortify/CreateNewUser.php
+
+		-
+			message: '#^Method App\\Actions\\Fortify\\CreateNewUser\:\:dniRules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Actions/Fortify/CreateNewUser.php
+
+		-
+			message: '#^Method App\\Actions\\Fortify\\CreateNewUser\:\:lastnameRules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Actions/Fortify/CreateNewUser.php
+
+		-
+			message: '#^Method App\\Actions\\Fortify\\CreateNewUser\:\:phoneRules\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Actions/Fortify/CreateNewUser.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Actions/TeacherManagement/SaveAttendanceAction.php
+
+		-
+			message: '#^Method App\\Actions\\TeacherManagement\\SaveAttendanceAction\:\:handle\(\) has parameter \$statuses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Actions/TeacherManagement/SaveAttendanceAction.php
+
+		-
+			message: '#^Parameter \#1 \$query of static method App\\Support\\Database\\BulkWrite\:\:caseUpdate\(\) expects Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\|Illuminate\\Database\\Query\\Builder, Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\TeacherManagement\\Attendances\\Attendance\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Actions/TeacherManagement/SaveAttendanceAction.php
+
+		-
+			message: '#^Parameter \#1 \$query of static method App\\Support\\Database\\BulkWrite\:\:caseUpdate\(\) expects Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\|Illuminate\\Database\\Query\\Builder, Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\ActivityGrade\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Actions/TeacherManagement/SaveQuickGradesAction.php
+
+		-
+			message: '#^Cannot cast array\|bool\|float\|int\|string\|null to string\.$#'
+			identifier: cast.string
+			count: 3
+			path: app/Console/Commands/MakeSuperAdmin.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Web/System/Teacher/CarnetController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\CarnetController\:\:asyncPdf\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/CarnetController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\CarnetController\:\:bulkPdf\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/CarnetController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\CarnetController\:\:individual\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/CarnetController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\CarnetController\:\:individualPdf\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/CarnetController.php
+
+		-
+			message: '#^Parameter \#1 \$view of function view expects view\-string\|null, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/CarnetController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>fullname" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/Web/System/Teacher/CarnetController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Setting\\YearSettings\\AcademicPeriod\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Setting\\YearSettings\\AcademicPeriod\>\:\:\$is_supletorio\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:asyncPdf\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:dispatchGradebook\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:dispatchGradebook\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:dispatchStudent\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:dispatchStudentTrimester\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:dispatchSubject\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:formative\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:qualitativeReport\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:studentAnnualReport\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:studentTrimesterReport\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:subjectAnnualReport\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:summative\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:supletorioReport\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:tutorAllStudentsTrimesterReport\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:tutorStudentFormativeByTrimester\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:tutorStudentReport\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\GradebookPdfController\:\:tutorStudentReportByTrimester\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>fullname" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/GradebookPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\IncidentPdfController\:\:asyncPdf\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/IncidentPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\IncidentPdfController\:\:commitmentLetter\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/IncidentPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\IncidentPdfController\:\:notification\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/IncidentPdfController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Web\\System\\Teacher\\IncidentPdfController\:\:report\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/Web/System/Teacher/IncidentPdfController.php
+
+		-
+			message: '#^Parameter \#1 \$required of class App\\Exceptions\\Api\\TokenAbilityMissingException constructor expects array\<int, string\>, array\<int\<0, max\>\|string, string\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Middleware/EnsureTokenAbility.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\Identity\\Users\\Student\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Resources/Api/V1/Academic/ActivityRecoveryResource.php
+
+		-
+			message: '#^Method App\\Imports\\CalendarDaysImport\:\:getRows\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Imports/CalendarDaysImport.php
+
+		-
+			message: '#^Offset ''day_name'' might not exist on array\{date\: string, activity\: string, is_holiday\: bool, trimester_name\: string, parsed_date\: non\-falsy\-string, day_name\: ''DOMINGO''\|''JUEVES''\|''LUNES''\|''MARTES''\|''MIERCOLES''\|''SABADO''\|''VIERNES'', month_name\: string, day_number\: int, \.\.\.\}\|array\{date\: string, activity\: string, is_holiday\: string, trimester_name\: string, errors\: ''''\|''0''\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Imports/CalendarDaysImport.php
+
+		-
+			message: '#^Offset ''day_number'' might not exist on array\{date\: string, activity\: string, is_holiday\: bool, trimester_name\: string, parsed_date\: non\-falsy\-string, day_name\: ''DOMINGO''\|''JUEVES''\|''LUNES''\|''MARTES''\|''MIERCOLES''\|''SABADO''\|''VIERNES'', month_name\: string, day_number\: int, \.\.\.\}\|array\{date\: string, activity\: string, is_holiday\: string, trimester_name\: string, errors\: ''''\|''0''\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Imports/CalendarDaysImport.php
+
+		-
+			message: '#^Offset ''month_name'' might not exist on array\{date\: string, activity\: string, is_holiday\: bool, trimester_name\: string, parsed_date\: non\-falsy\-string, day_name\: ''DOMINGO''\|''JUEVES''\|''LUNES''\|''MARTES''\|''MIERCOLES''\|''SABADO''\|''VIERNES'', month_name\: string, day_number\: int, \.\.\.\}\|array\{date\: string, activity\: string, is_holiday\: string, trimester_name\: string, errors\: ''''\|''0''\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Imports/CalendarDaysImport.php
+
+		-
+			message: '#^Offset ''parsed_date'' might not exist on array\{date\: string, activity\: string, is_holiday\: bool, trimester_name\: string, parsed_date\: non\-falsy\-string, day_name\: ''DOMINGO''\|''JUEVES''\|''LUNES''\|''MARTES''\|''MIERCOLES''\|''SABADO''\|''VIERNES'', month_name\: string, day_number\: int, \.\.\.\}\|array\{date\: string, activity\: string, is_holiday\: string, trimester_name\: string, errors\: ''''\|''0''\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Imports/CalendarDaysImport.php
+
+		-
+			message: '#^Offset ''period'' might not exist on array\{date\: string, activity\: string, is_holiday\: bool, trimester_name\: string, parsed_date\: non\-falsy\-string, day_name\: ''DOMINGO''\|''JUEVES''\|''LUNES''\|''MARTES''\|''MIERCOLES''\|''SABADO''\|''VIERNES'', month_name\: string, day_number\: int, \.\.\.\}\|array\{date\: string, activity\: string, is_holiday\: string, trimester_name\: string, errors\: ''''\|''0''\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Imports/CalendarDaysImport.php
+
+		-
+			message: '#^Offset ''trimester_id'' might not exist on array\{date\: string, activity\: string, is_holiday\: bool, trimester_name\: string, parsed_date\: non\-falsy\-string, day_name\: ''DOMINGO''\|''JUEVES''\|''LUNES''\|''MARTES''\|''MIERCOLES''\|''SABADO''\|''VIERNES'', month_name\: string, day_number\: int, \.\.\.\}\|array\{date\: string, activity\: string, is_holiday\: string, trimester_name\: string, errors\: ''''\|''0''\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Imports/CalendarDaysImport.php
+
+		-
+			message: '#^Property App\\Imports\\CalendarDaysImport\:\:\$rows type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Imports/CalendarDaysImport.php
+
+		-
+			message: '#^Variable \$date might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/Imports/CalendarDaysImport.php
+
+		-
+			message: '#^Method App\\Imports\\RepresentativesImport\:\:getRows\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Imports/RepresentativesImport.php
+
+		-
+			message: '#^Offset ''work_phone'' on array\{name\: mixed, lastname\: mixed, dni\: string, email\: mixed, phone\: string, cellphone\: string, address\: mixed, student_dni\: string, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 2
+			path: app/Imports/RepresentativesImport.php
+
+		-
+			message: '#^Parameter \#1 \$string of function str_pad expects string, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Imports/RepresentativesImport.php
+
+		-
+			message: '#^Property App\\Imports\\RepresentativesImport\:\:\$rows type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Imports/RepresentativesImport.php
+
+		-
+			message: '#^Method App\\Imports\\StudentsImport\:\:getRows\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Imports/StudentsImport.php
+
+		-
+			message: '#^Parameter \#1 \$string of function str_pad expects string, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Imports/StudentsImport.php
+
+		-
+			message: '#^Property App\\Imports\\StudentsImport\:\:\$rows type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Imports/StudentsImport.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: app/Imports/StudentsImport.php
+
+		-
+			message: '#^Method App\\Imports\\TeachersImport\:\:getRows\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Imports/TeachersImport.php
+
+		-
+			message: '#^Parameter \#1 \$string of function str_pad expects string, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Imports/TeachersImport.php
+
+		-
+			message: '#^Property App\\Imports\\TeachersImport\:\:\$rows type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Imports/TeachersImport.php
+
+		-
+			message: '#^Parameter \#6 \$compute of method App\\Services\\TeacherManagement\\GradebookCache\:\:averages\(\) expects Closure\(\)\: array\<string, array\{student_id\: int, avg\: float\|null\}\>, Closure\(\)\: array\{formative\: array\<int, float\|null\>, total\: array\<int, float\|null\>, hasData\: bool\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Jobs/RecalculateCourseAverages.php
+
+		-
+			message: '#^Method App\\Livewire\\ConfirmAction\:\:open\(\) has parameter \$eventParams with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Livewire/ConfirmAction.php
+
+		-
+			message: '#^Method App\\Livewire\\ConfirmAction\:\:render\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Livewire/ConfirmAction.php
+
+		-
+			message: '#^Property App\\Livewire\\ConfirmAction\:\:\$eventParams type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Livewire/ConfirmAction.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Livewire/Teacher/GradebookSidebar.php
+
+		-
+			message: '#^Method App\\Livewire\\Teacher\\GradebookSidebar\:\:computeBlockAverage\(\) has parameter \$block with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Livewire/Teacher/GradebookSidebar.php
+
+		-
+			message: '#^Method App\\Livewire\\Teacher\\GradebookSidebar\:\:deleteBlock\(\) has parameter \$blockId with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Livewire/Teacher/GradebookSidebar.php
+
+		-
+			message: '#^Method App\\Livewire\\Teacher\\GradebookSidebar\:\:getBlocks\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Livewire/Teacher/GradebookSidebar.php
+
+		-
+			message: '#^Method App\\Livewire\\Teacher\\GradebookSidebar\:\:getTrimesters\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Livewire/Teacher/GradebookSidebar.php
+
+		-
+			message: '#^Method App\\Livewire\\Teacher\\GradebookSidebar\:\:openEditBlock\(\) has parameter \$blockId with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Livewire/Teacher/GradebookSidebar.php
+
+		-
+			message: '#^Method App\\Livewire\\Teacher\\GradebookSidebar\:\:render\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Livewire/Teacher/GradebookSidebar.php
+
+		-
+			message: '#^Method App\\Livewire\\Teacher\\GradebookSidebar\:\:sidebarItems\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Livewire/Teacher/GradebookSidebar.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>trimester_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Livewire/Teacher/GradebookSidebar.php
+
+		-
+			message: '#^Parameter \#2 \$keys of method App\\Logging\\RedactSensitiveProcessor\:\:redact\(\) expects list\<string\>, non\-empty\-array\<mixed, mixed\> given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Logging/RedactSensitiveProcessor.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidance\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidance.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidance\:\:indicator\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidance.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidance\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidance.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidance\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidance.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidance\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidance.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidance\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidance.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidance\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidance.php
+
+		-
+			message: '#^PHPDoc tag @use has invalid type App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidanceFactory\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidance.php
+
+		-
+			message: '#^Type App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidanceFactory in generic type Illuminate\\Database\\Eloquent\\Factories\\HasFactory\<App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidanceFactory\> in PHPDoc tag @use is not subtype of template type TFactory of Illuminate\\Database\\Eloquent\\Factories\\Factory of trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory\.$#'
+			identifier: generics.notSubtype
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidance.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidanceIndicator uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidanceIndicator.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidanceIndicator\:\:careerGuidances\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidanceIndicator.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\CareerGuidance\\CareerGuidanceIndicator\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/CareerGuidance/CareerGuidanceIndicator.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Cualitatives\\ClassroomSupport\\IntegralClassroomSupport uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ClassroomSupport/IntegralClassroomSupport.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ClassroomSupport\\IntegralClassroomSupport\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ClassroomSupport/IntegralClassroomSupport.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ClassroomSupport\\IntegralClassroomSupport\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ClassroomSupport/IntegralClassroomSupport.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ClassroomSupport\\IntegralClassroomSupport\:\:skill\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ClassroomSupport/IntegralClassroomSupport.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ClassroomSupport\\IntegralClassroomSupport\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ClassroomSupport/IntegralClassroomSupport.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ClassroomSupport\\IntegralClassroomSupport\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ClassroomSupport/IntegralClassroomSupport.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ClassroomSupport\\IntegralClassroomSupport\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ClassroomSupport/IntegralClassroomSupport.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ClassroomSupport\\IntegralClassroomSupport\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ClassroomSupport/IntegralClassroomSupport.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Cualitatives\\ClassroomSupport\\IntegralClassroomSupportIndicator uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ClassroomSupport/IntegralClassroomSupportIndicator.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ClassroomSupport\\IntegralClassroomSupportIndicator\:\:integralClassroomSupports\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ClassroomSupport/IntegralClassroomSupportIndicator.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Cualitatives\\ReadingPromotion\\ReadingPromotion uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ReadingPromotion/ReadingPromotion.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ReadingPromotion\\ReadingPromotion\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ReadingPromotion/ReadingPromotion.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ReadingPromotion\\ReadingPromotion\:\:indicator\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ReadingPromotion/ReadingPromotion.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ReadingPromotion\\ReadingPromotion\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ReadingPromotion/ReadingPromotion.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ReadingPromotion\\ReadingPromotion\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ReadingPromotion/ReadingPromotion.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ReadingPromotion\\ReadingPromotion\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ReadingPromotion/ReadingPromotion.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ReadingPromotion\\ReadingPromotion\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ReadingPromotion/ReadingPromotion.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ReadingPromotion\\ReadingPromotion\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ReadingPromotion/ReadingPromotion.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Cualitatives\\ReadingPromotion\\ReadingPromotionIndicator uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ReadingPromotion/ReadingPromotionIndicator.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Cualitatives\\ReadingPromotion\\ReadingPromotionIndicator\:\:readingPromotions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Cualitatives/ReadingPromotion/ReadingPromotionIndicator.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Summaries\\Graduation\\GraduationExam uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Graduation/GraduationExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Graduation\\GraduationExam\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Graduation/GraduationExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Graduation\\GraduationExam\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Graduation/GraduationExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Graduation\\GraduationExam\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Graduation/GraduationExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Graduation\\GraduationExam\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Graduation/GraduationExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Graduation\\GraduationExam\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Graduation/GraduationExam.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Summaries\\Reinforcements\\AcademicReinforcement uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Reinforcements/AcademicReinforcement.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Reinforcements\\AcademicReinforcement\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Reinforcements/AcademicReinforcement.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Reinforcements\\AcademicReinforcement\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Reinforcements/AcademicReinforcement.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Reinforcements\\AcademicReinforcement\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Reinforcements/AcademicReinforcement.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Reinforcements\\AcademicReinforcement\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Reinforcements/AcademicReinforcement.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Reinforcements\\AcademicReinforcement\:\:teacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Reinforcements/AcademicReinforcement.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Reinforcements\\AcademicReinforcement\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Reinforcements/AcademicReinforcement.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Reinforcements\\AcademicReinforcement\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Reinforcements/AcademicReinforcement.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\Activity uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/Activity.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\ActivityGrade uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/ActivityGrade.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\ActivityGrade\:\:activity\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/ActivityGrade.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\ActivityGrade\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/ActivityGrade.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\ActivityGrade\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/ActivityGrade.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\ActivityRecovery uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/ActivityRecovery.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\ActivityRecovery\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/ActivityRecovery.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\ActivityRecovery\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/ActivityRecovery.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\AssessmentBlock uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/AssessmentBlock.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\AssessmentBlock\:\:teacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/AssessmentBlock.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\AssessmentBlock\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/AssessmentBlock.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\AssessmentBlock\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/AssessmentBlock.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentExam uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentExam\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentExam\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentExam\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentExam\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentExam\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentExam\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentExam.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentProject uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentProject.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentProject\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentProject.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentProject\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentProject.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentProject\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentProject.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentProject\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentProject.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentProject\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentProject.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\StudentProject\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Subjects/StudentProject.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Summaries\\Supplementary\\ExamRecovery uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Supplementary/ExamRecovery.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Supplementary\\ExamRecovery\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Supplementary/ExamRecovery.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Supplementary\\ExamRecovery\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Supplementary/ExamRecovery.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Supplementary\\ExamRecovery\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Supplementary/ExamRecovery.php
+
+		-
+			message: '#^Class App\\Models\\Academic\\GradeBook\\Summaries\\Supplementary\\SupplementaryExam uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Supplementary/SupplementaryExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Supplementary\\SupplementaryExam\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Supplementary/SupplementaryExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Supplementary\\SupplementaryExam\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Supplementary/SupplementaryExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Supplementary\\SupplementaryExam\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Supplementary/SupplementaryExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Supplementary\\SupplementaryExam\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Supplementary/SupplementaryExam.php
+
+		-
+			message: '#^Method App\\Models\\Academic\\GradeBook\\Summaries\\Supplementary\\SupplementaryExam\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Academic/GradeBook/Summaries/Supplementary/SupplementaryExam.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$lastname\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Identity/Users/Representative.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Identity/Users/Representative.php
+
+		-
+			message: '#^Class App\\Models\\Identity\\Users\\Representative uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Representative.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 1
+			path: app/Models/Identity/Users/Representative.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Representative\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Representative.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Representative\:\:user\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Representative.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:active\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Class App\\Models\\Identity\\Users\\Student uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:academicNotifications\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:academicReinforcements\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:activeEnrollment\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:activityGrades\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:attendanceSummaries\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:attendances\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:careerGuidances\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:enrollments\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:graduationExams\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:homeworkPendings\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:incidentCommitmentLetters\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:incidentInterventions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:incidentReports\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:integralClassroomSupports\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:readingPromotions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:representatives\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:studentExams\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:studentProjects\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Student\:\:supplementaryExams\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Student.php
+
+		-
+			message: '#^Class App\\Models\\Identity\\Users\\Teacher uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Teacher.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 1
+			path: app/Models/Identity/Users/Teacher.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Teacher\:\:attendancesAsTutor\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Teacher.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Teacher\:\:classObservationsAsTeacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Teacher.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Teacher\:\:classObservationsAsTutor\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Teacher.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Teacher\:\:classSchedules\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Teacher.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Teacher\:\:incidentCommitmentLetters\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Teacher.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Teacher\:\:incidentInterventions\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Teacher.php
+
+		-
+			message: '#^Method App\\Models\\Identity\\Users\\Teacher\:\:incidentReports\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Identity/Users/Teacher.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentCommitmentLetter\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentCommitmentLetter.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentCommitmentLetter\:\:representative\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentCommitmentLetter.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentCommitmentLetter\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentCommitmentLetter.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentCommitmentLetter\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentCommitmentLetter.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentCommitmentLetter\:\:teacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentCommitmentLetter.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentCommitmentLetter\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentCommitmentLetter.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentCommitmentLetter\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentCommitmentLetter.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentIntervention\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentIntervention.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentIntervention\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentIntervention.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentIntervention\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentIntervention.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentIntervention\:\:teacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentIntervention.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentIntervention\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentIntervention.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentIntervention\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentIntervention.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentReport\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentReport.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentReport\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentReport.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentReport\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentReport.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentReport\:\:teacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentReport.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentReport\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentReport.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentReport\:\:tutor\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentReport.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\IncidentReport\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/IncidentReport.php
+
+		-
+			message: '#^Method App\\Models\\Incidents\\NotificationChannel\:\:notification\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Incidents/NotificationChannel.php
+
+		-
+			message: '#^Class App\\Models\\Management\\Enrollments\\StudentEnrollment uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Management/Enrollments/StudentEnrollment.php
+
+		-
+			message: '#^Method App\\Models\\Management\\Enrollments\\StudentEnrollment\:\:active\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Management/Enrollments/StudentEnrollment.php
+
+		-
+			message: '#^Method App\\Models\\Management\\Enrollments\\StudentEnrollment\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Management/Enrollments/StudentEnrollment.php
+
+		-
+			message: '#^Method App\\Models\\Management\\Enrollments\\StudentEnrollment\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Management/Enrollments/StudentEnrollment.php
+
+		-
+			message: '#^Method App\\Models\\Management\\Enrollments\\StudentEnrollment\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Management/Enrollments/StudentEnrollment.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Permission\:\:allmodules\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Security/Authorizations/Permission.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Permission\:\:defaultPermissions\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Security/Authorizations/Permission.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Permission\:\:defaultRolePhotoUrl\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Security/Authorizations/Permission.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Permission\:\:getPermissionByGroupName\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Security/Authorizations/Permission.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Permission\:\:getPermissionGroups\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Security/Authorizations/Permission.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Permission\:\:search\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Security/Authorizations/Permission.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Permission\:\:search\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Security/Authorizations/Permission.php
+
+		-
+			message: '#^Parameter \#1 \$query of static method App\\Support\\Database\\DatabaseDialect\:\:ilike\(\) expects Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\|Illuminate\\Database\\Query\\Builder, Illuminate\\Database\\Eloquent\\Builder\<static\(App\\Models\\Security\\Authorizations\\Permission\)\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Models/Security/Authorizations/Permission.php
+
+		-
+			message: '#^Property App\\Models\\Security\\Authorizations\\Permission\:\:\$guard_name has no type specified\.$#'
+			identifier: missingType.property
+			count: 1
+			path: app/Models/Security/Authorizations/Permission.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Role\:\:defaultRolePhotoUrl\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Security/Authorizations/Role.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Role\:\:roleHasPermission\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Security/Authorizations/Role.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Role\:\:roleHasPermission\(\) has parameter \$permissions with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Security/Authorizations/Role.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Role\:\:roleHasPermission\(\) has parameter \$role with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Security/Authorizations/Role.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Role\:\:search\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/Security/Authorizations/Role.php
+
+		-
+			message: '#^Method App\\Models\\Security\\Authorizations\\Role\:\:search\(\) has parameter \$query with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Models/Security/Authorizations/Role.php
+
+		-
+			message: '#^Parameter \#1 \$query of static method App\\Support\\Database\\DatabaseDialect\:\:ilike\(\) expects Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\|Illuminate\\Database\\Query\\Builder, Illuminate\\Database\\Eloquent\\Builder\<static\(App\\Models\\Security\\Authorizations\\Role\)\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Models/Security/Authorizations/Role.php
+
+		-
+			message: '#^Property App\\Models\\Security\\Authorizations\\Role\:\:\$guard_name has no type specified\.$#'
+			identifier: missingType.property
+			count: 1
+			path: app/Models/Security/Authorizations/Role.php
+
+		-
+			message: '#^Class App\\Models\\Setting\\EducationalSettings\\Area uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Area.php
+
+		-
+			message: '#^Method App\\Models\\Setting\\EducationalSettings\\Area\:\:subjects\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Area.php
+
+		-
+			message: '#^Class App\\Models\\Setting\\EducationalSettings\\Classroom uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Classroom.php
+
+		-
+			message: '#^Class App\\Models\\Setting\\EducationalSettings\\Grade uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Grade.php
+
+		-
+			message: '#^Method App\\Models\\Setting\\EducationalSettings\\Grade\:\:parallels\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Grade.php
+
+		-
+			message: '#^Class App\\Models\\Setting\\EducationalSettings\\Nivel uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Nivel.php
+
+		-
+			message: '#^Method App\\Models\\Setting\\EducationalSettings\\Nivel\:\:grades\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Nivel.php
+
+		-
+			message: '#^Class App\\Models\\Setting\\EducationalSettings\\Parallel uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Parallel.php
+
+		-
+			message: '#^Method App\\Models\\Setting\\EducationalSettings\\Parallel\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Parallel.php
+
+		-
+			message: '#^Class App\\Models\\Setting\\EducationalSettings\\School uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/School.php
+
+		-
+			message: '#^Class App\\Models\\Setting\\EducationalSettings\\Shift uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Shift.php
+
+		-
+			message: '#^Method App\\Models\\Setting\\EducationalSettings\\Shift\:\:nivels\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Shift.php
+
+		-
+			message: '#^Class App\\Models\\Setting\\EducationalSettings\\Subject uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Setting/EducationalSettings/Subject.php
+
+		-
+			message: '#^Class App\\Models\\StudentManagement\\Academics\\AcademicNotification has PHPDoc tag @property for property \$motives with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Models/StudentManagement/Academics/AcademicNotification.php
+
+		-
+			message: '#^Class App\\Models\\StudentManagement\\Academics\\AcademicNotification uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/AcademicNotification.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\AcademicNotification\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/AcademicNotification.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\AcademicNotification\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/AcademicNotification.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\AcademicNotification\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/AcademicNotification.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\AcademicNotification\:\:teacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/AcademicNotification.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\AcademicNotification\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/AcademicNotification.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\AcademicNotification\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/AcademicNotification.php
+
+		-
+			message: '#^Class App\\Models\\StudentManagement\\Academics\\HomeworkPending uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/HomeworkPending.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\HomeworkPending\:\:activity\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/HomeworkPending.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\HomeworkPending\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/HomeworkPending.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\HomeworkPending\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/HomeworkPending.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\HomeworkPending\:\:subject\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/HomeworkPending.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\HomeworkPending\:\:teacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/HomeworkPending.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\HomeworkPending\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/HomeworkPending.php
+
+		-
+			message: '#^Method App\\Models\\StudentManagement\\Academics\\HomeworkPending\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/StudentManagement/Academics/HomeworkPending.php
+
+		-
+			message: '#^Class App\\Models\\TeacherManagement\\Academics\\ClassObservation not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/TeacherManagement/Academics/ClassSchedule.php
+
+		-
+			message: '#^Class App\\Models\\TeacherManagement\\Academics\\ClassSchedule uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Academics/ClassSchedule.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Academics\\ClassSchedule\:\:attendances\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Academics/ClassSchedule.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Academics\\ClassSchedule\:\:classObservations\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Academics/ClassSchedule.php
+
+		-
+			message: '#^Parameter \#1 \$related of method Illuminate\\Database\\Eloquent\\Model\:\:hasMany\(\) expects class\-string\<Illuminate\\Database\\Eloquent\\Model\>, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Models/TeacherManagement/Academics/ClassSchedule.php
+
+		-
+			message: '#^Unable to resolve the template type TRelatedModel in call to method Illuminate\\Database\\Eloquent\\Model\:\:hasMany\(\)$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Models/TeacherManagement/Academics/ClassSchedule.php
+
+		-
+			message: '#^Class App\\Models\\TeacherManagement\\Attendances\\Attendance has PHPDoc tag @property for property \$notification_data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/Attendance.php
+
+		-
+			message: '#^Class App\\Models\\TeacherManagement\\Attendances\\Attendance uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/Attendance.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\Attendance\:\:calendarDay\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/Attendance.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\Attendance\:\:classObservation\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/Attendance.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\Attendance\:\:classSchedule\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/Attendance.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\Attendance\:\:recordedBy\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/Attendance.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\Attendance\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/Attendance.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\Attendance\:\:teacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/Attendance.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\Attendance\:\:tutor\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/Attendance.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\Attendance\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/Attendance.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\AttendanceSummary\:\:grade\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/AttendanceSummary.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\AttendanceSummary\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/AttendanceSummary.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\AttendanceSummary\:\:trimester\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/AttendanceSummary.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\AttendanceSummary\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/AttendanceSummary.php
+
+		-
+			message: '#^PHPDoc tag @use has invalid type App\\Models\\TeacherManagement\\Attendances\\AttendanceSummaryFactory\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/AttendanceSummary.php
+
+		-
+			message: '#^Type App\\Models\\TeacherManagement\\Attendances\\AttendanceSummaryFactory in generic type Illuminate\\Database\\Eloquent\\Factories\\HasFactory\<App\\Models\\TeacherManagement\\Attendances\\AttendanceSummaryFactory\> in PHPDoc tag @use is not subtype of template type TFactory of Illuminate\\Database\\Eloquent\\Factories\\Factory of trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory\.$#'
+			identifier: generics.notSubtype
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/AttendanceSummary.php
+
+		-
+			message: '#^Class App\\Models\\TeacherManagement\\Attendances\\ClassObservation uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/ClassObservation.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\ClassObservation\:\:attendances\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasMany does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/ClassObservation.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\ClassObservation\:\:classSchedule\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/ClassObservation.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\ClassObservation\:\:teacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/ClassObservation.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\ClassObservation\:\:tutor\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/ClassObservation.php
+
+		-
+			message: '#^Method App\\Models\\TeacherManagement\\Attendances\\ClassObservation\:\:year\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/TeacherManagement/Attendances/ClassObservation.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:defaultSignaturePhotoUrl\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:defaultUserPhotoUrl\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:getContactsAttribute\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:getFullNameAttribute\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:getStatusUser\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:student\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasOne does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:teacher\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\HasOne does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Notifications/AcademicNotificationSent.php
+
+		-
+			message: '#^Cannot call method format\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 4
+			path: app/Notifications/AcademicNotificationSent.php
+
+		-
+			message: '#^Method App\\Notifications\\AcademicNotificationSent\:\:toArray\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Notifications/AcademicNotificationSent.php
+
+		-
+			message: '#^Method App\\Notifications\\AcademicNotificationSent\:\:toDatabase\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Notifications/AcademicNotificationSent.php
+
+		-
+			message: '#^Method App\\Notifications\\AcademicNotificationSent\:\:via\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Notifications/AcademicNotificationSent.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>fullname" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Notifications/AcademicNotificationSent.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Notifications/ResetPasswordNotification.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Notifications/ResetPasswordNotification.php
+
+		-
+			message: '#^Method App\\Notifications\\ResetPasswordNotification\:\:via\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Notifications/ResetPasswordNotification.php
+
+		-
+			message: '#^Result of \|\| is always false\.$#'
+			identifier: booleanOr.alwaysFalse
+			count: 1
+			path: app/Observers/ClassScheduleCacheObserver.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between int and null will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 2
+			path: app/Observers/ClassScheduleCacheObserver.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Observers/GradebookTombstoneObserver.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:isForceDeleting\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Observers/GradebookTombstoneObserver.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between int and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Observers/NotificationCacheObserver.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between int and null will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Observers/NotificationCacheObserver.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$assessmentBlock\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Observers/PdfReportCacheObserver.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$grade_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Observers/PdfReportCacheObserver.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$subject_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Observers/PdfReportCacheObserver.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$teacher_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Observers/PdfReportCacheObserver.php
+
+		-
+			message: '#^Method App\\Services\\Academic\\GradebookReportComputer\:\:loadClassData\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 3
+			path: app/Services/Academic/GradebookReportComputer.php
+
+		-
+			message: '#^Offset ''is_supletorio'' on array\{id\: int, is_supletorio\: bool\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Academic/GradingPeriodService.php
+
+		-
+			message: '#^Method App\\Services\\Academic\\PdfReportCache\:\:key\(\) has parameter \$buckets with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Academic/PdfReportCache.php
+
+		-
+			message: '#^Method App\\Services\\Academic\\PdfReportCache\:\:key\(\) has parameter \$params with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Academic/PdfReportCache.php
+
+		-
+			message: '#^Method App\\Services\\Academic\\PdfReportCache\:\:remember\(\) has parameter \$buckets with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Academic/PdfReportCache.php
+
+		-
+			message: '#^Method App\\Services\\Academic\\PdfReportCache\:\:remember\(\) has parameter \$params with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Academic/PdfReportCache.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\AssessmentBlock and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Services/Api/V1/Academic/GradeRegistrationService.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Services/Api/V1/Academic/RecoveriesService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$grade\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Api/V1/Sync/ConflictDetector.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$student_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Api/V1/Sync/ConflictDetector.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$updated_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Api/V1/Sync/ConflictDetector.php
+
+		-
+			message: '#^Method App\\Services\\Api\\V1\\TeacherManagement\\AttendanceDownloadService\:\:paged\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/Api/V1/TeacherManagement/AttendanceDownloadService.php
+
+		-
+			message: '#^Method App\\Services\\Api\\V1\\TeacherManagement\\AttendanceDownloadService\:\:paged\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/Api/V1/TeacherManagement/AttendanceDownloadService.php
+
+		-
+			message: '#^Parameter \#1 \$query of static method App\\Support\\Database\\BulkWrite\:\:caseUpdate\(\) expects Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\|Illuminate\\Database\\Query\\Builder, Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\TeacherManagement\\Attendances\\Attendance\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Api/V1/TeacherManagement/AttendanceRegistrationService.php
+
+		-
+			message: '#^Cannot call method toDateString\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: app/Services/Api/V1/TeacherManagement/AttendanceSummariesRebuilder.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type string\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Api/V1/TeacherManagement/AttendanceSummariesRebuilder.php
+
+		-
+			message: '#^Method App\\Services\\Messaging\\ChannelStatusService\:\:status\(\) should return array\{enabled\: bool, api_available\: bool, manual_available\: bool\} but returns array\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/Messaging/ChannelStatusService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/NavigationService.php
+
+		-
+			message: '#^Offset ''roles'' on array\{name\: string, icon\: string, label\: string, route\: non\-falsy\-string, current\: bool, roles\: array\<int, string\>, badge\: string\|null, color\: string\|null\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: app/Services/NavigationService.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$connection\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Queue/WorkerMonitorService.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$payload\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Queue/WorkerMonitorService.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$queue\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Queue/WorkerMonitorService.php
+
+		-
+			message: '#^Method App\\Services\\Queue\\WorkerMonitorService\:\:failedJobs\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/Queue/WorkerMonitorService.php
+
+		-
+			message: '#^Method App\\Services\\Queue\\WorkerMonitorService\:\:instanceFromPayload\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Queue/WorkerMonitorService.php
+
+		-
+			message: '#^Method App\\Services\\Queue\\WorkerMonitorService\:\:normalizeFailedJob\(\) has parameter \$job with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Queue/WorkerMonitorService.php
+
+		-
+			message: '#^Method App\\Services\\Queue\\WorkerMonitorService\:\:queueableOptions\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Queue/WorkerMonitorService.php
+
+		-
+			message: '#^Method App\\Services\\Queue\\WorkerMonitorService\:\:resetAttempts\(\) should return string but returns string\|false\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/Queue/WorkerMonitorService.php
+
+		-
+			message: '#^Method App\\Services\\Queue\\WorkerMonitorService\:\:status\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Queue/WorkerMonitorService.php
+
+		-
+			message: '#^Parameter \#1 \$job of method App\\Services\\Queue\\WorkerMonitorService\:\:queueableOptions\(\) expects stdClass, object given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Queue/WorkerMonitorService.php
+
+		-
+			message: '#^Method App\\Services\\Reports\\AsyncReportDispatcher\:\:dispatch\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Reports/AsyncReportDispatcher.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Identity\\Users\\Student\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Identity\\Users\\Student\>\:\:\$student_code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Reports/CarnetPdfService.php
+
+		-
+			message: '#^Loose comparison using \=\= between non\-falsy\-string and '''' will always evaluate to false\.$#'
+			identifier: equal.alwaysFalse
+			count: 1
+			path: app/Services/Reports/CarnetPdfService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>fullname" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Reports/CarnetPdfService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>lastname" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Reports/CarnetPdfService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Reports/CarnetPdfService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name_school" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Reports/CarnetPdfService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>year_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Reports/CarnetPdfService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Setting\\YearSettings\\AcademicPeriod\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Setting\\YearSettings\\AcademicPeriod\>\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 11
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Setting\\YearSettings\\AcademicPeriod\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Setting\\YearSettings\\AcademicPeriod\>\:\:\$is_supletorio\.$#'
+			identifier: property.notFound
+			count: 9
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Setting\\YearSettings\\AcademicPeriod\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Setting\\YearSettings\\AcademicPeriod\>\:\:\$trimester_name\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$grade_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$trimester_name\.$#'
+			identifier: property.notFound
+			count: 7
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:active\(\)\.$#'
+			identifier: method.notFound
+			count: 7
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<TRelatedModel of Illuminate\\Database\\Eloquent\\Model\>\:\:active\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Method App\\Services\\Reports\\GradebookPdfService\:\:bucketsFor\(\) should return list\<string\> but returns array\<non\-falsy\-string\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Method App\\Services\\Reports\\GradebookPdfService\:\:buildQualitativeData\(\) has parameter \$periods with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Method App\\Services\\Reports\\GradebookPdfService\:\:renderPdf\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Offset ''isQual'' on array\{id\: mixed, name\: string, isQual\: false\}\|array\{id\: mixed, name\: string, isQual\: true, qualType\: non\-falsy\-string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>fullname" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 4
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>grade" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>shift_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 9
+			path: app/Services/Reports/GradebookPdfService.php
+
+		-
+			message: '#^Method App\\Services\\StaticCatalogService\:\:catalogs\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/StaticCatalogService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:getPaginatedStudents\(\) has parameter \$statuses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:getPaginatedStudents\(\) has parameter \$students with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:getPaginatedStudents\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:loadExistingObservation\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:loadExistingStatuses\(\) has parameter \$students with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:loadExistingStatuses\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:loadExistingStatusesCreate\(\) has parameter \$enrollments with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:loadExistingStatusesCreate\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:loadStudentsForAttendance\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:loadStudentsForAttendanceCreate\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:markAllPresent\(\) has parameter \$students with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:markAllPresent\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:saveAttendance\(\) has parameter \$statuses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:saveAttendanceCreate\(\) has parameter \$observations with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\AttendanceService\:\:saveAttendanceCreate\(\) has parameter \$statuses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Parameter \#1 \$query of static method App\\Support\\Database\\BulkWrite\:\:caseUpdate\(\) expects Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\|Illuminate\\Database\\Query\\Builder, Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\TeacherManagement\\Attendances\\Attendance\> given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between int and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>classtopic" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>novedad" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>novedad_type" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>observation" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>status" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/TeacherManagement/AttendanceService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:buildWeekDays\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:calculateWeekRange\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getDistributivo\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getDistributivoTotals\(\) has parameter \$schedules with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getDistributivoTotals\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getInitialExpandedDays\(\) has parameter \$weekDays with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getInitialExpandedDays\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getRowMinutesAndBlock\(\) has parameter \$row with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getRowMinutesAndBlock\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getScheduleTypes\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getSchedules\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getSchedulesByDay\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getStats\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getTeacherSchedules\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:getTodayAgenda\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\ClassScheduleService\:\:loadJornadas\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Parameter \#3 \$subject of function str_replace expects array\<string\>\|string, string\|false given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Services/TeacherManagement/ClassScheduleService.php
+
+		-
+			message: '#^Cannot call method toDateString\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\QuickGradesService\:\:getPaginatedStudents\(\) has parameter \$students with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\QuickGradesService\:\:getPaginatedStudents\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\QuickGradesService\:\:loadGradesForActivity\(\) has parameter \$students with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\QuickGradesService\:\:loadGradesForActivity\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\QuickGradesService\:\:loadStudentsForQuickGrades\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Method App\\Services\\TeacherManagement\\QuickGradesService\:\:saveQuickGrades\(\) has parameter \$values with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\Activity\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Parameter \#1 \$query of static method App\\Support\\Database\\BulkWrite\:\:caseUpdate\(\) expects Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\|Illuminate\\Database\\Query\\Builder, Illuminate\\Database\\Eloquent\\Builder\<App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\ActivityGrade\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Academic\\GradeBook\\Summaries\\Subjects\\Activity\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:all\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
+			count: 1
+			path: app/Services/TeacherManagement/QuickGradesService.php
+
+		-
+			message: '#^Method App\\Support\\Api\\ApiResponse\:\:error\(\) has parameter \$errors with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Support/Api/ApiResponse.php
+
+		-
+			message: '#^Method App\\Support\\Api\\ApiResponse\:\:error\(\) has parameter \$meta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Support/Api/ApiResponse.php
+
+		-
+			message: '#^Method App\\Support\\Api\\ApiResponse\:\:success\(\) has parameter \$meta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Support/Api/ApiResponse.php
+
+		-
+			message: '#^Method App\\Support\\Api\\ApiResponse\:\:withBaseMeta\(\) has parameter \$meta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Support/Api/ApiResponse.php
+
+		-
+			message: '#^Method App\\Support\\Api\\ApiResponse\:\:withBaseMeta\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Support/Api/ApiResponse.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\ConnectionInterface\:\:getPdo\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Support/Database/BulkWrite.php
+
+		-
+			message: '#^Method App\\Support\\Database\\BulkWrite\:\:identifier\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Support/Database/BulkWrite.php
+
+		-
+			message: '#^Method App\\Support\\Database\\BulkWrite\:\:pdo\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Support/Database/BulkWrite.php
+
+		-
+			message: '#^Parameter \#1 \$value of static method Illuminate\\Database\\Connection\:\:raw\(\) expects float\|int\|literal\-string, non\-falsy\-string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Support/Database/BulkWrite.php
+
+		-
+			message: '#^Method App\\Support\\Database\\DatabaseDialect\:\:ilike\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Support/Database/DatabaseDialect.php
+
+		-
+			message: '#^Method App\\Support\\Database\\DatabaseDialect\:\:orIlike\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Support/Database/DatabaseDialect.php
+
+		-
+			message: '#^Parameter \#1 \$sql of method Illuminate\\Database\\Query\\Builder\:\:orWhereRaw\(\) expects literal\-string, non\-falsy\-string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Support/Database/DatabaseDialect.php
+
+		-
+			message: '#^Parameter \#1 \$sql of method Illuminate\\Database\\Query\\Builder\:\:whereRaw\(\) expects Illuminate\\Contracts\\Database\\Query\\Expression\|literal\-string, non\-falsy\-string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Support/Database/DatabaseDialect.php
+
+		-
+			message: '#^Parameter \#2 \$string of function explode expects string, bool\|string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: config/sanctum.php
+
+		-
+			message: '#^Cannot access property \$dayName on Illuminate\\Support\\Carbon\|string\.$#'
+			identifier: property.nonObject
+			count: 1
+			path: database/factories/Setting/YearSettings/CalendarDayFactory.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Schema\\ColumnDefinition\:\:max\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: database/migrations/0001_01_01_000000_create_users_table.php
+
+		-
+			message: '#^Cannot call method copy\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: database/seeders/BasicDataSeeder.php
+
+		-
+			message: '#^Cannot call method copy\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 2
+			path: database/seeders/DataPrincipalSeeder.php
+
+		-
+			message: '#^Parameter \#1 \$string of function str_pad expects string, int given\.$#'
+			identifier: argument.type
+			count: 2
+			path: database/seeders/DataPrincipalSeeder.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: database/seeders/DataPrincipalSeeder.php
+
+		-
+			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
+			identifier: larastan.noEnvCallsOutsideOfConfig
+			count: 7
+			path: database/seeders/LoadTestDataSeeder.php
+
+		-
+			message: '#^Cannot call method toDateString\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: database/seeders/LoadTestDataSeeder.php
+
+		-
+			message: '#^Property Database\\Seeders\\PermissionsSeeder\:\:\$modelTableService has no type specified\.$#'
+			identifier: missingType.property
+			count: 1
+			path: database/seeders/PermissionsSeeder.php
+
+		-
+			message: '#^Argument of an invalid type list\<string\>\|false supplied for foreach, only iterables are supported\.$#'
+			identifier: foreach.nonIterable
+			count: 1
+			path: routes/web.php
