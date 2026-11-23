@@ -6,6 +6,8 @@ use App\Models\Identity\Users\Student;
 use App\Models\Setting\EducationalSettings\Grade;
 use App\Models\Setting\YearSettings\ScolarYear;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -56,6 +58,17 @@ class StudentEnrollment extends Model
     public function year(): BelongsTo
     {
         return $this->belongsTo(ScolarYear::class, 'year_id');
+    }
+
+    /**
+     * Matrícula vigente de un estudiante con cuenta activa. Es el filtro
+     * canónico para los listados de gradebook, asistencia y recuperaciones.
+     */
+    #[Scope]
+    protected function active(Builder $query): void
+    {
+        $query->where($this->qualifyColumn('status'), 'active')
+            ->whereHas('student.user', fn (Builder $query): Builder => $query->where('users.status', 1));
     }
 
     public function isActive(): bool

@@ -28,7 +28,23 @@ final class GradebookCache
      */
     public function key(int $yearId, int $subjectId, int $gradeId, int $teacherId, int $trimesterId): string
     {
-        return "gradebook:{$yearId}:{$subjectId}:{$gradeId}:{$teacherId}:{$trimesterId}";
+        $version = (int) Cache::get($this->versionKey($yearId, $gradeId), 0);
+
+        return "gradebook:{$version}:{$yearId}:{$subjectId}:{$gradeId}:{$teacherId}:{$trimesterId}";
+    }
+
+    /**
+     * Invalida de un solo salto todas las clases de un grado/año (por ejemplo,
+     * cuando cambia la lista de estudiantes activos).
+     */
+    public function invalidateForGrade(int $yearId, int $gradeId): void
+    {
+        Cache::increment($this->versionKey($yearId, $gradeId));
+    }
+
+    private function versionKey(int $yearId, int $gradeId): string
+    {
+        return "gradebook:version:{$yearId}:{$gradeId}";
     }
 
     /**

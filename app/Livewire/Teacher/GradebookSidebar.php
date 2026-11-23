@@ -104,7 +104,8 @@ class GradebookSidebar extends Component
             return collect();
         }
 
-        $studentIds = StudentEnrollment::where('grade_id', $this->selectedGradeId)
+        $studentIds = StudentEnrollment::active()
+            ->where('grade_id', $this->selectedGradeId)
             ->where('year_id', $this->yearId)
             ->pluck('student_id')
             ->toArray();

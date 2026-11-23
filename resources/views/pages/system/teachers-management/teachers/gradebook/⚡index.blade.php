@@ -201,7 +201,8 @@ new #[Title('Libro de Calificaciones')] class extends Component {
         if (!$this->selectedGradeId) {
             return [];
         }
-        return \App\Models\Management\Enrollments\StudentEnrollment::where('grade_id', $this->selectedGradeId)
+        return \App\Models\Management\Enrollments\StudentEnrollment::active()
+            ->where('grade_id', $this->selectedGradeId)
             ->where('year_id', $this->yearId)
             ->pluck('student_id')
             ->toArray();
@@ -294,7 +295,7 @@ new #[Title('Libro de Calificaciones')] class extends Component {
         if (!$this->selectedGradeId || !$this->selectedSubjectId) {
             return collect();
         }
-        return Student::whereHas('enrollments', fn ($q) => $q->where('grade_id', $this->selectedGradeId)->where('year_id', $this->yearId))
+        return Student::activeEnrollment((int) $this->selectedGradeId, (int) $this->yearId)
             ->with('user')
             ->orderBy(\App\Models\User::select('lastname')->whereColumn('users.id', 'students.user_id'))
             ->paginate(50);
@@ -627,12 +628,18 @@ new #[Title('Libro de Calificaciones')] class extends Component {
             Flux::toast(variant: 'danger', text: __('No se pueden crear o editar actividades. El período de calificación está cerrado.'));
             return;
         }
+        $dateRules = ['required', 'date'];
+
+        if (!$this->editingActivityId) {
+            $dateRules[] = 'after_or_equal:today';
+        }
+
         $this->validate([
             'activityForm.name' => 'required|string|max:255',
             'activityForm.topic' => 'required|string|max:255',
             'activityForm.description' => 'nullable|string|max:1000',
             'activityForm.date' => [
-                'required', 'date', 'after_or_equal:today',
+                ...$dateRules,
                 function ($attribute, $value, $fail) {
                     $date = \Carbon\Carbon::parse($value);
                     if ($date->isWeekend()) {
@@ -641,6 +648,8 @@ new #[Title('Libro de Calificaciones')] class extends Component {
                 },
             ],
             'activityForm.max_score' => 'required|numeric|min:0.01|max:999.99',
+        ], [
+            'activityForm.date.after_or_equal' => 'La fecha debe ser hoy o en el futuro.',
         ]);
         $data = [
             'assessment_block_id' => $this->activityBlockId,
@@ -725,7 +734,8 @@ new #[Title('Libro de Calificaciones')] class extends Component {
             $pdfCache->invalidateForSubjectGrade((int) $block->subject_id, (int) $block->grade_id);
             $pdfCache->invalidateForTeacher((int) $block->teacher_id);
             $pdfCache->invalidateForStudent((int) $studentId);
-            $enrolledIds = \App\Models\Management\Enrollments\StudentEnrollment::where('grade_id', $block->grade_id)
+            $enrolledIds = \App\Models\Management\Enrollments\StudentEnrollment::active()
+                ->where('grade_id', $block->grade_id)
                 ->where('year_id', $block->year_id)->pluck('student_id')->toArray();
             $allGrades = ActivityGrade::where('activity_id', $activityId)
                 ->whereIn('student_id', $enrolledIds)->get()->keyBy('student_id');
@@ -1109,7 +1119,8 @@ new #[Title('Libro de Calificaciones')] class extends Component {
         if (!$this->selectedGradeId) {
             return 0;
         }
-        return \App\Models\Management\Enrollments\StudentEnrollment::where('grade_id', $this->selectedGradeId)
+        return \App\Models\Management\Enrollments\StudentEnrollment::active()
+            ->where('grade_id', $this->selectedGradeId)
             ->where('year_id', $this->yearId)->count();
     }
 
