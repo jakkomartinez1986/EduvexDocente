@@ -312,6 +312,8 @@ test('asistencia agrupa las inasistencias por asignatura hoy y en la semana', fu
 
 test('el mensaje de inasistencia incluye el dia y las asignaturas y preselecciona motivos', function () {
     Carbon::setTestNow(Carbon::parse('2026-08-19 10:00:00'));
+    $previousLocale = Carbon::getLocale();
+    Carbon::setLocale('en');
 
     try {
         $ctx = seedIncidentsSchoolContext();
@@ -370,6 +372,7 @@ test('el mensaje de inasistencia incluye el dia y las asignaturas y preseleccion
         expect($fresh->notifForm['motives'])->toContain('Inasistencia')
             ->and($fresh->notifForm['type'])->toBe('asistencia');
     } finally {
+        Carbon::setLocale($previousLocale);
         Carbon::setTestNow();
     }
 });
