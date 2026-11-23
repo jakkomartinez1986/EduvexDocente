@@ -41,7 +41,7 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <flux:input wire:model="activityForm.date" type="date" label="{{ __('Fecha') }}" min="{{ \Carbon\Carbon::today()->format('Y-m-d') }}" />
+                        <flux:input wire:model="activityForm.date" type="date" label="{{ __('Fecha') }}" :min="$this->editingActivityId ? null : \Carbon\Carbon::today()->format('Y-m-d')" />
                         @error('activityForm.date') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
                     <flux:input wire:model="activityForm.max_score" type="number" min="0" step="0.1" label="{{ __('Nota Maxima') }}" />

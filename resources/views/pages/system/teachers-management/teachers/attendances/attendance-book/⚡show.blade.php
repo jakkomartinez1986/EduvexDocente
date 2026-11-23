@@ -45,7 +45,8 @@ new #[Title('Detalle de Asistencia')] class extends Component {
             ->first()
             ?->toArray();
 
-        $studentIds = StudentEnrollment::where('grade_id', $this->schedule['grade_id'])
+        $studentIds = StudentEnrollment::active()
+            ->where('grade_id', $this->schedule['grade_id'])
             ->where('year_id', $this->schedule['year_id'])
             ->pluck('student_id')
             ->toArray();

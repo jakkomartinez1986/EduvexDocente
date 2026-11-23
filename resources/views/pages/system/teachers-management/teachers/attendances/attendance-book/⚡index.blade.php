@@ -122,7 +122,8 @@ new #[Title('Libro de Asistencias')] class extends Component {
 
         $this->attendanceDates = $attendances->keys()->sort()->values()->toArray();
 
-        $studentIds = StudentEnrollment::where('grade_id', $this->selectedGradeId)
+        $studentIds = StudentEnrollment::active()
+            ->where('grade_id', $this->selectedGradeId)
             ->where('year_id', $this->yearId)
             ->pluck('student_id')
             ->toArray();

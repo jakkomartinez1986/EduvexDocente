@@ -93,10 +93,16 @@ final class AttendanceSummariesRebuilder
             ->get(['student_id', 'status'])
             ->groupBy('student_id');
 
-        $studentIds = StudentEnrollment::query()
+        $studentIds = StudentEnrollment::active()
             ->where('year_id', $yearId)
             ->where('grade_id', $gradeId)
             ->pluck('student_id');
+
+        AttendanceSummary::query()
+            ->where('year_id', $yearId)
+            ->where('grade_id', $gradeId)
+            ->whereNotIn('student_id', $studentIds)
+            ->delete();
 
         foreach ($studentIds as $studentId) {
             $this->upsertStudent(
