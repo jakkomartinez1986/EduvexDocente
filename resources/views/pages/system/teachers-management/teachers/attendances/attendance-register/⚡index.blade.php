@@ -222,10 +222,8 @@ new #[Title('Registro de Asistencia')] class extends Component {
             return;
         }
 
-        $students = Student::whereHas('enrollments', function ($q) {
-            $q->where('grade_id', $this->selectedGradeId)
-              ->where('year_id', $this->yearId);
-        })->with('user')->get();
+        $students = Student::activeEnrollment((int) $this->selectedGradeId, (int) $this->yearId)
+            ->with('user')->get();
 
         $existing = Attendance::where('class_schedule_id', $this->selectedScheduleId)
             ->where('date', $this->attendanceDate)

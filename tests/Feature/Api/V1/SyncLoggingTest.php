@@ -95,7 +95,18 @@ it('registra volumen y duracion del pull en sync.pull', function (): void {
 });
 
 it('responde 413 con envelope estandar si el cuerpo excede post_max_size', function (): void {
-    $this->withServerVariables(['CONTENT_LENGTH' => (string) (6 * 1024 * 1024)]);
+    $postMaxSize = (string) ini_get('post_max_size');
+    $metric = strtoupper(substr($postMaxSize, -1));
+    $maxBytes = is_numeric($postMaxSize)
+        ? (int) $postMaxSize
+        : (int) $postMaxSize * match ($metric) {
+            'K' => 1024,
+            'M' => 1048576,
+            'G' => 1073741824,
+            default => 1,
+        };
+
+    $this->withServerVariables(['CONTENT_LENGTH' => (string) ($maxBytes + 1)]);
 
     $response = $this->postJson('/api/v1/sync/push', ['device_id' => (string) Str::uuid()]);
 

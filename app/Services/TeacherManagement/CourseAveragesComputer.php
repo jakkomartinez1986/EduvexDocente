@@ -36,7 +36,7 @@ final class CourseAveragesComputer
         ?GradingScheme $gradingScheme,
         ?array $studentIds = null,
     ): array {
-        $studentIds ??= StudentEnrollment::query()
+        $studentIds ??= StudentEnrollment::active()
             ->where('year_id', $yearId)
             ->where('grade_id', $gradeId)
             ->pluck('student_id')

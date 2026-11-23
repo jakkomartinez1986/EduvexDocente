@@ -39,7 +39,7 @@ class SyncHomeworkPendingForActivity implements ShouldQueue
 
         $block = $activity->assessmentBlock;
 
-        $enrolledIds = StudentEnrollment::query()
+        $enrolledIds = StudentEnrollment::active()
             ->where('grade_id', $block->grade_id)
             ->where('year_id', $block->year_id)
             ->pluck('student_id')

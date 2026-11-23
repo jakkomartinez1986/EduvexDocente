@@ -215,6 +215,54 @@ it('saveActivity invalida los agregados de la clase y despacha el recálculo', f
     expect($aggregates['formative'][$studentId])->toBe(4.5);
 });
 
+it('permite actualizar una actividad con una fecha pasada', function (): void {
+    $context = gradebookSfcContext();
+    $pastDate = '2020-01-06';
+    Activity::query()->findOrFail($context['activity']->id)->update(['date' => $pastDate]);
+
+    $component = Livewire::actingAs($context['teacher']->user)
+        ->test('pages::system.teachers-management.teachers.gradebook.index')
+        ->assertOk()
+        ->call('openEditActivity', (int) $context['block']->id, (int) $context['activity']->id)
+        ->assertSet('editingActivityId', (int) $context['activity']->id)
+        ->assertSet('activityForm.date', $pastDate);
+
+    expect($component->html())->not->toContain('min="'.Carbon::today()->format('Y-m-d').'"');
+
+    $component->set('activityForm', [
+        'name' => 'Actividad editada',
+        'topic' => 'Tema editado',
+        'description' => '',
+        'date' => $pastDate,
+        'max_score' => 10,
+    ])
+        ->call('saveActivity')
+        ->assertHasNoErrors();
+
+    expect($context['activity']->fresh()->name)->toBe('Actividad editada')
+        ->and($context['activity']->fresh()->date->toDateString())->toBe($pastDate);
+});
+
+it('sigue exigiendo fecha actual o futura al crear una actividad', function (): void {
+    $context = gradebookSfcContext();
+
+    Livewire::actingAs($context['teacher']->user)
+        ->test('pages::system.teachers-management.teachers.gradebook.index')
+        ->assertOk()
+        ->call('openCreateActivity', (int) $context['block']->id)
+        ->set('activityForm', [
+            'name' => 'Actividad pasada',
+            'topic' => 'Tema',
+            'description' => '',
+            'date' => '2020-01-06',
+            'max_score' => 10,
+        ])
+        ->call('saveActivity')
+        ->assertHasErrors('activityForm.date');
+
+    expect(Activity::query()->where('name', 'Actividad pasada')->exists())->toBeFalse();
+});
+
 it('saveBlock invalida los agregados de la clase y despacha el recálculo', function (): void {
     Bus::fake();
     Cache::flush();

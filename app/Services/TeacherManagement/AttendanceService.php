@@ -23,10 +23,8 @@ final class AttendanceService
     {
         $schedule = ClassSchedule::with('grade')->findOrFail($scheduleId);
 
-        $students = Student::whereHas('enrollments', function ($q) use ($schedule, $yearId) {
-            $q->where('grade_id', $schedule->grade_id)
-                ->where('year_id', $yearId);
-        })->with('user')->get();
+        $students = Student::activeEnrollment((int) $schedule->grade_id, $yearId)
+            ->with('user')->get();
 
         return $students->map(fn ($s) => [
             'id' => $s->id,
@@ -68,9 +66,9 @@ final class AttendanceService
     {
         $schedule = ClassSchedule::with('grade')->findOrFail($scheduleId);
 
-        $enrollments = StudentEnrollment::where('grade_id', $schedule->grade_id)
+        $enrollments = StudentEnrollment::active()
+            ->where('grade_id', $schedule->grade_id)
             ->where('year_id', $yearId)
-            ->where('status', 'active')
             ->with('student.user')
             ->get();
 

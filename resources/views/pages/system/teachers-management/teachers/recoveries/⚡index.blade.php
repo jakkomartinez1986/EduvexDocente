@@ -335,9 +335,9 @@ new #[Title('Recuperaciones')] class extends Component {
             return collect();
         }
 
-        $studentIds = StudentEnrollment::where('grade_id', $this->selectedGradeId)
+        $studentIds = StudentEnrollment::active()
+            ->where('grade_id', $this->selectedGradeId)
             ->where('year_id', $this->yearId)
-            ->where('status', 'active')
             ->pluck('student_id');
 
         $examGrades = StudentExam::where('year_id', $this->yearId)
@@ -395,9 +395,9 @@ new #[Title('Recuperaciones')] class extends Component {
             return collect();
         }
 
-        $studentIds = StudentEnrollment::where('grade_id', $this->selectedGradeId)
+        $studentIds = StudentEnrollment::active()
+            ->where('grade_id', $this->selectedGradeId)
             ->where('year_id', $this->yearId)
-            ->where('status', 'active')
             ->pluck('student_id');
 
         $grades = ActivityGrade::where('activity_id', $this->selectedActivityId)
@@ -750,10 +750,10 @@ new #[Title('Recuperaciones')] class extends Component {
             return false;
         }
 
-        return StudentEnrollment::where('student_id', $studentId)
+        return StudentEnrollment::active()
+            ->where('student_id', $studentId)
             ->where('grade_id', $gradeId)
             ->where('year_id', $this->yearId)
-            ->where('status', 'active')
             ->exists();
     }
 
