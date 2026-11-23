@@ -196,7 +196,7 @@ final class AttendanceSummaryService
      */
     private function students(int $yearId, Collection $gradeIds): Collection
     {
-        $studentIds = StudentEnrollment::query()
+        $studentIds = StudentEnrollment::active()
             ->where('year_id', $yearId)
             ->whereIn('grade_id', $gradeIds)
             ->pluck('student_id')

@@ -64,7 +64,7 @@ final class GradebookService
                 ->orderBy(User::select('name')->whereColumn('users.id', 'students.user_id'))
                 ->get();
 
-        $enrollments = StudentEnrollment::query()
+        $enrollments = StudentEnrollment::active()
             ->where('year_id', $yearId)
             ->where('grade_id', (int) $validated['grade_id'])
             ->whereIn('student_id', $studentIds)
@@ -189,7 +189,7 @@ final class GradebookService
      */
     private function enrolledStudentIds(int $yearId, int $gradeId): Collection
     {
-        return StudentEnrollment::query()
+        return StudentEnrollment::active()
             ->where('year_id', $yearId)
             ->where('grade_id', $gradeId)
             ->pluck('student_id')
