@@ -429,7 +429,7 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
 
         $lines[] = 'Detalle por día y asignatura:';
         foreach ($absences->groupBy(fn ($a) => $a->date->toDateString()) as $date => $dayAbsences) {
-            $weekday = ucfirst(Carbon::parse($date)->isoFormat('dddd DD/MM/YYYY'));
+            $weekday = ucfirst(Carbon::parse($date)->locale('es')->isoFormat('dddd DD/MM/YYYY'));
             $lines[] = '  - '.$weekday.':';
             $bySubject = $dayAbsences->groupBy(fn ($a) => $a->classSchedule?->subject?->subject_name ?? 'General')
                 ->map->count()
@@ -444,7 +444,7 @@ new #[Title('Libro de Incidencias de Tutoría')] class extends Component
         if (count($consecutiveDates) >= 2) {
             $lines[] = 'Inasistencias consecutivas detectadas: '.count($consecutiveDates).' dias';
             foreach ($consecutiveDates as $cd) {
-                $lines[] = '  - '.Carbon::parse($cd)->isoFormat('dddd DD/MM/YYYY');
+                $lines[] = '  - '.Carbon::parse($cd)->locale('es')->isoFormat('dddd DD/MM/YYYY');
             }
             $lines[] = '';
         }
